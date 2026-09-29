@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: repete-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app_db
+    ports:
+      - "55432:5432"
+    volumes:
+      - repete-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d app_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  repete-postgres-data:
