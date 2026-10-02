@@ -11,15 +11,16 @@ export class ApiClientError extends Error {
 export async function api<T = unknown>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers as Record<string, string> | undefined),
-    },
+    headers: (() => {
+      const headers = new Headers(init?.headers);
+      if (!(init?.body instanceof FormData) && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+      return headers;
+    })(),
     credentials: "same-origin",
   });
   if (res.status === 401 && typeof window !== "undefined") {
     const p = window.location.pathname;
-    if (!p.startsWith("/entrar") && !p.startsWith("/cadastro")) {
+    if (p.startsWith("/app")) {
       window.location.href = "/entrar";
     }
     throw new ApiClientError(401, "Sessão expirada. Entre novamente.");
@@ -35,9 +36,17 @@ export function formatDuration(sec: number): string {
   return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 }
 
+export function clearQuizDrafts(): void {
+  try {
+    for (const key of Object.keys(sessionStorage)) {
+      if (key.startsWith("aprova:quiz:")) sessionStorage.removeItem(key);
+    }
+  } catch { /* Storage may be unavailable. */ }
+}
+
 export function formatDate(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) +
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", timeZone: "America/Sao_Paulo" }) +
     " · " +
-    d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 }

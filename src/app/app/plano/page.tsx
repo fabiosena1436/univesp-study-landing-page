@@ -9,6 +9,7 @@ import { toast } from "@/components/AppShell";
 import type { ReviewQuestion, StudyPlan } from "@/lib/types";
 
 export default function PlanoPage() {
+  const [error, setError] = useState("");
   const [plan, setPlan] = useState<StudyPlan | null>(null);
   const [active, setActive] = useState<ReviewQuestion | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -23,9 +24,7 @@ export default function PlanoPage() {
         setPlan(next);
         setActive(next.due[0] ?? null);
       })
-      .catch(() => {
-        if (alive) setPlan({ due: [], dueCount: 0, totalTracked: 0, masteredCount: 0, reviewedToday: 0 });
-      });
+      .catch((e) => { if (alive) setError(e instanceof Error ? e.message : "Não foi possível carregar o plano."); });
     return () => {
       alive = false;
     };
@@ -44,8 +43,12 @@ export default function PlanoPage() {
         body: JSON.stringify({ questionId: active.id, rating }),
       });
       const next = plan?.due.filter((q) => q.id !== active.id) ?? [];
-      setPlan((p) => p ? { ...p, due: next, dueCount: next.length, reviewedToday: p.reviewedToday + 1 } : p);
+      setPlan((p) => p ? { ...p, due: next, dueCount: Math.max(0, p.dueCount - 1), reviewedToday: p.reviewedToday + 1 } : p);
       setActive(next[0] ?? null);
+      if (!next.length) {
+        const refreshed = await api<StudyPlan>("/api/study/review");
+        setPlan(refreshed); setActive(refreshed.due[0] ?? null);
+      }
       setSelected(null);
       setChecked(false);
       toast(rating === "hard" ? "Vamos revisar amanhã." : "Revisão programada com sucesso.");
@@ -56,6 +59,7 @@ export default function PlanoPage() {
     }
   }
 
+  if (error) return <div role="alert" className="card p-6"><p>{error}</p><Button className="mt-4" onClick={() => window.location.reload()}>Tentar novamente</Button></div>;
   if (!plan) return <div className="card p-10 grid place-items-center text-muted"><Spinner size={24} /></div>;
 
   const correct = selected === active?.correctKey;
@@ -87,7 +91,7 @@ export default function PlanoPage() {
           <h2 className="font-display text-xl font-semibold leading-relaxed">{active.statement}</h2>
           <div className="mt-5 space-y-2">
             {active.options.map((option) => (
-              <button key={option.key} onClick={() => choose(option.key)} className={`w-full text-left rounded-xl border px-4 py-3 flex gap-3 transition-colors cursor-pointer ${selected === option.key ? "border-pen bg-pen-soft" : "border-line bg-surface hover:border-line-strong"}`}>
+              <button aria-pressed={selected === option.key} disabled={checked} key={option.key} onClick={() => choose(option.key)} className={`w-full text-left rounded-xl border px-4 py-3 flex gap-3 transition-colors cursor-pointer ${selected === option.key ? "border-pen bg-pen-soft" : "border-line bg-surface hover:border-line-strong"}`}>
                 <span className="font-bold">{option.key}</span><span>{option.text}</span>
               </button>
             ))}
@@ -103,7 +107,7 @@ export default function PlanoPage() {
                 <div className="flex flex-wrap gap-2">
                   <Button variant="ghost" disabled={saving} onClick={() => rate("hard")}>Difícil · amanhã</Button>
                   <Button disabled={saving} onClick={() => rate("good")}>Bom · em alguns dias</Button>
-                  <Button variant="soft" disabled={saving} onClick={() => rate("easy")}><Sparkles size={15} /> Fácil · em 1 semana</Button>
+                  <Button variant="soft" disabled={saving} onClick={() => rate("easy")}><Sparkles size={15} /> Fácil · ampliar intervalo</Button>
                 </div>
               </div>
             </div>

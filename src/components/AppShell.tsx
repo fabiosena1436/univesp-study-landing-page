@@ -24,7 +24,7 @@ import {
   BrainCircuit,
   Layers3,
 } from "lucide-react";
-import { api } from "@/lib/api";
+import { api, clearQuizDrafts } from "@/lib/api";
 import type { Subject, User } from "@/lib/types";
 import { Logo } from "./Logo";
 import { Spinner } from "./ui";
@@ -33,6 +33,7 @@ type Ctx = {
   user: User;
   subjects: Subject[];
   refreshSubjects: () => void;
+  updateUser: (user: User) => void;
 };
 
 const AppContext = createContext<Ctx | null>(null);
@@ -54,8 +55,8 @@ const NAV = [
   { href: "/app/historico", label: "Histórico", icon: History, exact: false },
 ];
 
-export default function AppShell({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+export default function AppShell({ children, initialUser }: { children: ReactNode; initialUser: User }) {
+  const [user, setUser] = useState<User>(initialUser);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const router = useRouter();
   const pathname = usePathname();
@@ -64,22 +65,15 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const refreshSubjects = useCallback(() => {
     api<Subject[]>("/api/subjects")
       .then(setSubjects)
-      .catch(() => {});
+      .catch(() => toast("Não foi possível carregar as matérias. Atualize a página para tentar novamente.", "err"));
   }, []);
 
   useEffect(() => {
-    api<{ user: User }>("/api/auth/me")
-      .then((d) => {
-        setUser(d.user);
-        refreshSubjects();
-      })
-      .catch(() => {
-        if (!location.pathname.startsWith("/entrar")) router.replace("/entrar");
-      });
+    refreshSubjects();
     const onRefresh = () => refreshSubjects();
     window.addEventListener("repete:subjects", onRefresh);
     return () => window.removeEventListener("repete:subjects", onRefresh);
-  }, [refreshSubjects, router]);
+  }, [refreshSubjects]);
 
   if (!user) {
     return (
@@ -122,7 +116,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   );
 
   return (
-    <AppContext.Provider value={{ user, subjects, refreshSubjects }}>
+    <AppContext.Provider value={{ user, subjects, refreshSubjects, updateUser: setUser }}>
       <div className="min-h-screen app-shell-bg">
         <header className="app-header sticky top-0 z-40 border-b backdrop-blur-xl">
           <div className="max-w-[1480px] mx-auto px-4 md:px-8 h-[72px] flex items-center gap-5">
@@ -139,9 +133,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
               </span>
               <button
                 onClick={() =>
-                  api("/api/auth/logout", { method: "POST" }).catch(() => {}).finally(() =>
-                  router.replace("/entrar"),
-                )
+                  api("/api/auth/logout", { method: "POST" }).then(() => { clearQuizDrafts(); router.replace("/entrar"); router.refresh(); }).catch(() => toast("Não foi possível sair. Tente novamente.", "err"))
               }
                 title="Sair"
                 className="p-2 rounded-lg text-white/65 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
@@ -247,9 +239,10 @@ function useToastsShell() {
     return () => window.removeEventListener("repete:toast", on);
   }, []);
   return (
-    <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[70] space-y-2 w-[calc(100%-2rem)] max-w-sm pointer-events-none">
+    <div aria-live="polite" aria-atomic="false" className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[70] space-y-2 w-[calc(100%-2rem)] max-w-sm pointer-events-none">
       {items.map((t) => (
         <div
+          role={t.tone === "err" ? "alert" : "status"}
           key={t.id}
           className={`anim-pop rounded-xl px-4 py-3 text-sm font-semibold shadow-xl ${
             t.tone === "ok" ? "bg-ink text-paper" : "bg-red text-white"

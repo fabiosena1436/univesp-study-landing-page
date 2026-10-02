@@ -21,6 +21,8 @@ import type { GenerateResponse, MaterialDetail, MaterialRow, ParsedQuestion } fr
 export default function MateriaisPage() {
   const { user, subjects, refreshSubjects } = useApp();
 
+  const [page, setPage] = useState(0);
+  const [error, setError] = useState("");
   const [list, setList] = useState<MaterialRow[] | null>(null);
   const [subjectId, setSubjectId] = useState("");
   const [newSubject, setNewSubject] = useState("");
@@ -38,10 +40,10 @@ export default function MateriaisPage() {
   const [saving, setSaving] = useState(false);
 
   const loadList = useCallback(() => {
-    api<MaterialRow[]>("/api/materials")
-      .then(setList)
-      .catch(() => setList([]));
-  }, []);
+    api<MaterialRow[]>(`/api/materials?limit=50&offset=${page * 50}`)
+      .then((rows) => { setError(""); setList(rows); })
+      .catch((e) => setError(e instanceof Error ? e.message : "Não foi possível carregar os materiais."));
+  }, [page]);
 
   useEffect(() => {
     loadList();
@@ -95,8 +97,8 @@ export default function MateriaisPage() {
       setActive(d);
       setGenerated([]);
       setGenNote(null);
-    } catch {
-      /* ignora */
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "O material foi salvo, mas não foi possível abrir seu conteúdo.", "err");
     }
   }
 
@@ -143,7 +145,7 @@ export default function MateriaisPage() {
       setGenNote(
         res.note ??
           (res.engine === "local"
-            ? "Gerado pelo motor local do site (grátis, sem chave de IA). Revise antes de salvar."
+            ? "Questões existentes extraídas do material. Revise antes de salvar."
             : "Gerado pela IA com o conteúdo da revisão. Revise antes de salvar."),
       );
       if (res.questions.length === 0) toast("Não consegui criar questões desse material.", "err");
@@ -192,7 +194,7 @@ export default function MateriaisPage() {
       }
       refreshSubjects();
       refreshSubjectsEvent();
-      toast("Material e questões dele foram removidos.");
+      toast("Material e suas questões foram arquivados. O histórico foi preservado.");
     } catch (e) {
       toast(e instanceof Error ? e.message : "Erro ao remover.", "err");
     }
@@ -200,17 +202,13 @@ export default function MateriaisPage() {
 
   const withAnswer = generated.filter((q) => q.correctKey).length;
 
-  if (!user.isAdmin) {
-    return <div className="card p-6"><h1 className="font-display text-2xl font-semibold">Conteúdo administrado</h1><p className="mt-2 text-ink-soft">Apenas o administrador pode adicionar materiais e gerar questões. Você já pode estudar o conteúdo publicado.</p></div>;
-  }
-
   return (
     <div className="space-y-6">
       <div className="anim-fade-up">
         <h1 className="font-display text-3xl font-semibold tracking-tight">Importar revisão</h1>
         <p className="mt-2 text-ink-soft max-w-2xl">
-          Cole um texto geral de aula, resumo ou apostila. A IA vai estudar o conteúdo
-          e criar questões novas de múltipla escolha para você revisar antes de salvar.
+          Envie texto ou PDF para extrair questões existentes. Com IA configurada,
+          você também pode criar rascunhos com trecho de origem para revisão antes de publicar.
         </p>
       </div>
 
@@ -221,7 +219,7 @@ export default function MateriaisPage() {
         </span>
         <div className="flex-1 min-w-52">
           <p className="text-sm font-semibold">
-            {engine === "gemini" ? "IA conectada (Gemini)" : "Motor local do site"}
+            {engine === "gemini" ? "IA conectada (Gemini)" : "Extração de questões existentes"}
           </p>
           <p className="text-xs text-muted leading-relaxed">
             {engine === "gemini"
@@ -230,7 +228,7 @@ export default function MateriaisPage() {
           </p>
         </div>
         <Badge tone={engine === "gemini" ? "pen" : "brand"}>
-          {engine === "gemini" ? "IA ativa" : "grátis · local"}
+          {engine === "gemini" ? "IA ativa" : "extração local"}
         </Badge>
       </div>
 
@@ -414,7 +412,7 @@ export default function MateriaisPage() {
       {/* lista de materiais */}
       <section>
         <h2 className="font-display text-xl font-semibold mb-3">Seus materiais</h2>
-        {list === null ? (
+        {error ? <p role="alert" className="text-red">{error}</p> : list === null ? (
           <div className="card p-8 grid place-items-center text-muted">
             <Spinner size={22} />
           </div>
@@ -426,6 +424,7 @@ export default function MateriaisPage() {
           />
         ) : (
           <div className="card divide-y divide-line">
+            {error && <p role="alert" className="text-red">{error}</p>}
             {list.map((m) => (
               <div key={m.id} className="flex items-center gap-4 px-5 py-4">
                 <span className="w-10 h-10 rounded-xl bg-brand border border-ink/10 grid place-items-center shrink-0">
@@ -444,19 +443,21 @@ export default function MateriaisPage() {
                   size="sm"
                   variant="soft"
                   onClick={async () => {
+                    try {
                     const d = await api<MaterialDetail>(`/api/materials/${m.id}`);
                     setActive(d);
                     setGenerated([]);
                     setGenNote(null);
                     setShowContent(false);
                     window.scrollTo({ top: 0, behavior: "smooth" });
+                    } catch (e) { toast(e instanceof Error ? e.message : "Não foi possível abrir o material.", "err"); }
                   }}
                 >
                   Gerar questões
                 </Button>
                 <button
                   onClick={() => removeMaterial(m.id)}
-                  title="Remover material e suas questões"
+                  title="Arquivar material e suas questões"
                   className="p-2 rounded-lg text-muted hover:text-red hover:bg-red-soft transition-colors cursor-pointer"
                 >
                   <Trash2 size={16} />
@@ -465,6 +466,7 @@ export default function MateriaisPage() {
             ))}
           </div>
         )}
+        {list !== null && (page > 0 || list.length >= 50) && <div className="flex gap-3 items-center mt-3"><Button variant="ghost" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>Anterior</Button><span>Página {page + 1}</span><Button variant="ghost" disabled={list.length < 50} onClick={() => setPage((p) => p + 1)}>Próxima</Button></div>}
       </section>
     </div>
   );

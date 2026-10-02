@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Brain, CheckCircle2, RotateCcw, Sparkles } from "lucide-react";
 import { useApp, toast } from "@/components/AppShell";
@@ -14,10 +14,13 @@ export default function FlashcardsPage() {
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [subjectId, setSubjectId] = useState("");
+  const ratingLock = useRef(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function load() {
-    setLoading(true);
+    setLoading(true); setError("");
     try {
       const query = subjectId ? `?subjectId=${encodeURIComponent(subjectId)}` : "";
       setCards(await api<Flashcard[]>(`/api/study/flashcards${query}`));
@@ -36,9 +39,7 @@ export default function FlashcardsPage() {
       .then((next) => {
         if (alive) setCards(next);
       })
-      .catch(() => {
-        if (alive) setCards([]);
-      });
+      .catch((e) => { if (alive) { setCards([]); setError(e instanceof Error ? e.message : "Não foi possível carregar os cartões."); } });
     return () => {
       alive = false;
     };
@@ -47,7 +48,8 @@ export default function FlashcardsPage() {
   const active = cards?.[index];
 
   async function rate(rating: "hard" | "good" | "easy") {
-    if (!active) return;
+    if (!active || ratingLock.current) return;
+    ratingLock.current = true; setSaving(true);
     try {
       await api("/api/study/review", {
         method: "POST",
@@ -62,7 +64,7 @@ export default function FlashcardsPage() {
       }
     } catch (e) {
       toast(e instanceof Error ? e.message : "Não foi possível salvar sua revisão.", "err");
-    }
+    } finally { ratingLock.current = false; setSaving(false); }
   }
 
   return (
@@ -72,17 +74,18 @@ export default function FlashcardsPage() {
         <p className="mt-2 text-ink-soft">Tente lembrar antes de revelar. Depois, avalie a dificuldade para programar sua próxima revisão.</p>
       </div>
       <div className="card p-4 flex flex-wrap items-center gap-3">
-        <label className="text-sm font-semibold">Matéria</label>
-        <Select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className="flex-1 min-w-48">
+        <label htmlFor="flashcard-subject" className="text-sm font-semibold">Matéria</label>
+        <Select id="flashcard-subject" value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className="flex-1 min-w-48">
           <option value="">Todas as matérias</option>
           {subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
         </Select>
         <Button variant="ghost" onClick={load} disabled={loading}><RotateCcw size={15} /> Nova sessão</Button>
       </div>
+      {error && <p role="alert" className="text-red">{error}</p>}
       {loading || cards === null ? (
         <div className="card p-12 grid place-items-center text-muted"><Spinner size={25} /></div>
       ) : !active ? (
-        <EmptyState icon={<CheckCircle2 size={22} />} title="Sessão concluída" desc="Você revisou todos os cartões desta sessão. Volte depois para praticar novamente." action={<Link href="/app/plano"><Button>Ver meu plano</Button></Link>} />
+        <EmptyState icon={<CheckCircle2 size={22} />} title="Nenhum cartão nesta sessão" desc="Se você concluiu a sessão, a revisão foi programada. Você também pode selecionar outra matéria e carregar uma nova sessão." action={<Link href="/app/plano"><Button>Ver meu plano</Button></Link>} />
       ) : (
         <>
           <div className="flex items-center justify-between text-xs text-muted">
@@ -100,17 +103,17 @@ export default function FlashcardsPage() {
             <div className="card p-5">
               <p className="text-sm font-semibold mb-3">Como foi?</p>
               <div className="flex flex-wrap gap-2">
-                <Button variant="ghost" onClick={() => rate("hard")}>Difícil</Button>
-                <Button onClick={() => rate("good")}>Bom</Button>
-                <Button variant="soft" onClick={() => rate("easy")}><Sparkles size={15} /> Fácil</Button>
+                <Button variant="ghost" disabled={saving} onClick={() => rate("hard")}>Difícil</Button>
+                <Button disabled={saving} onClick={() => rate("good")}>Bom</Button>
+                <Button disabled={saving} variant="soft" onClick={() => rate("easy")}><Sparkles size={15} /> Fácil</Button>
               </div>
             </div>
           ) : (
             <p className="text-center text-sm text-muted">A recuperação ativa ajuda a fixar melhor o conteúdo.</p>
           )}
           <div className="flex justify-between">
-            <Button variant="ghost" size="sm" disabled={index === 0} onClick={() => { setIndex((value) => value - 1); setFlipped(false); }}><ArrowLeft size={15} /> Anterior</Button>
-            <Button variant="ghost" size="sm" disabled={index + 1 >= cards.length} onClick={() => { setIndex((value) => value + 1); setFlipped(false); }}>Próximo <ArrowRight size={15} /></Button>
+            <Button variant="ghost" size="sm" disabled={saving || index === 0} onClick={() => { setIndex((value) => value - 1); setFlipped(false); }}><ArrowLeft size={15} /> Anterior</Button>
+            <Button variant="ghost" size="sm" disabled={saving || index + 1 >= cards.length} onClick={() => { setIndex((value) => value + 1); setFlipped(false); }}>Próximo <ArrowRight size={15} /></Button>
           </div>
         </>
       )}

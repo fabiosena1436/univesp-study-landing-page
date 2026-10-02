@@ -18,13 +18,13 @@ import { Logo } from "@/components/Logo";
 const STEPS = [
   {
     icon: ClipboardPaste,
-    title: "Cole a revisão",
-    desc: "Copie o texto direto da área de revisão da plataforma da faculdade — com alternativas, feedback e tudo — e jogue aqui.",
+    title: "Acesse o catálogo",
+    desc: "Crie sua conta, confirme o e-mail institucional e escolha uma das matérias publicadas pelos administradores.",
   },
   {
     icon: Sparkles,
-    title: "A gente organiza",
-    desc: "O motor de análise separa enunciado, alternativas, gabarito e explicação de cada questão. Você só confere e salva no banco.",
+    title: "Escolha seu treino",
+    desc: "Use questões revisadas, flashcards e sessões de revisão espaçada para praticar no seu ritmo.",
   },
   {
     icon: Target,
@@ -42,7 +42,7 @@ const FEATURES = [
   {
     icon: KeyRound,
     title: "Gabarito automático",
-    desc: "A alternativa certa é detectada a partir do feedback da própria revisão, sem você caçar letra.",
+    desc: "Questões com gabarito revisado para você conferir a resposta durante o treino.",
   },
   {
     icon: RotateCcw,
@@ -52,7 +52,7 @@ const FEATURES = [
   {
     icon: CheckCircle2,
     title: "Explicação em cada questão",
-    desc: "Acertou ou errou, você lê o porquê de cada alternativa antes de avançar.",
+    desc: "Confira o feedback disponível e informe ao administrador qualquer erro encontrado.",
   },
 ];
 
@@ -95,8 +95,7 @@ export default function Landing() {
               <span className="text-brand">Passe na prova.</span>
             </h1>
             <p className="mt-6 text-lg text-white/70 leading-relaxed max-w-lg">
-              Transforme qualquer revisão em um banco de questões inteligente. Importe,
-              pratique e acompanhe sua evolução em um só lugar.
+              Pratique com o catálogo de questões da faculdade, faça simulados e acompanhe sua evolução em um só lugar.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
@@ -115,7 +114,7 @@ export default function Landing() {
             <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm text-white/55">
               <span className="inline-flex items-center gap-1.5"><ShieldCheck size={15} /> Sem cartão</span>
               <span className="inline-flex items-center gap-1.5"><Zap size={15} /> Resultado rápido</span>
-              <span className="inline-flex items-center gap-1.5"><UploadCloud size={15} /> Importe em segundos</span>
+              <span className="inline-flex items-center gap-1.5"><UploadCloud size={15} /> Catálogo compartilhado</span>
             </div>
           </div>
 
@@ -126,7 +125,7 @@ export default function Landing() {
                 <div className="flex items-center justify-between border-b border-line pb-4">
                   <div className="flex items-center gap-2">
                     <span className="w-8 h-8 rounded-lg bg-pen text-white grid place-items-center"><BarChart3 size={16} /></span>
-                    <div><p className="text-xs text-muted">Painel de desempenho</p><p className="font-bold text-ink">Visão geral</p></div>
+                    <div><p className="text-xs text-muted">Exemplo de desempenho</p><p className="font-bold text-ink">Visão geral</p></div>
                   </div>
                   <span className="text-xs font-bold text-green bg-green-soft rounded-full px-2.5 py-1">+18% este mês</span>
                 </div>
@@ -207,7 +206,7 @@ export default function Landing() {
             Bora passar de <span className="marker-soft text-ink">primeira</span>?
           </h2>
           <p className="relative mt-4 text-paper/70 max-w-md mx-auto">
-            Crie a conta em 20 segundos e importe a primeira matéria da faculdade agora.
+            Confirme seu e-mail institucional e comece a praticar com as matérias disponíveis.
           </p>
           <Link
             href="/cadastro"
@@ -219,9 +218,9 @@ export default function Landing() {
       </section>
 
       <footer className="border-t border-line">
-        <div className="max-w-6xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between text-sm text-muted">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 min-h-16 py-4 flex flex-wrap gap-4 items-center justify-between text-sm text-muted">
           <Logo />
-          <p>Feito com carinho para o grupo da faculdade.</p>
+          <nav className="flex flex-wrap gap-3"><Link href="/privacidade" className="underline">Privacidade</Link><Link href="/termos" className="underline">Termos</Link></nav>
         </div>
       </footer>
     </div>

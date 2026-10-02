@@ -1,0 +1,9 @@
+.git
+.env*
+!.env.example
+backups
+artifacts
+tests
+.test-build
+.test-env.json
+docker-compose*.yml

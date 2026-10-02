@@ -44,6 +44,7 @@ export function EditableQuestion({
       <div className="mt-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted mb-1.5">Enunciado</p>
         <TextArea
+          aria-label={`Enunciado da questão ${index}`}
           rows={4}
           value={q.statement}
           onChange={(e) => set({ statement: e.target.value })}
@@ -77,6 +78,7 @@ export function EditableQuestion({
                   {o.key}
                 </span>
                 <TextArea
+                  aria-label={`Texto da alternativa ${o.key}`}
                   rows={2}
                   value={o.text}
                   onChange={(e) =>
@@ -94,7 +96,7 @@ export function EditableQuestion({
                         options: q.options
                           .filter((x) => x.key !== o.key)
                           .map((x, i) => ({ ...x, key: LETTERS[i] })),
-                        correctKey: q.correctKey === o.key ? null : q.correctKey,
+                        correctKey: q.correctKey === o.key ? null : LETTERS[q.options.filter((x) => x.key !== o.key).findIndex((x) => x.key === q.correctKey)] ?? null,
                       })
                     }
                     className="p-1.5 mt-1 rounded-md text-muted hover:text-red hover:bg-red-soft transition-colors cursor-pointer"
@@ -122,11 +124,13 @@ export function EditableQuestion({
         )}
       </div>
 
+      {q.sourceExcerpt && <blockquote className="mt-4 border-l-4 border-pen pl-3 text-sm text-ink-soft"><strong>Trecho de origem para conferência:</strong><p className="mt-1 whitespace-pre-line">{q.sourceExcerpt}</p></blockquote>}
       <details className="mt-4">
         <summary className="text-sm font-semibold text-ink-soft cursor-pointer hover:text-ink flex items-center gap-1.5">
           Explicação / feedback do sistema
         </summary>
         <TextArea
+          aria-label="Explicação da resposta"
           rows={5}
           className="mt-2"
           value={q.feedback}

@@ -18,7 +18,7 @@ const body = Instrument_Sans({
 export const metadata: Metadata = {
   title: "Aprova UNIVESP — Banco de questões",
   description:
-    "Cole a revisão da faculdade, a gente organiza as questões com gabarito e explicação, e você gera provas para treinar. Grátis para o grupo.",
+    "Estude com questões publicadas pelos administradores, simulados, flashcards e revisão espaçada. Histórico individual para alunos da UNIVESP.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

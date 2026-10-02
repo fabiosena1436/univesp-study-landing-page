@@ -18,15 +18,14 @@ export default function AuthShell({ children }: { children: ReactNode }) {
             <span>.</span>
           </h2>
           <p className="mt-5 text-paper/70 leading-relaxed">
-            Cole o texto da área de revisão da faculdade, a gente separa enunciado,
-            alternativas, gabarito e explicação — tudo pronto pra você treinar quando a
-            prova chegar.
+            Pratique com questões publicadas pelos administradores, faça simulados
+            e use flashcards para revisar o conteúdo. Seu progresso fica no seu histórico.
           </p>
           <ul className="mt-8 space-y-3.5">
             {[
-              { icon: Zap, t: "Gabarito e explicação extraídos na hora, sem digitar nada" },
-              { icon: ShieldCheck, t: "Cada um só vê o banco do próprio grupo" },
-              { icon: Wallet, t: "Grátis pra sempre — sem cartão, sem pegadinha" },
+              { icon: Zap, t: "Treinos com gabarito e feedback disponível" },
+              { icon: ShieldCheck, t: "Catálogo compartilhado e histórico individual" },
+              { icon: Wallet, t: "Acesso gratuito para alunos com e-mail confirmado" },
             ].map((f) => (
               <li key={f.t} className="flex items-start gap-3 text-sm text-paper/85">
                 <span className="w-8 h-8 shrink-0 rounded-lg bg-paper/10 grid place-items-center text-brand">

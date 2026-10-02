@@ -1,4 +1,4 @@
-import { randomBytes } from "crypto";
+import { createHash, randomBytes } from "crypto";
 import { cookies } from "next/headers";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
@@ -39,7 +39,7 @@ export function safeUser(u: {
 export async function createSession(userId: string) {
   const token = randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + SESSION_MS);
-  await db.insert(sessions).values({ userId, token, expiresAt });
+  await db.insert(sessions).values({ userId, token: hashSession(token), expiresAt });
   const store = await cookies();
   store.set(COOKIE, token, {
     httpOnly: true,
@@ -56,7 +56,7 @@ export async function destroySession() {
   store.delete(COOKIE);
   if (token) {
     try {
-      await db.delete(sessions).where(eq(sessions.token, token));
+      await db.delete(sessions).where(eq(sessions.token, hashSession(token)));
     } catch {
       // sessão já pode não existir; ignorar
     }
@@ -71,27 +71,26 @@ export async function getSessionUser(): Promise<User | null> {
     .select({ user: users, expiresAt: sessions.expiresAt })
     .from(sessions)
     .innerJoin(users, eq(sessions.userId, users.id))
-    .where(eq(sessions.token, token))
+    .where(eq(sessions.token, hashSession(token)))
     .limit(1);
   const row = rows[0];
   if (!row) return null;
   if (row.expiresAt.getTime() < Date.now()) {
     try {
-      await db.delete(sessions).where(eq(sessions.token, token));
+      await db.delete(sessions).where(eq(sessions.token, hashSession(token)));
     } catch {
       // ignore
     }
     return null;
   }
   const admin = await db.select({ userId: admins.userId }).from(admins).where(eq(admins.userId, row.user.id)).limit(1);
-  if (row.user.isBlocked) return null;
+  if (!row.user.emailVerifiedAt || row.user.isBlocked) return null;
   return safeUser({ ...row.user, isAdmin: Boolean(admin[0]) });
 }
 
 export async function requireAdmin(): Promise<User> {
   const user = await requireUser();
-  const admin = await db.select({ userId: admins.userId }).from(admins).where(eq(admins.userId, user.id)).limit(1);
-  if (!admin[0]) throw new ApiError(403, "Acesso restrito ao administrador.");
+  if (!user.isAdmin) throw new ApiError(403, "Acesso restrito ao administrador.");
   return { ...user, isAdmin: true };
 }
 
@@ -100,3 +99,5 @@ export async function requireUser(): Promise<User> {
   if (!user) throw new ApiError(401, "Você precisa estar logado para acessar isso.");
   return user;
 }
+
+export function hashSession(token: string) { return createHash("sha256").update(token).digest("hex"); }

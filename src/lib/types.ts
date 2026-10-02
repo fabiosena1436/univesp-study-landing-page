@@ -65,6 +65,7 @@ export type ParsedQuestion = {
   correctKey: string | null;
   feedback: string;
   warnings: string[];
+  sourceExcerpt?: string;
 };
 
 export type QuizQuestion = {

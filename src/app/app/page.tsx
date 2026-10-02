@@ -31,7 +31,7 @@ export default function DashboardPage() {
   useEffect(() => {
     api<AttemptRow[]>("/api/attempts")
       .then(setAttempts)
-      .catch(() => {})
+      .catch(() => toast("Não foi possível carregar seu desempenho. Atualize a página.", "err"))
       .finally(() => setLoading(false));
   }, []);
 
@@ -93,7 +93,7 @@ export default function DashboardPage() {
           { label: "Questões no banco", value: totalQ.toLocaleString("pt-BR") },
           { label: "Matérias", value: String(subjects.length) },
           { label: "Provas feitas", value: String(attempts.length) },
-          { label: "Média nas provas", value: avgPct === null ? "—" : `${avgPct}%` },
+          { label: "Média recente nas provas", value: avgPct === null ? "—" : `${avgPct}%` },
         ].map((m) => (
           <motion.div
             key={m.label}

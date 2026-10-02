@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   pgTable,
   uuid,
@@ -7,6 +8,8 @@ import {
   timestamp,
   boolean,
   index,
+  uniqueIndex,
+  check,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -17,6 +20,7 @@ export const users = pgTable("users", {
   passwordHash: text("password_hash").notNull(),
   isBlocked: boolean("is_blocked").notNull().default(false),
   lastLoginAt: timestamp("last_login_at"),
+  emailVerifiedAt: timestamp("email_verified_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -93,11 +97,11 @@ export const subjects = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+      .references(() => users.id, { onDelete: "set null" }),
     name: text("name").notNull(),
     color: text("color").notNull().default("#FFD43B"),
     description: text("description"),
+    archivedAt: timestamp("archived_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (t) => [index("idx_subjects_user").on(t.userId)],
@@ -108,8 +112,7 @@ export const materials = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+      .references(() => users.id, { onDelete: "set null" }),
     subjectId: uuid("subject_id")
       .notNull()
       .references(() => subjects.id, { onDelete: "cascade" }),
@@ -118,6 +121,7 @@ export const materials = pgTable(
     content: text("content").notNull(),
     pageCount: integer("page_count").notNull().default(0),
     charCount: integer("char_count").notNull().default(0),
+    archivedAt: timestamp("archived_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (t) => [
@@ -131,8 +135,7 @@ export const questions = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+      .references(() => users.id, { onDelete: "set null" }),
     subjectId: uuid("subject_id")
       .notNull()
       .references(() => subjects.id, { onDelete: "cascade" }),
@@ -144,12 +147,17 @@ export const questions = pgTable(
     options: jsonb("options").$type<{ key: string; text: string }[]>().notNull(),
     correctKey: text("correct_key"),
     feedback: text("feedback"),
+    sourceExcerpt: text("source_excerpt"),
+    fingerprint: text("fingerprint"),
+    archivedAt: timestamp("archived_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (t) => [
     index("idx_questions_user").on(t.userId),
     index("idx_questions_subject").on(t.subjectId),
     index("idx_questions_material").on(t.materialId),
+    uniqueIndex("idx_questions_fingerprint").on(t.subjectId, t.fingerprint),
+    check("questions_source_check", sql`${t.source} in ('revisao', 'material')`),
   ],
 );
 
@@ -164,11 +172,13 @@ export const attempts = pgTable(
       .notNull()
       .references(() => subjects.id, { onDelete: "cascade" }),
     total: integer("total").notNull(),
+    subjectName: text("subject_name").notNull(),
+    submissionId: uuid("submission_id").notNull(),
     correctCount: integer("correct_count").notNull(),
     durationSec: integer("duration_sec").notNull().default(0),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (t) => [index("idx_attempts_user").on(t.userId, t.createdAt)],
+  (t) => [index("idx_attempts_user").on(t.userId, t.createdAt), uniqueIndex("idx_attempts_submission").on(t.userId, t.submissionId), check("attempts_counts_check", sql`${t.total} > 0 and ${t.correctCount} >= 0 and ${t.correctCount} <= ${t.total} and ${t.durationSec} >= 0`)],
 );
 
 export const attemptAnswers = pgTable(
@@ -182,9 +192,11 @@ export const attemptAnswers = pgTable(
       .notNull()
       .references(() => questions.id, { onDelete: "cascade" }),
     selectedKey: text("selected_key"),
+    snapshot: jsonb("snapshot").$type<{ statement: string; options: { key: string; text: string }[]; correctKey: string | null; feedback: string | null }>().notNull(),
+    position: integer("position").notNull(),
     isCorrect: boolean("is_correct").notNull(),
   },
-  (t) => [index("idx_answers_attempt").on(t.attemptId)],
+  (t) => [index("idx_answers_attempt").on(t.attemptId), uniqueIndex("idx_answers_position").on(t.attemptId, t.position)],
 );
 
 export const studyProgress = pgTable(
@@ -208,5 +220,30 @@ export const studyProgress = pgTable(
   (t) => [
     index("idx_study_progress_user_due").on(t.userId, t.dueAt),
     index("idx_study_progress_question").on(t.questionId),
+    uniqueIndex("idx_study_progress_unique").on(t.userId, t.questionId),
+    check("study_counts_check", sql`${t.intervalDays} >= 0 and ${t.repetitions} >= 0 and ${t.correctCount} >= 0 and ${t.wrongCount} >= 0`),
   ],
 );
+
+export const emailVerificationTokens = pgTable("email_verification_tokens", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  tokenHash: text("token_hash").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [index("idx_verify_user").on(t.userId)]);
+
+export const rateLimits = pgTable("rate_limits", {
+  key: text("key").primaryKey(),
+  count: integer("count").notNull(),
+  resetAt: timestamp("reset_at", { withTimezone: true }).notNull(),
+});
+
+export const auditEvents = pgTable("audit_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
+  action: text("action").notNull(),
+  targetId: text("target_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [index("idx_audit_created").on(t.createdAt)]);

@@ -13,4 +13,8 @@ coverage/
 .DS_Store
 Thumbs.db
 
-drizzle/
+.test-build/
+.test-env.json
+artifacts/
+backups/
+.vercel/

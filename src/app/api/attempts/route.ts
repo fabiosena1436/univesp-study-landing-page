@@ -1,129 +1,60 @@
 import { NextRequest } from "next/server";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { attemptAnswers, attempts, questions, subjects, studyProgress } from "@/db/schema";
+import { attemptAnswers, attempts, questions, subjects } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { ApiError, handleError, str } from "@/lib/errors";
+import { gradeAnswers, pageParams, uuid } from "@/lib/validation";
+import { updateProgress } from "@/lib/study";
+import { rateLimit } from "@/lib/rateLimit";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const user = await requireUser();
-    const rows = await db
-      .select({
-        id: attempts.id,
-        subjectId: attempts.subjectId,
-        subjectName: subjects.name,
-        total: attempts.total,
-        correctCount: attempts.correctCount,
-        durationSec: attempts.durationSec,
-        createdAt: attempts.createdAt,
-      })
-      .from(attempts)
-      .innerJoin(subjects, eq(subjects.id, attempts.subjectId))
-      .where(eq(attempts.userId, user.id))
-      .orderBy(desc(attempts.createdAt))
-      .limit(100);
+    const { limit, offset } = pageParams(req.nextUrl.searchParams, 100);
+    const rows = await db.select({
+      id: attempts.id, subjectId: attempts.subjectId, subjectName: attempts.subjectName,
+      total: attempts.total, correctCount: attempts.correctCount, durationSec: attempts.durationSec,
+      createdAt: attempts.createdAt,
+    }).from(attempts).where(eq(attempts.userId, user.id))
+      .orderBy(desc(attempts.createdAt), desc(attempts.id)).limit(limit).offset(offset);
     return Response.json(rows);
-  } catch (e) {
-    return handleError(e);
-  }
+  } catch (e) { return handleError(e); }
 }
 
 export async function POST(req: NextRequest) {
   try {
     const user = await requireUser();
-    const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
-    const subjectId = str(body?.subjectId, 64);
-    const durationSec =
-      typeof body?.durationSec === "number" && Number.isFinite(body.durationSec)
-        ? Math.max(0, Math.min(86400, Math.floor(body.durationSec)))
-        : 0;
+    await rateLimit("attempt", user.id, 30, 60_000);
+    const body = await req.json().catch(() => null) as Record<string, unknown> | null;
+    const subjectId = uuid(str(body?.subjectId, 64));
+    const submissionId = uuid(str(body?.submissionId, 64), "Identificador da tentativa inválido.");
     const rawAnswers = Array.isArray(body?.answers) ? body.answers : [];
-
-    if (!subjectId) throw new ApiError(400, "Prova sem matéria.");
-    if (rawAnswers.length === 0 || rawAnswers.length > 200)
-      throw new ApiError(400, "Respostas inválidas.");
-
-    const sub = await db
-      .select({ id: subjects.id })
-      .from(subjects)
-      .where(eq(subjects.id, subjectId))
-      .limit(1);
-    if (!sub[0]) throw new ApiError(404, "Matéria não encontrada.");
-
-    // valida que as questões pertencem ao usuário
-    const qids = rawAnswers
-      .map((a) => str(((a ?? {}) as Record<string, unknown>).questionId, 64))
-      .filter(Boolean);
-    const owned = await db
-      .select({ id: questions.id })
-      .from(questions)
-      .where(inArray(questions.id, qids));
-    const ownedSet = new Set(owned.map((r) => r.id));
-
-    const answers = rawAnswers
-      .map((a) => {
-        const x = (a ?? {}) as Record<string, unknown>;
-        const questionId = str(x.questionId, 64);
-        return {
-          questionId,
-          selectedKey:
-            typeof x.selectedKey === "string" ? x.selectedKey.toUpperCase().slice(0, 1) : null,
-          isCorrect: Boolean(x.isCorrect),
-        };
-      })
-      .filter((a) => a.questionId && ownedSet.has(a.questionId));
-
-    if (answers.length === 0) throw new ApiError(400, "Nenhuma resposta válida registrada.");
-
-    const total = answers.length;
-    const correctCount = answers.filter((a) => a.isCorrect).length;
-
-    const attemptRows = await db
-      .insert(attempts)
-      .values({ userId: user.id, subjectId, total, correctCount, durationSec })
-      .returning();
-    const attempt = attemptRows[0];
-    if (!attempt) throw new ApiError(500, "Não foi possível salvar a prova.");
-
-    await db.insert(attemptAnswers).values(
-      answers.map((a) => ({
-        attemptId: attempt.id,
-        questionId: a.questionId,
-        selectedKey: a.selectedKey,
-        isCorrect: a.isCorrect,
-      })),
-    );
-
-    for (const answer of answers) {
-      const current = await db
-        .select()
-        .from(studyProgress)
-        .where(and(eq(studyProgress.userId, user.id), eq(studyProgress.questionId, answer.questionId)))
-        .limit(1);
-      const row = current[0];
-      const intervalDays = answer.isCorrect
-        ? Math.min(30, Math.max(3, row?.intervalDays ? Math.round(row.intervalDays * 2) : 3))
-        : 1;
-      const values = {
-        userId: user.id,
-        questionId: answer.questionId,
-        intervalDays,
-        repetitions: (row?.repetitions ?? 0) + 1,
-        correctCount: (row?.correctCount ?? 0) + (answer.isCorrect ? 1 : 0),
-        wrongCount: (row?.wrongCount ?? 0) + (answer.isCorrect ? 0 : 1),
-        dueAt: new Date(Date.now() + intervalDays * 24 * 60 * 60 * 1000),
-        lastReviewedAt: new Date(),
-      };
-      if (row) {
-        await db.update(studyProgress).set(values).where(eq(studyProgress.id, row.id));
-      } else {
-        await db.insert(studyProgress).values(values);
+    if (!rawAnswers.length || rawAnswers.length > 200) throw new ApiError(400, "Envie de 1 a 200 respostas.");
+    const qids = rawAnswers.map((a) => uuid(str((a as Record<string, unknown> | null)?.questionId, 64)));
+    const durationSec = typeof body?.durationSec === "number" && Number.isFinite(body.durationSec)
+      ? Math.max(0, Math.min(86400, Math.floor(body.durationSec))) : 0;
+    const result = await db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${user.id + submissionId}, 0))`);
+      const previous = (await tx.select().from(attempts).where(and(eq(attempts.userId, user.id), eq(attempts.submissionId, submissionId))).limit(1))[0];
+      if (previous) {
+        const savedAnswers = await tx.select({ questionId: attemptAnswers.questionId, selectedKey: attemptAnswers.selectedKey, isCorrect: attemptAnswers.isCorrect }).from(attemptAnswers).where(eq(attemptAnswers.attemptId, previous.id));
+        return { id: previous.id, total: previous.total, correctCount: previous.correctCount, answers: savedAnswers };
       }
-    }
-
-    return Response.json({ id: attempt.id, total, correctCount }, { status: 201 });
-  } catch (e) {
-    return handleError(e);
-  }
+      const sub = (await tx.select().from(subjects).where(and(eq(subjects.id, subjectId), isNull(subjects.archivedAt))).limit(1).for("share"))[0];
+      if (!sub) throw new ApiError(404, "Matéria não encontrada.");
+      const rows = await tx.select().from(questions).where(and(inArray(questions.id, qids), isNull(questions.archivedAt))).for("share");
+      const answers = gradeAnswers(rawAnswers, rows, subjectId);
+      const correctCount = answers.filter((a) => a.isCorrect).length;
+      const [attempt] = await tx.insert(attempts).values({ userId: user.id, subjectId, subjectName: sub.name, submissionId, total: answers.length, correctCount, durationSec }).returning();
+      const byId = new Map(rows.map((q) => [q.id, q]));
+      await tx.insert(attemptAnswers).values(answers.map((a, position) => {
+        const q = byId.get(a.questionId)!;
+        return { ...a, attemptId: attempt.id, position, snapshot: { statement: q.statement, options: q.options, correctKey: q.correctKey, feedback: q.feedback } };
+      }));
+      await updateProgress(tx, user.id, answers.map((a) => ({ questionId: a.questionId, rating: a.isCorrect ? "good" : "hard" })));
+      return { id: attempt.id, total: answers.length, correctCount, answers };
+    });
+    return Response.json(result, { status: 201 });
+  } catch (e) { return handleError(e); }
 }

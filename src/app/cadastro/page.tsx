@@ -2,14 +2,13 @@
 
 import { useState, FormEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import AuthShell from "@/components/AuthShell";
 import { api } from "@/lib/api";
 import { Button, Field, Input } from "@/components/ui";
 import { UNIVESP_STUDENT_EMAIL_RE } from "@/lib/constants";
 
 export default function CadastroPage() {
-  const router = useRouter();
+  const [message, setMessage] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [course, setCourse] = useState("");
@@ -31,11 +30,11 @@ export default function CadastroPage() {
     }
     setBusy(true);
     try {
-      await api("/api/auth/register", {
+      const result = await api<{ message: string }>("/api/auth/register", {
         method: "POST",
         body: JSON.stringify({ name, email, course, password }),
       });
-      router.replace("/app");
+      setMessage(result.message);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não foi possível criar a conta.");
     } finally {
@@ -47,8 +46,9 @@ export default function CadastroPage() {
     <AuthShell>
       <h1 className="font-display text-3xl font-semibold tracking-tight">Criar conta</h1>
       <p className="mt-2 text-sm text-muted">
-        Grátis, sem cartão. Seus dados ficam só com você.
+        Acesso ao catálogo compartilhado e histórico individual. Confirme seu e-mail institucional para entrar.
       </p>
+      {message && <p role="status" className="mt-5">{message} <Link href="/confirmar-email" className="text-pen underline">Solicitar confirmação</Link></p>}
       <form onSubmit={onSubmit} className="mt-7 space-y-4">
         <Field label="Seu nome">
           <Input
@@ -101,10 +101,11 @@ export default function CadastroPage() {
             {error}
           </p>
         )}
-        <Button type="submit" size="lg" className="w-full" disabled={busy}>
+        <Button type="submit" size="lg" className="w-full" disabled={busy || Boolean(message)}>
           {busy ? "Criando…" : "Criar conta grátis"}
         </Button>
       </form>
+      <p className="mt-4 text-xs text-muted">Ao criar uma conta, você concorda com os <Link href="/termos" className="underline">termos</Link> e conhece a <Link href="/privacidade" className="underline">política de privacidade</Link>.</p>
       <p className="mt-6 text-sm text-muted text-center">
         Já tem conta?{" "}
         <Link href="/entrar" className="text-pen font-semibold hover:underline">

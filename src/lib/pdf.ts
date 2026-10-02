@@ -8,13 +8,17 @@ export async function extractPdfText(
   const { extractText, getDocumentProxy } = await import("unpdf");
   const bytes = new Uint8Array(buffer);
   const pdf = await getDocumentProxy(bytes);
-  const { text, totalPages } = await extractText(pdf, { mergePages: true });
-  const merged = Array.isArray(text) ? text.join("\n") : text;
-  return { text: merged, pages: totalPages ?? 0 };
+  try {
+    if (pdf.numPages > 500) throw new Error("PDF exceeds 500 pages");
+    const { text, totalPages } = await extractText(pdf, { mergePages: true });
+    const merged = Array.isArray(text) ? text.join("\n") : text;
+    return { text: merged, pages: totalPages ?? 0 };
+  } finally { pdf.cleanup(); }
 }
 
 export function pdfValidationError(filename: string, type: string, size: number): string | null {
   if (size > MAX_BYTES) return "O PDF passa de 20 MB. Divida o arquivo e envie em partes.";
+  if (size === 0) return "O arquivo está vazio.";
   if (!ALLOWED_TYPES.includes(type) && !filename.toLowerCase().endsWith(".pdf"))
     return "Só aceito arquivo PDF por aqui.";
   return null;

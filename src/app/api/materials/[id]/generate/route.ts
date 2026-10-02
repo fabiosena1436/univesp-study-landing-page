@@ -1,27 +1,14 @@
 import { NextRequest } from "next/server";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { materials } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
+import { uuid } from "@/lib/validation";
+import { rateLimit } from "@/lib/rateLimit";
 import { activeEngine, generateQuestions } from "@/lib/ai";
 import { ApiError, handleError } from "@/lib/errors";
 
 type Params = { params: Promise<{ id: string }> };
-
-/* limite de uso: 20 gerações por minuto por usuário (protege a cota da IA) */
-const buckets = new Map<string, { count: number; resetAt: number }>();
-
-function tooMany(userId: string): boolean {
-  const now = Date.now();
-  const b = buckets.get(userId);
-  if (b && now < b.resetAt) {
-    if (b.count >= 20) return true;
-    b.count += 1;
-    return false;
-  }
-  buckets.set(userId, { count: 1, resetAt: now + 60_000 });
-  return false;
-}
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -34,8 +21,8 @@ export async function POST(req: NextRequest, { params }: Params) {
   try {
     const user = await requireAdmin();
     const { id } = await params;
-    if (tooMany(user.id))
-      throw new ApiError(429, "Calma lá! Espere um minutinho antes de gerar de novo.");
+    uuid(id);
+    await rateLimit("generation", user.id, 5, 60000);
 
     const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
     const count =
@@ -51,7 +38,7 @@ export async function POST(req: NextRequest, { params }: Params) {
         charCount: materials.charCount,
       })
       .from(materials)
-      .where(eq(materials.id, id))
+      .where(and(eq(materials.id, id), isNull(materials.archivedAt)))
       .limit(1);
     const material = rows[0];
     if (!material) throw new ApiError(404, "Material não encontrado.");
@@ -72,10 +59,11 @@ export async function POST(req: NextRequest, { params }: Params) {
         options: q.options,
         correctKey: q.correctKey,
         feedback: q.feedback,
+        sourceExcerpt: q.sourceExcerpt,
         warnings:
           q.correctKey === null
             ? ["Sem gabarito definido — marque a alternativa correta."]
-            : [],
+            : ["Confira o gabarito e o trecho de origem antes de publicar."],
       })),
     });
   } catch (e) {

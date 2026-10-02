@@ -1,11 +1,13 @@
 import { NextRequest } from "next/server";
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
+import { rateLimit } from "@/lib/rateLimit";
 import { parseReviewText } from "@/lib/parser";
 import { ApiError, handleError } from "@/lib/errors";
 
 export async function POST(req: NextRequest) {
   try {
-    await requireUser();
+    const user = await requireAdmin();
+    await rateLimit("parse", user.id, 20, 60000);
     const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
     const text = typeof body?.text === "string" ? body.text : "";
     if (!text.trim()) throw new ApiError(400, "Nada para analisar. Cole o texto primeiro.");

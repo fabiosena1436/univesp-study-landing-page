@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { materials } from "@/db/schema";
+import { materials, questions } from "@/db/schema";
+import { audit } from "@/lib/audit";
 import { requireAdmin, requireUser } from "@/lib/auth";
 import { ApiError, handleError, isUuid } from "@/lib/errors";
 
@@ -15,7 +16,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     const rows = await db
       .select()
       .from(materials)
-      .where(eq(materials.id, id))
+      .where(and(eq(materials.id, id), isNull(materials.archivedAt)))
       .limit(1);
     const m = rows[0];
     if (!m) throw new ApiError(404, "Material não encontrado.");
@@ -36,16 +37,21 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
   try {
-    await requireAdmin();
+    const user = await requireAdmin();
     const { id } = await params;
     if (!isUuid(id)) throw new ApiError(404, "Material não encontrado.");
     const rows = await db
       .select({ id: materials.id })
       .from(materials)
-      .where(eq(materials.id, id))
+      .where(and(eq(materials.id, id), isNull(materials.archivedAt)))
       .limit(1);
     if (!rows[0]) throw new ApiError(404, "Material não encontrado.");
-    await db.delete(materials).where(eq(materials.id, id));
+    await db.transaction(async (tx) => {
+      const archivedAt = new Date();
+      await tx.update(materials).set({ archivedAt }).where(eq(materials.id, id));
+      await tx.update(questions).set({ archivedAt, fingerprint: null }).where(eq(questions.materialId, id));
+      await audit(user.id, "material.archive", id, tx);
+    });
     return Response.json({ ok: true });
   } catch (e) {
     return handleError(e);

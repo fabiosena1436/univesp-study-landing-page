@@ -1,7 +1,9 @@
 import { NextRequest } from "next/server";
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { materials, questions, subjects } from "@/db/schema";
+import { audit } from "@/lib/audit";
+import { pageParams, uuid } from "@/lib/validation";
 import { requireAdmin, requireUser } from "@/lib/auth";
 import { ApiError, handleError, str } from "@/lib/errors";
 import { cleanExtractedText, extractPdfText, pdfValidationError } from "@/lib/pdf";
@@ -9,9 +11,10 @@ import { cleanExtractedText, extractPdfText, pdfValidationError } from "@/lib/pd
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     await requireUser();
+    const { limit, offset } = pageParams(req.nextUrl.searchParams);
     const rows = await db
       .select({
         id: materials.id,
@@ -22,14 +25,15 @@ export async function GET() {
         pageCount: materials.pageCount,
         charCount: materials.charCount,
         questionCount: sql<number>`(
-          select count(*)::int from ${questions} q where q.material_id = ${materials.id}
+          select count(*)::int from ${questions} q where q.material_id = ${materials.id} and q.archived_at is null
         )`,
         createdAt: materials.createdAt,
       })
       .from(materials)
       .innerJoin(subjects, eq(subjects.id, materials.subjectId))
-      .orderBy(desc(materials.createdAt))
-      .limit(100);
+      .where(and(isNull(materials.archivedAt), isNull(subjects.archivedAt)))
+      .orderBy(desc(materials.createdAt), desc(materials.id))
+      .limit(limit).offset(offset);
 
     return Response.json(
       rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() })),
@@ -83,6 +87,7 @@ export async function POST(req: NextRequest) {
       if (typeof body?.filename === "string" && body.filename) filename = str(body.filename, 160);
     }
 
+    uuid(subjectId);
     if (!subjectId) throw new ApiError(400, "Escolha a matéria do material.");
     if (text.length < 400)
       throw new ApiError(
@@ -97,11 +102,12 @@ export async function POST(req: NextRequest) {
     const sub = await db
       .select({ id: subjects.id })
       .from(subjects)
-      .where(sql`${subjects.id} = ${subjectId} and ${subjects.userId} = ${user.id}`)
+      .where(and(eq(subjects.id, subjectId), isNull(subjects.archivedAt)))
       .limit(1);
     if (!sub[0]) throw new ApiError(404, "Matéria não encontrada.");
 
-    const rows = await db
+    const rows = await db.transaction(async (tx) => {
+      const result = await tx
       .insert(materials)
       .values({
         userId: user.id,
@@ -113,6 +119,9 @@ export async function POST(req: NextRequest) {
         charCount: text.length,
       })
       .returning();
+      await audit(user.id, "material.create", result[0].id, tx);
+      return result;
+    });
     const material = rows[0];
     if (!material) throw new ApiError(500, "Não foi possível salvar o material.");
 

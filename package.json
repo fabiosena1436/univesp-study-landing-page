@@ -1,14 +1,27 @@
 {
-  "name": "nextjs-postgresql-template",
+  "name": "aprova-univesp",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsc -p tsconfig.test.json && node --test tests/unit/*.test.cjs",
+    "test:integration": "node --test tests/integration/*.test.mjs",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node scripts/migrate.mjs",
+    "db:admin": "node scripts/admin.mjs",
+    "db:cleanup": "node scripts/cleanup.mjs",
+    "db:backup": "node scripts/backup.mjs",
+    "db:restore:verify": "node scripts/verify-backup.mjs",
+    "doctor": "node scripts/doctor.mjs",
+    "db:test:setup": "node scripts/test-setup.mjs",
+    "test:server": "node scripts/test-server.mjs",
+    "test:e2e": "node scripts/e2e.mjs"
   },
   "dependencies": {
+    "@vercel/functions": "^3.9.10",
     "bcryptjs": "^3.0.3",
     "dotenv": "17.3.1",
     "drizzle-orm": "0.45.2",
@@ -21,6 +34,11 @@
     "recharts": "^3.10.1",
     "unpdf": "^1.8.1"
   },
+  "overrides": {
+    "@esbuild-kit/core-utils": {
+      "esbuild": "0.25.12"
+    }
+  },
   "devDependencies": {
     "@tailwindcss/postcss": "4.1.17",
     "@types/node": "22.19.15",
@@ -30,7 +48,7 @@
     "drizzle-kit": "0.31.10",
     "eslint": "9.39.4",
     "eslint-config-next": "16.2.6",
-    "postcss": "8.5.8",
+    "postcss": "8.5.28",
     "tailwindcss": "4.1.17",
     "typescript": "5.9.3"
   }

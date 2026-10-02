@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowRight,
@@ -11,7 +11,7 @@ import {
   Timer,
   XCircle,
 } from "lucide-react";
-import { useApp } from "@/components/AppShell";
+import { toast, useApp } from "@/components/AppShell";
 import { api, formatDuration } from "@/lib/api";
 import { Badge, Button, ScoreRing, Select, Spinner, ToggleRow } from "@/components/ui";
 import type { AnswerRecord, QuizQuestion } from "@/lib/types";
@@ -27,7 +27,7 @@ export default function ProvaPage() {
 }
 
 function ProvaInner() {
-  const { subjects } = useApp();
+  const { user, subjects } = useApp();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -50,7 +50,40 @@ function ProvaInner() {
   const [elapsed, setElapsed] = useState(0);
   const [saving, setSaving] = useState(false);
 
-  const subject = subjects.find((s) => s.id === subjectId);
+  const [submissionId, setSubmissionId] = useState("");
+  const [restored, setRestored] = useState(false);
+  const saveLock = useRef(false);
+  const storageKey = "aprova:quiz:v1:" + user.id;
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+    try {
+      const raw = sessionStorage.getItem(storageKey);
+      if (raw) {
+        const draft = JSON.parse(raw);
+        if (draft.version === 1 && draft.quiz?.length && draft.startedAt > Date.now() - 86400000 && draft.index >= 0 && draft.index < draft.quiz.length) {
+          setQuiz(draft.quiz); setSubjectId(draft.subjectId); setSubjectName(draft.subjectName); setIndex(draft.index);
+          setSelected(draft.selected); setChecked(draft.checked); setAnswers(draft.answers); setStartedAt(draft.startedAt);
+          setSubmissionId(draft.submissionId); setStage("run");
+        } else sessionStorage.removeItem(storageKey);
+      }
+    } catch { try { sessionStorage.removeItem(storageKey); } catch { /* Storage may be unavailable. */ } }
+    setRestored(true);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [storageKey]);
+  useEffect(() => {
+    if (!restored || stage !== "run") return;
+    try { sessionStorage.setItem(storageKey, JSON.stringify({ version: 1, quiz, subjectId, subjectName, index, selected, checked, answers, startedAt, submissionId })); }
+    catch { /* Browsers can disable storage; the current session still works. */ }
+  }, [restored, stage, storageKey, quiz, subjectId, subjectName, index, selected, checked, answers, startedAt, submissionId]);
+  useEffect(() => {
+    if (stage !== "run") return;
+    const beforeUnload = (event: BeforeUnloadEvent) => { event.preventDefault(); };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => window.removeEventListener("beforeunload", beforeUnload);
+  }, [stage]);
+  const effectiveSubjectId = subjectId || subjects[0]?.id || "";
+  const subject = subjects.find((s) => s.id === effectiveSubjectId);
 
   useEffect(() => {
     if (stage !== "run") return;
@@ -62,7 +95,7 @@ function ProvaInner() {
   }, [stage, startedAt]);
 
   async function start() {
-    if (!subjectId) return;
+    if (!effectiveSubjectId) return;
     setLoading(true);
     setEmptyMsg(null);
     try {
@@ -75,8 +108,8 @@ function ProvaInner() {
         {
         method: "POST",
         body: JSON.stringify({
-          subjectId,
-          count: count === "all" ? 999 : Number(count),
+          subjectId: effectiveSubjectId,
+          count: count === "all" ? 200 : Number(count),
           shuffleOptions,
           onlyWrong,
           source,
@@ -86,6 +119,8 @@ function ProvaInner() {
         setEmptyMsg(res.emptyMessage ?? "Sem questões para essa configuração.");
         return;
       }
+      setSubjectId(effectiveSubjectId);
+      setSubmissionId(crypto.randomUUID());
       setQuiz(res.questions);
       setSubjectName(res.subjectName);
       setIndex(0);
@@ -111,21 +146,15 @@ function ProvaInner() {
   }
 
   async function finish() {
-    setSaving(true);
+    if (saveLock.current) return;
+    saveLock.current = true; setSaving(true);
     try {
-      await api("/api/attempts", {
-        method: "POST",
-        body: JSON.stringify({
-          subjectId,
-          durationSec: Math.floor((Date.now() - startedAt) / 1000),
-          answers,
-        }),
-      });
-    } catch {
-      // sem conexão: o resultado local ainda é mostrado
-    }
-    setSaving(false);
-    setStage("done");
+      const result = await api<{ correctCount: number; answers: AnswerRecord[] }>("/api/attempts", { method: "POST", body: JSON.stringify({ subjectId, submissionId, durationSec: Math.floor((Date.now() - startedAt) / 1000), answers: answers.map(({ questionId, selectedKey }) => ({ questionId, selectedKey })) }) });
+      setAnswers(result.answers);
+      try { sessionStorage.removeItem(storageKey); } catch { /* Saving succeeded even if storage is unavailable. */ }
+      toast("Prova salva: " + result.correctCount + " acertos."); setStage("done");
+    } catch (e) { toast(e instanceof Error ? e.message : "Não foi possível salvar. Seu treino continua disponível para tentar novamente.", "err"); }
+    finally { saveLock.current = false; setSaving(false); }
   }
 
   function next() {
@@ -137,6 +166,8 @@ function ProvaInner() {
       finish();
     }
   }
+
+  if (!restored) return <p role="status">Restaurando seu treino…</p>;
 
   /* ------------------------------ SETUP ------------------------------ */
   if (stage === "setup") {
@@ -155,13 +186,13 @@ function ProvaInner() {
             {subjects.length === 0 ? (
               <p className="text-sm text-muted">
                 Você ainda não tem matérias.{" "}
-                <button className="text-pen font-semibold hover:underline cursor-pointer" onClick={() => router.push("/app/importar")}>
-                  Importe questões primeiro
+                <button className="text-pen font-semibold hover:underline cursor-pointer" onClick={() => router.push("/app/contato")}>
+                  Aguarde a publicação de questões
                 </button>
                 .
               </p>
             ) : (
-              <Select value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
+              <Select aria-label="Matéria da prova" value={effectiveSubjectId} onChange={(e) => setSubjectId(e.target.value)}>
                 {subjects.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name} · {s.questionCount} quest.
@@ -184,7 +215,7 @@ function ProvaInner() {
                       : "bg-card border-line hover:border-line-strong"
                   }`}
                 >
-                  {c === "all" ? "Todas" : c}
+                  {c === "all" ? "Até 200" : c}
                 </button>
               ))}
             </div>
@@ -309,7 +340,7 @@ function ProvaInner() {
                 <button
                   key={o.key}
                   disabled={checked}
-                  onClick={() => setSelected(o.key)}
+                  aria-pressed={selected === o.key} onClick={() => setSelected(o.key)}
                   className={`w-full flex items-start gap-3.5 rounded-xl border px-4 py-3 text-sm text-left transition-all cursor-pointer disabled:cursor-default ${style}`}
                 >
                   <span

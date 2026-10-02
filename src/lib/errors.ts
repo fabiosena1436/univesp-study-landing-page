@@ -12,9 +12,14 @@ export function handleError(e: unknown): Response {
   if (e instanceof ApiError) {
     return Response.json({ error: e.message }, { status: e.status });
   }
-  console.error("[repete] unhandled error:", e);
+  const requestId = crypto.randomUUID();
+  const error = e as { code?: string; name?: string };
+  if (error?.code === "23505") return Response.json({ error: "Este registro já existe." }, { status: 409 });
+  if (error?.code === "22P02") return Response.json({ error: "Identificador inválido." }, { status: 400 });
+  // Do not log queries, personal data, or provider credentials from raw errors.
+  console.error(JSON.stringify({ event: "api.error", requestId, name: error?.name ?? "Error", code: error?.code ?? "unknown", at: new Date().toISOString() }));
   return Response.json(
-    { error: "Erro inesperado. Tente novamente." },
+    { error: "Erro inesperado. Tente novamente.", requestId },
     { status: 500 },
   );
 }

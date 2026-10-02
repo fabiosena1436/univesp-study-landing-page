@@ -8,7 +8,6 @@ import {
   SelectHTMLAttributes,
   useEffect,
   useState,
-  useCallback,
 } from "react";
 
 /* ------------------------------- spinner ------------------------------- */
@@ -186,6 +185,9 @@ export function ToggleRow({
   return (
     <button
       type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
       onClick={() => onChange(!checked)}
       className="w-full flex items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3 text-left hover:border-line-strong transition-colors cursor-pointer"
     >
@@ -231,32 +233,4 @@ export function EmptyState({
       {action && <div className="mt-5 flex justify-center">{action}</div>}
     </div>
   );
-}
-
-/* ------------------------------- toasts -------------------------------- */
-
-export type ToastItem = { id: number; msg: string; tone: "ok" | "err" };
-
-export function useToasts() {
-  const [toasts, setToasts] = useState<ToastItem[]>([]);
-  const push = useCallback((msg: string, tone: "ok" | "err" = "ok") => {
-    const id = Date.now() + Math.random();
-    setToasts((t) => [...t, { id, msg, tone }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4200);
-  }, []);
-  const view = (
-    <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[70] space-y-2 w-[calc(100%-2rem)] max-w-sm pointer-events-none">
-      {toasts.map((t) => (
-        <div
-          key={t.id}
-          className={`anim-pop rounded-xl px-4 py-3 text-sm font-semibold shadow-xl ${
-            t.tone === "ok" ? "bg-ink text-paper" : "bg-red text-white"
-          }`}
-        >
-          {t.msg}
-        </div>
-      ))}
-    </div>
-  );
-  return { push, view };
 }

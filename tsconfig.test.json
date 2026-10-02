@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "noEmit": false,
+    "incremental": false,
+    "rootDir": "./src",
+    "outDir": "./.test-build",
+    "plugins": []
+  },
+  "include": ["src/lib/validation.ts", "src/lib/ai.ts", "src/lib/passwordReset.ts", "src/lib/sample.ts"],
+  "exclude": ["node_modules", ".test-build"]
+}

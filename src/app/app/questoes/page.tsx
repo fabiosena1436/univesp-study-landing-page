@@ -27,6 +27,9 @@ function QuestoesInner() {
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
   const [list, setList] = useState<QuestionDB[] | null>(null);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [error, setError] = useState("");
   const [armed, setArmed] = useState<string | null>(null);
 
   useEffect(() => {
@@ -36,16 +39,16 @@ function QuestoesInner() {
 
   useEffect(() => {
     let alive = true;
-    const params = new URLSearchParams();
+    const params = new URLSearchParams({ limit: "50", offset: String(page * 50) });
     if (subjectId) params.set("subjectId", subjectId);
     if (debounced) params.set("q", debounced);
     api<QuestionDB[]>(`/api/questions?${params.toString()}`)
-      .then((rows) => alive && setList(rows))
-      .catch(() => alive && setList([]));
+      .then((rows) => { if (alive) { setError(""); setList(rows); setHasMore(rows.length === 50); } })
+      .catch((e) => { if (alive) setError(e instanceof Error ? e.message : "Não foi possível carregar questões."); });
     return () => {
       alive = false;
     };
-  }, [subjectId, debounced]);
+  }, [subjectId, debounced, page]);
 
   const subject = useMemo(() => subjects.find((s) => s.id === subjectId), [subjects, subjectId]);
 
@@ -77,7 +80,7 @@ function QuestoesInner() {
       {/* toolbar */}
       <div className="card p-4 flex flex-wrap gap-3 items-center">
         <div className="w-full sm:w-60">
-          <Select value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
+          <Select value={subjectId} aria-label="Filtrar por matéria" onChange={(e) => { setSubjectId(e.target.value); setPage(0); }}>
             <option value="">Todas as matérias</option>
             {subjects.map((s) => (
               <option key={s.id} value={s.id}>
@@ -90,7 +93,7 @@ function QuestoesInner() {
           <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
           <Input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            aria-label="Buscar questões" onChange={(e) => { setSearch(e.target.value); setPage(0); }}
             placeholder="Buscar no enunciado…"
             className="pl-9"
           />
@@ -102,8 +105,10 @@ function QuestoesInner() {
         )}
       </div>
 
+      {error && <p role="alert" className="text-red">{error} <button onClick={() => window.location.reload()} className="underline">Tentar novamente</button></p>}
+      <div className="flex items-center gap-3"><Button variant="ghost" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>Anterior</Button><span>Página {page + 1}</span><Button variant="ghost" disabled={!hasMore} onClick={() => setPage((p) => p + 1)}>Próxima</Button></div>
       {/* lista */}
-      {list === null ? (
+      {error ? null : list === null ? (
         <div className="card p-8 grid place-items-center text-muted">
           <Spinner size={22} />
         </div>
@@ -114,7 +119,7 @@ function QuestoesInner() {
           desc={
             subject || debounced
               ? "Tente outra matéria ou limpe a busca."
-              : "Cole a revisão da faculdade no importador e as primeiras questões aparecem por aqui."
+              : "Os administradores ainda não publicaram questões. Entre em contato para saber quando estarão disponíveis."
           }
           action={user.isAdmin ? (
             <Link href="/app/importar">
@@ -143,7 +148,7 @@ function QuestoesInner() {
                   className={`absolute -bottom-2 right-4 z-10 inline-flex items-center gap-1.5 text-xs font-bold rounded-lg px-2.5 py-1.5 shadow-md transition-all cursor-pointer ${
                     armed === q.id
                       ? "bg-red text-white opacity-100"
-                      : "bg-card border border-line text-muted opacity-0 group-hover:opacity-100 hover:text-red hover:border-red/30"
+                      : "bg-card border border-line text-muted opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 hover:text-red hover:border-red/30"
                   }`}
                 >
                   <Trash2 size={12} />

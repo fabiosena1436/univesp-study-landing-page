@@ -8,16 +8,18 @@ import { Badge, Button, EmptyState, Spinner } from "@/components/ui";
 import type { AttemptDetail, AttemptRow } from "@/lib/types";
 
 export default function HistoricoPage() {
+  const [page, setPage] = useState(0);
+  const [error, setError] = useState("");
   const [attempts, setAttempts] = useState<AttemptRow[] | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [detail, setDetail] = useState<AttemptDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
-    api<AttemptRow[]>("/api/attempts")
-      .then(setAttempts)
-      .catch(() => setAttempts([]));
-  }, []);
+    api<AttemptRow[]>(`/api/attempts?limit=50&offset=${page * 50}`)
+      .then((rows) => { setAttempts(rows); setError(""); })
+      .catch((e) => setError(e instanceof Error ? e.message : "Não foi possível carregar o histórico."));
+  }, [page]);
 
   async function toggle(a: AttemptRow) {
     if (openId === a.id) {
@@ -31,13 +33,15 @@ export default function HistoricoPage() {
     try {
       const d = await api<AttemptDetail>(`/api/attempts/${a.id}`);
       setDetail(d);
-    } catch {
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível carregar esta prova.");
       setDetail(null);
     } finally {
       setDetailLoading(false);
     }
   }
 
+  if (error) return <div role="alert" className="card p-6">{error} <Button onClick={() => window.location.reload()}>Tentar novamente</Button></div>;
   if (attempts === null) {
     return (
       <div className="card p-10 grid place-items-center text-muted">
@@ -50,13 +54,14 @@ export default function HistoricoPage() {
     return (
       <div className="space-y-5">
         <h1 className="font-display text-3xl font-semibold tracking-tight">Histórico de provas</h1>
+        {page > 0 && <Button onClick={() => setPage((p) => p - 1)}>Página anterior</Button>}
         <EmptyState
           icon={<HistoryIcon size={20} />}
-          title="Nenhuma prova ainda"
+          title={page ? "Fim do histórico" : "Nenhuma prova ainda"}
           desc="Quando você fizer a primeira prova, o resultado e cada resposta ficam registrados aqui."
           action={
             <Link href="/app/prova">
-              <Button>Fazer a primeira prova</Button>
+              <Button>Fazer uma prova</Button>
             </Link>
           }
         />
@@ -75,8 +80,10 @@ export default function HistoricoPage() {
 
   return (
     <div className="space-y-5">
+      <div className="flex gap-3 items-center"><Button variant="ghost" disabled={page === 0} onClick={() => { setPage((p) => p - 1); setOpenId(null); }}>Anterior</Button><span>Página {page + 1}</span><Button variant="ghost" disabled={attempts.length < 50} onClick={() => { setPage((p) => p + 1); setOpenId(null); }}>Próxima</Button></div>
       <div className="anim-fade-up">
         <h1 className="font-display text-3xl font-semibold tracking-tight">Histórico de provas</h1>
+        <p className="mt-2 text-xs text-muted">Os indicadores abaixo se referem às provas desta página.</p>
         <p className="mt-2 text-ink-soft">
           {attempts.length} prova{attempts.length === 1 ? "" : "s"} · média {avg}% · melhor {best}%
         </p>
