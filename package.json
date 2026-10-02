@@ -34,11 +34,6 @@
     "recharts": "^3.10.1",
     "unpdf": "^1.8.1"
   },
-  "overrides": {
-    "@esbuild-kit/core-utils": {
-      "esbuild": "0.25.12"
-    }
-  },
   "devDependencies": {
     "@tailwindcss/postcss": "4.1.17",
     "@types/node": "22.19.15",

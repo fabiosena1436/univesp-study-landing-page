@@ -4,6 +4,8 @@ Aplicação de estudos com catálogo compartilhado de matérias e questões, pub
 
 Para publicar pelo GitHub com Vercel e Neon, siga [o guia de deploy](DEPLOY-VERCEL-NEON.md).
 
+Se nunca publicou um projeto, use primeiro [o passo a passo para iniciantes](GUIA-INICIANTE-PUBLICACAO.md), com telas, campos, comandos e conferência de cada etapa.
+
 ## Ambiente local
 
 Use Node.js 22 e Docker Desktop. Instale as dependências com `npm ci`.

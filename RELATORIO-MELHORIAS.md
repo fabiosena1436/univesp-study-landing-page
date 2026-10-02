@@ -24,11 +24,12 @@ Verificado em 2 de outubro de 2026. O produto mantém um catálogo compartilhado
 - Termos, privacidade, estados de carregamento/erro e melhorias de acessibilidade.
 - Migrações versionadas, diagnóstico de ambiente, ferramentas de administrador, limpeza por retenção e backup.
 - CI com lint, verificação de tipos, testes, migração e build. A execução remota depende do envio do repositório.
+- Preparação para GitHub/Vercel/Neon: gerenciamento de conexões ociosas com o pacote oficial da Vercel, pool menor e timeout de conexão ajustado, conexão direta para migrações/backups e guia `DEPLOY-VERCEL-NEON.md`. PostCSS atualizado para corrigir alerta de alta severidade; alertas moderados de ferramentas de desenvolvimento documentados no guia.
 
 ## Validação realizada
 
 - Lint e build de produção aprovados, incluindo a verificação de TypeScript.
-- 13 testes unitários aprovados.
+- 14 testes unitários aprovados, incluindo seleção e proteção da conexão direta do Neon.
 - 16 cenários de integração aprovados contra PostgreSQL isolado, incluindo concorrência, autorização, migração do legado, idempotência, recuperação, exportação e exclusão.
 - No Edge: login, seleção automática da matéria, simulado, restauração após navegar para outra página, correção, salvamento e resultado no histórico.
 - Banco local real migrado com sucesso; diagnóstico confirmou conexão, registro de migrações e novo esquema.

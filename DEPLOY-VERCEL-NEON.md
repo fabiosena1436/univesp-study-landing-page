@@ -61,4 +61,6 @@ Verifique `/api/health`, cadastro e confirmação de e-mail, login, publicação
 
 Confira os logs da Vercel e a utilização de conexões no Neon. O sucesso do build não confirma que as migrações ou o envio de e-mail estejam configurados.
 
+Na auditoria desta preparação, o PostCSS foi atualizado para corrigir o alerta de alta severidade. Restam quatro alertas moderados na cadeia de desenvolvimento `drizzle-kit` → `@esbuild-kit` → `esbuild`, relacionados ao servidor de desenvolvimento do esbuild. O app não utiliza esse servidor, e as migrações aplicadas usam o script próprio com `pg`. Não execute `npm audit fix --force`: a sugestão atual faz downgrade do Drizzle Kit. Reavalie essa ferramenta quando houver atualização compatível corrigida.
+
 Referências oficiais: [Neon: conexões com pool e diretas](https://neon.com/docs/connect/connection-pooling), [Vercel: gerenciamento de conexões](https://vercel.com/kb/guide/connection-pooling-with-functions), [Vercel: limites de funções](https://vercel.com/docs/functions/limitations).
