@@ -19,7 +19,7 @@ npm run dev
 
 Abra http://localhost:3000. O PostgreSQL local usa a porta 55432, restrita a 127.0.0.1. As credenciais do compose são exclusivas para desenvolvimento.
 
-O cadastro não exige confirmação por link nem configuração de e-mail. Aceita endereços @aluno.univesp.br e a exceção explícita fabiosena1436@gmail.com para aluno. Cadastre 26241463@aluno.univesp.br para a conta administrativa e promova-a pelo comando abaixo. Resend é opcional para recuperação de senha; o recebimento depende do provedor de e-mail.
+O cadastro exige confirmação por link e configuração do Resend. Aceita endereços @aluno.univesp.br e a exceção explícita fabiosena1436@gmail.com para aluno. Cadastre 26241463@aluno.univesp.br para a conta administrativa e promova-a pelo comando abaixo. Confirme o endereço antes de entrar; a entrega pode levar alguns minutos. Contas cadastradas enquanto a confirmação estava desativada podem solicitar um link em `/confirmar-email`, mantendo dados e permissões.
 
 Em produção, `APP_URL` deve ser HTTPS. Configure `TZ=UTC` no processo Node e dimensione `DB_POOL_MAX` conforme o limite de conexões do banco. Não use as credenciais de desenvolvimento em produção.
 
@@ -31,7 +31,7 @@ As migrações versionadas estão em `migrations/`. `npm run db:migrate` aplica 
 npm run db:migrate -- --adopt-legacy
 ```
 
-A adoção valida a estrutura inicial antes de registrá-la. A migração preenche cópias históricas de questões, agrega o progresso duplicado e converte tokens de sessão para hashes. Contas existentes podem entrar sem confirmação por link; bloqueios e senhas continuam sendo verificados. Dados antigos que violam as novas regras de contagem fazem a migração falhar e voltar a transação; inspecione esses registros antes de tentar novamente.
+A adoção valida a estrutura inicial antes de registrá-la. A migração preenche cópias históricas de questões, agrega o progresso duplicado e converte tokens de sessão para hashes. Contas sem email_verified_at precisam confirmar seu endereço; bloqueios e senhas continuam sendo verificados. Dados antigos que violam as novas regras de contagem fazem a migração falhar e voltar a transação; inspecione esses registros antes de tentar novamente.
 
 Não execute `drizzle-kit push` em produção. Para próximas mudanças, altere o schema, execute `npm run db:generate`, revise o SQL e inclua qualquer preenchimento de dados necessário antes de aplicar. As migrações não devem ser editadas depois de aplicadas.
 

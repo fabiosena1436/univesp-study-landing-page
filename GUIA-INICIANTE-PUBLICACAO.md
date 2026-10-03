@@ -197,7 +197,7 @@ Referência: [variáveis de ambiente na Vercel](https://vercel.com/docs/environm
 
 1. Abra seu site e clique em criar conta.
 2. Para a conta administrativa, cadastre `26241463@aluno.univesp.br`. Para testar como aluno, cadastre `fabiosena1436@gmail.com`. Escolha senhas para cada conta.
-3. Entre com e-mail e senha. Não é necessário receber ou abrir um link.
+3. Abra o e-mail de confirmação e clique no link; na página, clique em **Confirmar meu e-mail**. Depois entre com e-mail e senha. Aguarde alguns minutos e confira também **Outros** e **Lixo Eletrônico**. Se necessário, solicite outro link em `/confirmar-email`. Contas existentes mantêm seus dados e permissões; não precisam se cadastrar novamente.
 4. No computador, mantenha `.env.neon` configurado e execute, para promover a conta institucional já cadastrada:
 
 ```powershell
