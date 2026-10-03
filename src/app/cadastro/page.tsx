@@ -6,9 +6,11 @@ import AuthShell from "@/components/AuthShell";
 import { api } from "@/lib/api";
 import { Button, Field, Input } from "@/components/ui";
 import { registrationEmailAllowed } from "@/lib/constants";
+import EmailVerificationPending from "@/components/EmailVerificationPending";
 
 export default function CadastroPage() {
   const [message, setMessage] = useState("");
+  const [emailSent, setEmailSent] = useState(true);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [course, setCourse] = useState("");
@@ -30,11 +32,14 @@ export default function CadastroPage() {
     }
     setBusy(true);
     try {
-      const result = await api<{ message: string }>("/api/auth/register", {
+      const result = await api<{ message: string; emailSent: boolean }>("/api/auth/register", {
         method: "POST",
         body: JSON.stringify({ name, email, course, password }),
       });
       setMessage(result.message);
+      setEmailSent(result.emailSent);
+      setPassword("");
+      setConfirm("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não foi possível criar a conta.");
     } finally {
@@ -42,13 +47,17 @@ export default function CadastroPage() {
     }
   }
 
+  if (message) return <AuthShell>
+    <h1 className="font-display text-3xl font-semibold tracking-tight">Conta criada! Confira seu e-mail</h1>
+    <div className="mt-5"><EmailVerificationPending email={email.trim().toLowerCase()} message={message} sent={emailSent} /></div>
+  </AuthShell>;
+
   return (
     <AuthShell>
       <h1 className="font-display text-3xl font-semibold tracking-tight">Criar conta</h1>
       <p className="mt-2 text-sm text-muted">
         Após o cadastro, confirme seu e-mail pelo link enviado para acessar o catálogo compartilhado e seu histórico individual.
       </p>
-      {message && <p role="status" className="mt-5">{message} <Link href="/confirmar-email" className="text-pen underline">Solicitar novo link</Link></p>}
       <form onSubmit={onSubmit} className="mt-7 space-y-4">
         <Field label="Seu nome">
           <Input

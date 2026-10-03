@@ -45,8 +45,8 @@ export async function POST(req: NextRequest) {
     if (!user) throw new ApiError(500, "Não foi possível criar a conta.");
 
     try { await sendVerification(user); }
-    catch { return Response.json({ message: "Conta criada, mas não foi possível enviar o link agora. Solicite um novo link na página de confirmação." }, { status: 201 }); }
-    return Response.json({ message: "Conta criada. Confirme seu e-mail para entrar. A mensagem pode levar alguns minutos; confira também Outros e Lixo Eletrônico." }, { status: 201 });
+    catch { return Response.json({ emailSent: false, message: "Conta criada, mas não foi possível enviar o link agora. Solicite um novo link abaixo." }, { status: 201 }); }
+    return Response.json({ emailSent: true, message: "O link de confirmação foi enviado. Confirme seu e-mail para entrar." }, { status: 201 });
   } catch (e) {
     return handleError(e);
   }

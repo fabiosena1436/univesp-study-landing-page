@@ -5,6 +5,7 @@ import Link from "next/link";
 import AuthShell from "@/components/AuthShell";
 import { Button, Field, Input } from "@/components/ui";
 import { api } from "@/lib/api";
+import EmailVerificationPending from "@/components/EmailVerificationPending";
 export default function ConfirmarEmail() { return <Suspense fallback={<p>Carregando…</p>}><Confirmation /></Suspense>; }
 function Confirmation() {
   const token = useSearchParams().get("token");
@@ -18,6 +19,7 @@ function Confirmation() {
     catch (e) { setError(e instanceof Error ? e.message : "Não foi possível confirmar."); }
     finally { setBusy(false); }
   }
+  if (!token && message) return <AuthShell><h1 className="font-display text-3xl">Confira seu e-mail</h1><div className="mt-5"><EmailVerificationPending email={email.trim().toLowerCase()} message={message} /></div><Link href="/confirmar-email" onClick={() => setMessage("")} className="mt-4 block text-sm text-pen underline">Informar outro endereço</Link></AuthShell>;
   return <AuthShell><h1 className="font-display text-3xl">Confirmar e-mail</h1><p className="mt-3 text-muted">Confirme que você controla seu endereço para acessar o catálogo. A entrega pode levar alguns minutos; confira também Outros e Lixo Eletrônico.</p><form className="mt-6 space-y-4" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
     {!token && <Field label="E-mail da conta"><Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" /></Field>}
     {message && <p role="status">{message}</p>}{error && <p role="alert" className="text-red">{error}</p>}
