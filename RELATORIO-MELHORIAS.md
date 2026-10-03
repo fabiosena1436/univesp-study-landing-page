@@ -9,7 +9,7 @@ Verificado em 2 de outubro de 2026. O produto mantém um catálogo compartilhado
 - Atualizações simultâneas de revisão podiam perder contadores: progresso único por aluno/questão com atualização atômica.
 - Exclusão de conteúdo podia destruir o histórico: conteúdo é arquivado e cada resposta conserva uma cópia da questão utilizada.
 - Sessões eram armazenadas como tokens utilizáveis: agora são armazenados hashes. Alteração e recuperação de senha revogam sessões anteriores.
-- Cadastro e login sem confirmação por link, conforme solicitação do responsável. Aceita @aluno.univesp.br e a exceção específica fabiosena1436@gmail.com como aluno. 26241463@aluno.univesp.br pode ser promovido explicitamente pelo comando administrativo; não há promoção automática por endereço.
+- Confirmação por link restaurada no cadastro e no login, com reenvio e registros de aceitação/falha do Resend. Aceita @aluno.univesp.br e a exceção específica fabiosena1436@gmail.com como aluno. 26241463@aluno.univesp.br pode ser promovido explicitamente pelo comando administrativo; não há promoção automática por endereço.
 - Limites de requisição não eram persistentes: limites no PostgreSQL sobrevivem a reinícios e múltiplas instâncias.
 - Importações podiam misturar matéria/material e aceitar alternativas inválidas: validação integral e publicação em transação, com deduplicação por fingerprint.
 - Geração podia dar aparência de confiança a questões sem fundamentação: respostas da IA são validadas e precisam incluir trecho literal do material; revisão humana continua necessária.
