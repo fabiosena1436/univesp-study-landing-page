@@ -64,6 +64,16 @@ test('AI rejects malformed and ungrounded questions', () => {
   }
   assert.deepEqual(coerceQuestions(null, excerpt), []);
 });
+
+test('AI rejects questions that require an unavailable source document', () => {
+  for (const statement of ['Segundo o material, o que caracteriza a ciência?', 'O conhecimento apresentado no texto é falível porque:', 'O material conceitua o método como:', 'Conforme a aula, qual é o método científico?']) {
+    assert.deepEqual(coerceQuestions({ questions: [{ ...raw, statement }] }, excerpt), []);
+  }
+  assert.deepEqual(coerceQuestions({ questions: [{ ...raw, feedback: 'Segundo o texto, B é correta.' }] }, excerpt), []);
+  assert.deepEqual(coerceQuestions({ questions: [{ ...raw, options: options.map((o, i) => i === 0 ? { ...o, text: 'A definição apresentada na apostila.' } : o) }] }, excerpt), []);
+  const independent = { ...raw, statement: 'Por que o conhecimento científico é considerado falível?', feedback: 'O conhecimento científico pode ser revisado quando surgem novas evidências.' };
+  assert.equal(coerceQuestions({ questions: [independent] }, excerpt).length, 1);
+});
 test('large materials sample beginning, middle and end and disclose partial coverage', () => {
   const material = 'BEGIN ' + 'x'.repeat(150000) + ' END';
   const result = selectChunks(material, 10);
@@ -122,6 +132,7 @@ test('AI request validates provider response and sends credentials in header, ne
     calls++;
     assert.ok(!url.includes('fake-test-key'));
     assert.equal(init.headers['x-goog-api-key'], 'fake-test-key');
+    assert.match(JSON.parse(init.body).system_instruction.parts[0].text, /Os alunos NÃO têm acesso/);
     return Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ questions: [raw] }) }] } }] });
   };
   try {

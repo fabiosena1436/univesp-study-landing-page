@@ -100,6 +100,23 @@ test('application integrity and account flows against PostgreSQL', async t => {
     assert.equal(after.data.questions.length, 1); assert.equal(after.data.questions[0].correctKey, 'B');
     assert.equal((await client.query("SELECT count(*) FROM audit_events WHERE action='question.answer.complete' AND target_id=$1", [id])).rows[0].count, '1');
   });
+  await t.test('only admins edit wording, preserving answers and rejecting stale edits', async () => {
+    const original = (await client.query('SELECT * FROM questions WHERE id=$1', [config.ids.question])).rows[0];
+    const body = { statement: 'Qual alternativa responde corretamente à pergunta?', feedback: 'A alternativa B responde corretamente.', originalStatement: original.statement, originalFeedback: original.feedback };
+    const path = '/api/questions/' + config.ids.question;
+    assert.equal((await call(path, { method: 'PATCH', cookie: studentCookie, body })).status, 403);
+    assert.equal((await call(path, { method: 'PATCH', cookie: adminCookie, body: { ...body, correctKey: 'A' } })).status, 400);
+    assert.equal((await call(path, { method: 'PATCH', cookie: adminCookie, body: { ...body, statement: 'Curto' } })).status, 400);
+    const edited = await call(path, { method: 'PATCH', cookie: adminCookie, body });
+    assert.equal(edited.status, 200, JSON.stringify(edited.data));
+    assert.equal(edited.data.statement, body.statement);
+    assert.equal(edited.data.feedback, body.feedback);
+    assert.equal(edited.data.correctKey, original.correct_key);
+    assert.deepEqual(edited.data.options, original.options);
+    assert.equal(edited.data.id, original.id);
+    assert.equal((await call(path, { method: 'PATCH', cookie: adminCookie, body })).status, 409);
+    assert.equal((await client.query("SELECT count(*) FROM audit_events WHERE action='question.text.update' AND target_id=$1", [original.id])).rows[0].count, '1');
+  });
   await t.test('concurrent reviews keep one progress row and preserve counters', async () => {
     const before = (await client.query('SELECT repetitions FROM study_progress WHERE user_id=$1 AND question_id=$2', [config.ids.student, config.ids.question])).rows[0].repetitions;
     const results = await Promise.all([0, 1, 2].map(() => call('/api/study/review', { method: 'POST', cookie: studentCookie, body: { questionId: config.ids.question, rating: 'good' } })));

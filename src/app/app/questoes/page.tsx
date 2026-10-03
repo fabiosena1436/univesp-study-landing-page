@@ -8,6 +8,7 @@ import { useApp, toast } from "@/components/AppShell";
 import { api } from "@/lib/api";
 import { QuestionCard } from "@/components/QuestionCard";
 import CompleteQuestionAnswer from "@/components/CompleteQuestionAnswer";
+import EditQuestionText from "@/components/EditQuestionText";
 import { Badge, Button, EmptyState, Input, Select, Spinner } from "@/components/ui";
 import type { QuestionDB } from "@/lib/types";
 
@@ -133,6 +134,7 @@ function QuestoesInner() {
           {list.map((q, i) => (
             <div key={q.id} className="relative group">
               <QuestionCard q={q} index={i + 1} />
+              {user.isAdmin && <EditQuestionText question={q} index={i + 1} onSaved={(updated) => { setList((rows) => rows?.map((row) => row.id === updated.id ? updated : row) ?? null); toast("Texto da questão atualizado."); }} />}
               {!q.correctKey && (user.isAdmin ? <CompleteQuestionAnswer question={q} index={i + 1} onSaved={(updated) => { setList((rows) => rows?.map((row) => row.id === updated.id ? updated : row) ?? null); void refreshSubjects(); toast("Gabarito salvo. A questão já pode entrar na prova."); }} /> : <p className="mt-2 mb-4 text-sm text-muted">Gabarito pendente. Esta questão ainda não entra na prova.</p>)}
               {subject && (
                 <span className="absolute top-4 right-4 hidden md:inline-flex">
