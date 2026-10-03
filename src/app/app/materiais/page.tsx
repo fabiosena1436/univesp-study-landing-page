@@ -16,6 +16,7 @@ import { api, formatDate } from "@/lib/api";
 import { EditableQuestion } from "@/components/EditableQuestion";
 import { Badge, Button, EmptyState, Input, Select, Spinner, TextArea } from "@/components/ui";
 import { SAMPLE_TEXT } from "@/lib/sample";
+import { EditMaterial } from "@/components/EditMaterial";
 import type { GenerateResponse, MaterialDetail, MaterialRow, ParsedQuestion } from "@/lib/types";
 
 export default function MateriaisPage() {
@@ -187,6 +188,7 @@ export default function MateriaisPage() {
   }
 
   async function removeMaterial(id: string) {
+    if (!window.confirm("Excluir este material e todas as questões vinculadas a ele? O histórico das provas será preservado.")) return;
     try {
       await api(`/api/materials/${id}`, { method: "DELETE" });
       setList((l) => (l ? l.filter((m) => m.id !== id) : l));
@@ -328,6 +330,7 @@ export default function MateriaisPage() {
             <Button variant="ghost" size="sm" onClick={() => setShowContent((v) => !v)}>
               {showContent ? "Esconder conteúdo" : "Ler conteúdo"}
             </Button>
+            <EditMaterial key={active.id} material={active} disabled={generating || saving} onSaved={(updated) => { setActive(updated); setGenerated([]); setGenNote(null); loadList(); }} />
           </div>
 
           {showContent && (

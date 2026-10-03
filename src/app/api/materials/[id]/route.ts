@@ -8,6 +8,27 @@ import { ApiError, handleError, isUuid } from "@/lib/errors";
 
 type Params = { params: Promise<{ id: string }> };
 
+export async function PATCH(req: NextRequest, { params }: Params) {
+  try {
+    const user = await requireAdmin();
+    const { id } = await params;
+    if (!isUuid(id)) throw new ApiError(404, "Material não encontrado.");
+    const body = await req.json().catch(() => null);
+    const title = typeof body?.title === "string" ? body.title.trim() : "";
+    const content = typeof body?.content === "string" ? body.content.trim() : "";
+    if (title.length < 2 || title.length > 90 || content.length < 400 || content.length > 400000) throw new ApiError(400, "Use um título de 2 a 90 caracteres e conteúdo de 400 a 400.000 caracteres.");
+    const updated = await db.transaction(async (tx) => {
+      const original = (await tx.select().from(materials).where(and(eq(materials.id, id), isNull(materials.archivedAt))).limit(1).for("update"))[0];
+      if (!original) throw new ApiError(404, "Material não encontrado.");
+      if (body.originalTitle !== original.title || body.originalContent !== original.content) throw new ApiError(409, "Este material foi atualizado. Reabra o material antes de editar.");
+      const result = (await tx.update(materials).set({ title, content, charCount: content.length }).where(eq(materials.id, id)).returning())[0];
+      await audit(user.id, "material.update", id, tx);
+      return result;
+    });
+    return Response.json(updated);
+  } catch (e) { return handleError(e); }
+}
+
 export async function GET(_req: NextRequest, { params }: Params) {
   try {
     await requireUser();

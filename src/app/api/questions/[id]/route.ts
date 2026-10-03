@@ -7,6 +7,7 @@ import { requireAdmin } from "@/lib/auth";
 import { ApiError, handleError, isUuid } from "@/lib/errors";
 import { validateOptions } from "@/lib/validation";
 import { questionFingerprint } from "@/lib/fingerprint";
+import { orderedOptions } from "@/lib/options";
 
 // Edit wording while preserving alternatives and answers, or complete pending answers.
 export async function PATCH(req: NextRequest, { params }: Params) {
@@ -18,6 +19,17 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const result = await db.transaction(async (tx) => {
       const q = (await tx.select().from(questions).where(and(eq(questions.id, id), isNull(questions.archivedAt))).limit(1).for("update"))[0];
       if (!q) throw new ApiError(404, "Questão não encontrada.");
+      if (body?.editAll === true) {
+        if (body.originalStatement !== q.statement || body.originalFeedback !== q.feedback || JSON.stringify(body.originalOptions) !== JSON.stringify(orderedOptions(q.options)) || body.originalCorrectKey !== q.correctKey) throw new ApiError(409, "Esta questão foi atualizada. Recarregue a página antes de editar.");
+        const statement = typeof body.statement === "string" ? body.statement.trim() : "";
+        const feedback = typeof body.feedback === "string" ? body.feedback.trim() : "";
+        if (statement.length < 15 || statement.length > 12000 || feedback.length > 20000) throw new ApiError(400, "Revise o enunciado (15 a 12.000 caracteres) e a explicação (até 20.000).");
+        const { options, correctKey } = validateOptions(body.options, body.correctKey);
+        const fingerprint = questionFingerprint(statement, options, correctKey);
+        const updated = (await tx.update(questions).set({ statement, feedback: feedback || null, options, correctKey, fingerprint }).where(eq(questions.id, id)).returning())[0];
+        await audit(user.id, "question.update", id, tx);
+        return updated;
+      }
       if (body && Object.hasOwn(body, "statement")) {
         if (Object.hasOwn(body, "correctKey") || Object.hasOwn(body, "options")) throw new ApiError(400, "A edição de texto não altera alternativas ou gabarito.");
         const statement = typeof body.statement === "string" ? body.statement.trim() : "";

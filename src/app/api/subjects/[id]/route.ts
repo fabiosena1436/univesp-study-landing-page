@@ -65,7 +65,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
       const archivedAt = new Date();
       await tx.update(subjects).set({ archivedAt }).where(eq(subjects.id, subject.id));
       await tx.update(materials).set({ archivedAt }).where(eq(materials.subjectId, id));
-      await tx.update(questions).set({ archivedAt }).where(eq(questions.subjectId, id));
+      await tx.update(questions).set({ archivedAt, fingerprint: null }).where(eq(questions.subjectId, id));
       await audit(user.id, "subject.archive", id, tx);
     });
     return Response.json({ ok: true });

@@ -19,6 +19,7 @@ import { Button, Field, Input, Select } from "@/components/ui";
 import { toast } from "@/components/AppShell";
 import { PerformanceChart } from "@/components/PerformanceChart";
 import { motion } from "motion/react";
+import { ManageSubject } from "@/components/ManageSubject";
 
 export default function DashboardPage() {
   const { user, subjects, refreshSubjects } = useApp();
@@ -211,6 +212,7 @@ export default function DashboardPage() {
                       </Button>
                     )}
                   </div>
+                  {user.isAdmin && <ManageSubject subject={s} />}
                 </div>
               );
             })}

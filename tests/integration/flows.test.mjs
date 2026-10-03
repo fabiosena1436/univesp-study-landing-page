@@ -117,6 +117,32 @@ test('application integrity and account flows against PostgreSQL', async t => {
     assert.equal((await call(path, { method: 'PATCH', cookie: adminCookie, body })).status, 409);
     assert.equal((await client.query("SELECT count(*) FROM audit_events WHERE action='question.text.update' AND target_id=$1", [original.id])).rows[0].count, '1');
   });
+  await t.test('admin manages subjects, material content and full questions with preserved snapshots', async () => {
+    const subject = await call('/api/subjects', { method: 'POST', cookie: adminCookie, body: { name: 'Gestão administrativa' } });
+    const subjectPath = '/api/subjects/' + subject.data.id;
+    assert.equal((await call(subjectPath, { method: 'PATCH', cookie: studentCookie, body: { name: 'Negado' } })).status, 403);
+    assert.equal((await call(subjectPath, { method: 'PATCH', cookie: adminCookie, body: { name: 'Matéria atualizada', color: '#123456' } })).data.name, 'Matéria atualizada');
+    const material = await call('/api/materials', { method: 'POST', cookie: adminCookie, body: { subjectId: subject.data.id, title: 'Original', text: 'Conteúdo acadêmico original. '.repeat(30) } });
+    const materialPath = '/api/materials/' + material.data.id;
+    const detail = (await call(materialPath, { cookie: adminCookie })).data;
+    const patch = { title: 'Corrigido', content: 'Conteúdo acadêmico corrigido. '.repeat(30), originalTitle: detail.title, originalContent: detail.content };
+    assert.equal((await call(materialPath, { method: 'PATCH', cookie: studentCookie, body: patch })).status, 403);
+    assert.equal((await call(materialPath, { method: 'PATCH', cookie: adminCookie, body: patch })).data.charCount, patch.content.length);
+    assert.equal((await call(materialPath, { method: 'PATCH', cookie: adminCookie, body: patch })).status, 409);
+    const q = (await call('/api/questions?subjectId=' + config.ids.subject, { cookie: adminCookie })).data.find(q => q.id === config.ids.question);
+    const questionPatch = { editAll: true, statement: q.statement, feedback: q.feedback, options: [{ key: 'B', text: 'Alternativa corrigida B' }, { key: 'A', text: 'Alternativa corrigida A' }], correctKey: 'A', originalStatement: q.statement, originalFeedback: q.feedback, originalOptions: q.options, originalCorrectKey: q.correctKey };
+    const questionPath = '/api/questions/' + q.id;
+    assert.equal((await call(questionPath, { method: 'PATCH', cookie: studentCookie, body: questionPatch })).status, 403);
+    const edited = await call(questionPath, { method: 'PATCH', cookie: adminCookie, body: questionPatch });
+    assert.equal(edited.status, 200); assert.equal(edited.data.correctKey, 'A'); assert.deepEqual(edited.data.options.map(o => o.key), ['A', 'B']);
+    assert.equal((await call(questionPath, { method: 'PATCH', cookie: adminCookie, body: questionPatch })).status, 409);
+    const snapshot = (await client.query('SELECT snapshot FROM attempt_answers WHERE attempt_id=$1', [savedId])).rows[0].snapshot;
+    assert.equal(snapshot.correctKey, 'B');
+    assert.equal((await call(subjectPath, { method: 'DELETE', cookie: studentCookie })).status, 403);
+    assert.equal((await call(subjectPath, { method: 'DELETE', cookie: adminCookie })).status, 200);
+    assert.ok(!(await call('/api/subjects', { cookie: studentCookie })).data.some(s => s.id === subject.data.id));
+    assert.ok(!(await call('/api/materials', { cookie: adminCookie })).data.some(m => m.id === material.data.id));
+  });
   await t.test('concurrent reviews keep one progress row and preserve counters', async () => {
     const before = (await client.query('SELECT repetitions FROM study_progress WHERE user_id=$1 AND question_id=$2', [config.ids.student, config.ids.question])).rows[0].repetitions;
     const results = await Promise.all([0, 1, 2].map(() => call('/api/study/review', { method: 'POST', cookie: studentCookie, body: { questionId: config.ids.question, rating: 'good' } })));
