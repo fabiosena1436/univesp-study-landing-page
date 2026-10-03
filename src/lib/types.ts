@@ -12,6 +12,7 @@ export type Subject = {
   name: string;
   color: string;
   questionCount: number;
+  readyQuestionCount?: number;
 };
 
 export type OptionT = { key: string; text: string };

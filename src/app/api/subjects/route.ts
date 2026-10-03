@@ -16,6 +16,7 @@ export async function GET() {
         name: subjects.name,
         color: subjects.color,
         questionCount: sql<number>`count(${questions.id})::int`,
+        readyQuestionCount: sql<number>`count(${questions.id}) filter (where ${questions.correctKey} is not null)::int`,
       })
       .from(subjects)
       .leftJoin(questions, and(eq(questions.subjectId, subjects.id), isNull(questions.archivedAt)))

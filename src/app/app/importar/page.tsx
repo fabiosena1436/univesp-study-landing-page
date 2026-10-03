@@ -125,6 +125,8 @@ export default function ImportarPage() {
       toast("Nenhuma questão válida. Preencha enunciado e pelo menos 2 alternativas.", "err");
       return;
     }
+    const pending = valid.filter((q) => !q.correctKey).length;
+    if (pending > 0 && !window.confirm(`${pending} questão(ões) sem gabarito não entrarão na prova. Deseja salvá-las como pendentes? Você pode completar o gabarito no banco depois.`)) return;
     setSaving(true);
     try {
       const res = await api<{ inserted: number; skipped: number }>(

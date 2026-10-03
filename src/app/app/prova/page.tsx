@@ -221,7 +221,7 @@ function ProvaInner() {
             </div>
             {subject && subject.questionCount > 0 && (
               <p className="text-xs text-muted mt-1.5">
-                {subject.name} tem {subject.questionCount} quest{subject.questionCount === 1 ? "ão" : "ões"} no banco.
+                {subject.name} tem {subject.questionCount} questões no banco{subject.readyQuestionCount !== undefined ? `; ${subject.readyQuestionCount} com gabarito disponíveis para prova antes dos filtros.` : "."}
               </p>
             )}
           </div>
@@ -267,9 +267,10 @@ function ProvaInner() {
           </div>
 
           {emptyMsg && (
-            <p className="text-sm font-semibold text-red bg-red-soft border border-red/20 rounded-xl px-3.5 py-2.5">
-              {emptyMsg}
-            </p>
+            <div role="alert" className="text-sm font-semibold text-red bg-red-soft border border-red/20 rounded-xl px-3.5 py-2.5">
+              <p>{emptyMsg}</p>
+              <button className="mt-2 underline cursor-pointer" onClick={() => router.push(`/app/questoes?m=${effectiveSubjectId}`)}>{user.isAdmin ? "Abrir banco e completar gabaritos" : "Consultar banco de questões"}</button>
+            </div>
           )}
 
           <Button size="lg" className="w-full" onClick={start} disabled={loading || subjects.length === 0}>

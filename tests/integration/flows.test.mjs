@@ -82,6 +82,24 @@ test('application integrity and account flows against PostgreSQL', async t => {
     assert.equal((await call('/api/questions/bulk', { method: 'POST', cookie: adminCookie, body: importBody })).status, 400);
     assert.equal(Number((await client.query("SELECT count(*) FROM questions WHERE statement='Um enunciado de teste.'")).rows[0].count), 0);
   });
+  await t.test('pending answers can be completed by admins and then enter quizzes', async () => {
+    const subject = await call('/api/subjects', { method: 'POST', cookie: adminCookie, body: { name: 'Gabaritos pendentes', color: '#123456' } });
+    assert.equal(subject.status, 201);
+    const imported = await call('/api/questions/bulk', { method: 'POST', cookie: adminCookie, body: { subjectId: subject.data.id, questions: [{ statement: 'Quanto é dois somado com dois?', options: [{ key: 'A', text: 'Três' }, { key: 'B', text: 'Quatro' }], correctKey: null }] } });
+    assert.equal(imported.status, 201);
+    const listed = await call('/api/questions?subjectId=' + subject.data.id, { cookie: studentCookie });
+    const id = listed.data[0].id;
+    const before = await call('/api/quiz', { method: 'POST', cookie: studentCookie, body: { subjectId: subject.data.id } });
+    assert.equal(before.data.questions.length, 0);
+    assert.match(before.data.emptyMessage, /nenhuma tem gabarito/);
+    assert.equal((await call('/api/questions/' + id, { method: 'PATCH', cookie: studentCookie, body: { correctKey: 'B' } })).status, 403);
+    assert.equal((await call('/api/questions/' + id, { method: 'PATCH', cookie: adminCookie, body: { correctKey: 'F' } })).status, 400);
+    const completed = await Promise.all([0, 1].map(() => call('/api/questions/' + id, { method: 'PATCH', cookie: adminCookie, body: { correctKey: 'B' } })));
+    assert.deepEqual(completed.map(r => r.status).sort(), [200, 409]);
+    const after = await call('/api/quiz', { method: 'POST', cookie: studentCookie, body: { subjectId: subject.data.id } });
+    assert.equal(after.data.questions.length, 1); assert.equal(after.data.questions[0].correctKey, 'B');
+    assert.equal((await client.query("SELECT count(*) FROM audit_events WHERE action='question.answer.complete' AND target_id=$1", [id])).rows[0].count, '1');
+  });
   await t.test('concurrent reviews keep one progress row and preserve counters', async () => {
     const before = (await client.query('SELECT repetitions FROM study_progress WHERE user_id=$1 AND question_id=$2', [config.ids.student, config.ids.question])).rows[0].repetitions;
     const results = await Promise.all([0, 1, 2].map(() => call('/api/study/review', { method: 'POST', cookie: studentCookie, body: { questionId: config.ids.question, rating: 'good' } })));

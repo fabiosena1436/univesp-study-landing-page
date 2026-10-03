@@ -7,6 +7,7 @@ import { LibraryBig, Search, Trash2 } from "lucide-react";
 import { useApp, toast } from "@/components/AppShell";
 import { api } from "@/lib/api";
 import { QuestionCard } from "@/components/QuestionCard";
+import CompleteQuestionAnswer from "@/components/CompleteQuestionAnswer";
 import { Badge, Button, EmptyState, Input, Select, Spinner } from "@/components/ui";
 import type { QuestionDB } from "@/lib/types";
 
@@ -19,7 +20,7 @@ export default function QuestoesPage() {
 }
 
 function QuestoesInner() {
-  const { user, subjects } = useApp();
+  const { user, subjects, refreshSubjects } = useApp();
   const searchParams = useSearchParams();
   const mParam = searchParams.get("m") ?? "";
 
@@ -132,6 +133,7 @@ function QuestoesInner() {
           {list.map((q, i) => (
             <div key={q.id} className="relative group">
               <QuestionCard q={q} index={i + 1} />
+              {!q.correctKey && (user.isAdmin ? <CompleteQuestionAnswer question={q} index={i + 1} onSaved={(updated) => { setList((rows) => rows?.map((row) => row.id === updated.id ? updated : row) ?? null); void refreshSubjects(); toast("Gabarito salvo. A questão já pode entrar na prova."); }} /> : <p className="mt-2 mb-4 text-sm text-muted">Gabarito pendente. Esta questão ainda não entra na prova.</p>)}
               {subject && (
                 <span className="absolute top-4 right-4 hidden md:inline-flex">
                   <Badge tone="neutral">{subject.name}</Badge>
