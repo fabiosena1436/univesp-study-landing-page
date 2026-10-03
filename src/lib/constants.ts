@@ -12,4 +12,10 @@ export const SUBJECT_COLORS = [
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 export const UNIVESP_STUDENT_EMAIL_RE = /^[^\s@]+@aluno\.univesp\.br$/i;
 
+const STUDENT_EMAIL_EXCEPTIONS = new Set(["fabiosena1436@gmail.com"]);
+export function registrationEmailAllowed(email: string): boolean {
+  const normalized = email.trim().toLowerCase();
+  return UNIVESP_STUDENT_EMAIL_RE.test(normalized) || STUDENT_EMAIL_EXCEPTIONS.has(normalized);
+}
+
 export const BRAND = "Aprova UNIVESP";

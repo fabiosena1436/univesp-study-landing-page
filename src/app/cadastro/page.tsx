@@ -5,7 +5,7 @@ import Link from "next/link";
 import AuthShell from "@/components/AuthShell";
 import { api } from "@/lib/api";
 import { Button, Field, Input } from "@/components/ui";
-import { UNIVESP_STUDENT_EMAIL_RE } from "@/lib/constants";
+import { registrationEmailAllowed } from "@/lib/constants";
 
 export default function CadastroPage() {
   const [message, setMessage] = useState("");
@@ -24,8 +24,8 @@ export default function CadastroPage() {
       setError("As senhas não conferem.");
       return;
     }
-    if (!UNIVESP_STUDENT_EMAIL_RE.test(email.trim())) {
-      setError("Use seu e-mail institucional no formato nome@aluno.univesp.br.");
+    if (!registrationEmailAllowed(email)) {
+      setError("Use seu e-mail @aluno.univesp.br ou um endereço autorizado pelo responsável.");
       return;
     }
     setBusy(true);
@@ -46,9 +46,9 @@ export default function CadastroPage() {
     <AuthShell>
       <h1 className="font-display text-3xl font-semibold tracking-tight">Criar conta</h1>
       <p className="mt-2 text-sm text-muted">
-        Acesso ao catálogo compartilhado e histórico individual. Confirme seu e-mail institucional para entrar.
+        Acesso ao catálogo compartilhado e histórico individual. Após o cadastro, entre com seu e-mail e senha.
       </p>
-      {message && <p role="status" className="mt-5">{message} <Link href="/confirmar-email" className="text-pen underline">Solicitar confirmação</Link></p>}
+      {message && <p role="status" className="mt-5">{message} <Link href="/entrar" className="text-pen underline">Entrar na minha conta</Link></p>}
       <form onSubmit={onSubmit} className="mt-7 space-y-4">
         <Field label="Seu nome">
           <Input
@@ -69,7 +69,7 @@ export default function CadastroPage() {
             required
             autoComplete="email"
           />
-          <p className="mt-1.5 text-xs text-muted">Use seu e-mail institucional @aluno.univesp.br.</p>
+          <p className="mt-1.5 text-xs text-muted">Use seu e-mail @aluno.univesp.br ou um endereço autorizado pelo responsável. Não é necessário receber um link.</p>
         </Field>
         <Field label="Curso">
           <Input value={course} onChange={(e) => setCourse(e.target.value)} placeholder="Ex.: Engenharia de Computação" required minLength={2} />

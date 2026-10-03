@@ -37,7 +37,6 @@ export default function EntrarPage() {
       <p className="mt-2 text-sm text-muted">
         Entra aí e bora rever o conteúdo.
       </p>
-      <p className="mt-4 text-sm"><Link href="/confirmar-email" className="text-pen underline">Confirmar e-mail ou solicitar novo link</Link></p>
       <form onSubmit={onSubmit} className="mt-7 space-y-4">
         <Field label="E-mail">
           <Input

@@ -19,7 +19,7 @@ const STEPS = [
   {
     icon: ClipboardPaste,
     title: "Acesse o catálogo",
-    desc: "Crie sua conta, confirme o e-mail institucional e escolha uma das matérias publicadas pelos administradores.",
+    desc: "Crie sua conta e escolha uma das matérias publicadas pelos administradores.",
   },
   {
     icon: Sparkles,
@@ -206,7 +206,7 @@ export default function Landing() {
             Bora passar de <span className="marker-soft text-ink">primeira</span>?
           </h2>
           <p className="relative mt-4 text-paper/70 max-w-md mx-auto">
-            Confirme seu e-mail institucional e comece a praticar com as matérias disponíveis.
+            Cadastre-se e comece a praticar com as matérias disponíveis.
           </p>
           <Link
             href="/cadastro"

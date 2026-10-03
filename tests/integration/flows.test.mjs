@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { randomBytes, randomUUID, createHash } from "node:crypto";
 import pg from "pg";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 const config = JSON.parse(await readFile(".test-env.json", "utf8"));
 const client = new pg.Client({ connectionString: config.databaseUrl });
 await client.connect();
@@ -30,19 +32,18 @@ test('application integrity and account flows against PostgreSQL', async t => {
     const snapshot = (await client.query('SELECT snapshot FROM attempt_answers WHERE attempt_id=$1', [config.legacyAttemptId])).rows[0].snapshot;
     assert.equal(snapshot.correctKey, 'B'); assert.equal(snapshot.statement, 'Qual alternativa está correta?');
   });
-  await t.test('verified login stores hashed sessions; pending email cannot login', async () => {
+  await t.test('login stores hashed sessions and does not require email confirmation', async () => {
     adminCookie = await login('admin'); studentCookie = await login('student');
     const token = studentCookie.split('=')[1];
     const stored = (await client.query('SELECT token FROM sessions WHERE user_id=$1', [config.ids.student])).rows;
     assert.ok(stored.some(s => s.token === createHash('sha256').update(token).digest('hex')));
     assert.ok(stored.every(s => s.token !== token));
-    assert.equal((await call('/api/auth/login', { method: 'POST', body: { email: 'pending@aluno.univesp.br', password: config.password } })).status, 403);
+    pendingCookie = await login('pending');
+    assert.equal((await call('/api/auth/me', { cookie: pendingCookie })).status, 200);
   });
-  await t.test('only one concurrent verification can consume a token', async () => {
-    const token = randomBytes(32).toString('hex');
-    await client.query("INSERT INTO email_verification_tokens(user_id,token_hash,expires_at) VALUES($1,$2,now()+interval '1 day')", [config.ids.pending, createHash('sha256').update(token).digest('hex')]);
-    const results = await Promise.all([0, 1].map(() => call('/api/auth/verify-email', { method: 'POST', body: { token } })));
-    assert.deepEqual(results.map(r => r.status).sort(), [200, 400]); pendingCookie = await login('pending');
+  await t.test('obsolete email verification routes are disabled', async () => {
+    assert.equal((await call('/api/auth/verify-email', { method: 'POST', body: { token: randomBytes(32).toString('hex') } })).status, 410);
+    assert.equal((await call('/api/auth/resend-verification', { method: 'POST', body: { email: 'pending@aluno.univesp.br' } })).status, 410);
   });
   await t.test('student authorization and invalid IDs are enforced', async () => {
     assert.equal((await call('/api/subjects', { method: 'POST', cookie: studentCookie, body: { name: 'Inválida' } })).status, 403);
@@ -136,8 +137,36 @@ test('application integrity and account flows against PostgreSQL', async t => {
     const unknown = await call('/api/auth/forgot-password', { method: 'POST', body: { email: 'unknown@aluno.univesp.br' } });
     assert.equal(known.status, 200); assert.equal(unknown.status, 200); assert.deepEqual(known.data, unknown.data);
     const register = await call('/api/auth/register', { method: 'POST', body: { name: 'Novo teste', email: 'new@aluno.univesp.br', course: 'Computação', password: config.password } });
-    assert.equal(register.status, 503);
-    assert.equal((await client.query("SELECT id FROM users WHERE email='new@aluno.univesp.br'")).rows.length, 0);
+    assert.equal(register.status, 201);
+    assert.equal((await client.query("SELECT id FROM users WHERE email='new@aluno.univesp.br'")).rows.length, 1);
+    assert.equal((await call('/api/auth/login', { method: 'POST', body: { email: 'new@aluno.univesp.br', password: config.password } })).status, 200);
+  });
+  await t.test('authorized personal email is a student; institutional administrator requires explicit promotion', async () => {
+    const register = email => call('/api/auth/register', { method: 'POST', body: { name: 'Teste de acesso', email, course: 'Computação', password: config.password } });
+    assert.equal((await register('outro@gmail.com')).status, 400);
+    assert.equal((await register('fabiosena1436+teste@gmail.com')).status, 400);
+    assert.equal((await register(' FABIOSENA1436@GMAIL.COM ')).status, 201);
+    assert.equal((await register('fabiosena1436@gmail.com')).status, 409);
+    const student = await call('/api/auth/login', { method: 'POST', body: { email: 'fabiosena1436@gmail.com', password: config.password } });
+    assert.equal(student.status, 200);
+    const own = await call('/api/auth/me', { cookie: student.cookie });
+    assert.equal(own.status, 200); assert.equal(own.data.user.isAdmin, false);
+    assert.equal((await call('/api/admin/users', { cookie: student.cookie })).status, 403);
+    await client.query("UPDATE users SET is_blocked=true WHERE email='fabiosena1436@gmail.com'");
+    assert.equal((await call('/api/auth/me', { cookie: student.cookie })).status, 401);
+    assert.equal((await call('/api/auth/login', { method: 'POST', body: { email: 'fabiosena1436@gmail.com', password: config.password } })).status, 403);
+    await client.query("UPDATE users SET is_blocked=false WHERE email='fabiosena1436@gmail.com'");
+    assert.equal((await register('26241463@aluno.univesp.br')).status, 201);
+    const institutional = await call('/api/auth/login', { method: 'POST', body: { email: '26241463@aluno.univesp.br', password: config.password } });
+    assert.equal(institutional.status, 200);
+    assert.equal((await call('/api/admin/users', { cookie: institutional.cookie })).status, 403);
+    const run = promisify(execFile);
+    const env = { ...process.env, DATABASE_URL: config.databaseUrl };
+    await assert.rejects(run(process.execPath, ['scripts/admin.mjs', 'fabiosena1436@gmail.com'], { env }));
+    await run(process.execPath, ['scripts/admin.mjs', '26241463@aluno.univesp.br'], { env });
+    assert.equal((await call('/api/admin/users', { cookie: institutional.cookie })).status, 200);
+    assert.equal((await call('/api/admin/users', { cookie: student.cookie })).status, 403);
+    assert.equal((await client.query("SELECT count(*)::int AS n FROM email_verification_tokens WHERE user_id IN (SELECT id FROM users WHERE email IN ('26241463@aluno.univesp.br','fabiosena1436@gmail.com'))")).rows[0].n, 0);
   });
   await t.test('persistent rate limits reject the ninth login without storing email addresses as keys', async () => {
     const email = randomUUID() + '@aluno.univesp.br';

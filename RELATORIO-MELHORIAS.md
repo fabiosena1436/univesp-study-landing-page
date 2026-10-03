@@ -9,7 +9,7 @@ Verificado em 2 de outubro de 2026. O produto mantém um catálogo compartilhado
 - Atualizações simultâneas de revisão podiam perder contadores: progresso único por aluno/questão com atualização atômica.
 - Exclusão de conteúdo podia destruir o histórico: conteúdo é arquivado e cada resposta conserva uma cópia da questão utilizada.
 - Sessões eram armazenadas como tokens utilizáveis: agora são armazenados hashes. Alteração e recuperação de senha revogam sessões anteriores.
-- E-mail institucional não era confirmado: cadastro pendente, confirmação com token de uso único e reenvio limitado. Administradores legados foram confirmados na migração; alunos legados precisam confirmar o endereço.
+- Cadastro e login sem confirmação por link, conforme solicitação do responsável. Aceita @aluno.univesp.br e a exceção específica fabiosena1436@gmail.com como aluno. 26241463@aluno.univesp.br pode ser promovido explicitamente pelo comando administrativo; não há promoção automática por endereço.
 - Limites de requisição não eram persistentes: limites no PostgreSQL sobrevivem a reinícios e múltiplas instâncias.
 - Importações podiam misturar matéria/material e aceitar alternativas inválidas: validação integral e publicação em transação, com deduplicação por fingerprint.
 - Geração podia dar aparência de confiança a questões sem fundamentação: respostas da IA são validadas e precisam incluir trecho literal do material; revisão humana continua necessária.
@@ -29,8 +29,8 @@ Verificado em 2 de outubro de 2026. O produto mantém um catálogo compartilhado
 ## Validação realizada
 
 - Lint e build de produção aprovados, incluindo a verificação de TypeScript.
-- 14 testes unitários aprovados, incluindo seleção e proteção da conexão direta do Neon.
-- 16 cenários de integração aprovados contra PostgreSQL isolado, incluindo concorrência, autorização, migração do legado, idempotência, recuperação, exportação e exclusão.
+- 15 testes unitários aprovados, incluindo seleção e proteção da conexão direta do Neon.
+- 17 cenários de integração aprovados contra PostgreSQL isolado, incluindo concorrência, autorização, migração do legado, idempotência, recuperação, exportação e exclusão.
 - No Edge: login, seleção automática da matéria, simulado, restauração após navegar para outra página, correção, salvamento e resultado no histórico.
 - Banco local real migrado com sucesso; diagnóstico confirmou conexão, registro de migrações e novo esquema.
 - Backup atualizado criado pelo comando Docker em `backups/aprova-20261002T174645Z.dump` e restaurado integralmente no banco isolado. Lint aprovado; o verificador rejeitou um arquivo fora da pasta/formato permitido.
@@ -39,7 +39,7 @@ Verificado em 2 de outubro de 2026. O produto mantém um catálogo compartilhado
 
 ## Pendências externas
 
-1. Configurar `RESEND_API_KEY` e `RESEND_FROM_EMAIL` em `.env.local` e no ambiente de hospedagem. O remetente precisa estar autorizado no Resend. Sem isso, cadastro e envio de confirmação/recuperação permanecem indisponíveis, com erro explícito.
+1. Resend é opcional para recuperação de senha por e-mail; cadastro e login funcionam sem esse serviço. Configure `RESEND_API_KEY` e `RESEND_FROM_EMAIL` somente se desejar enviar links de recuperação.
 2. Na hospedagem, configurar `APP_URL` com o domínio HTTPS real e credenciais próprias; localmente está definido como `http://localhost:3000`.
 3. Agendar `db:backup` e `db:cleanup` e armazenar uma cópia do backup fora da máquina. A restauração local foi exercitada; repetir periodicamente no ambiente de hospedagem. Os comandos e a retenção estão documentados no README.
 4. Validar entrega real de e-mail e uma geração Gemini no ambiente configurado. Não foi realizado deploy.

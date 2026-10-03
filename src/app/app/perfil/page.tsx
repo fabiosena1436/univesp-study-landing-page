@@ -42,7 +42,7 @@ export default function PerfilPage() {
   return <div className="max-w-2xl space-y-6"><div><h1 className="font-display text-3xl font-semibold">Meu perfil</h1><p className="mt-2 text-ink-soft">Atualize seus dados e sua senha.</p></div>
     <form onSubmit={(e) => { e.preventDefault(); void save(); }} className="card p-6 space-y-4">
       <Field label="Nome"><Input required minLength={2} maxLength={80} autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} /></Field>
-      <Field label="E-mail institucional"><Input value={user.email} disabled /></Field><Field label="Curso"><Input required minLength={2} maxLength={120} value={course} onChange={(e) => setCourse(e.target.value)} /></Field>
+      <Field label="E-mail da conta"><Input value={user.email} disabled /></Field><Field label="Curso"><Input required minLength={2} maxLength={120} value={course} onChange={(e) => setCourse(e.target.value)} /></Field>
       <div className="border-t border-line pt-4 space-y-4"><h2 className="font-semibold">Alterar senha</h2><Field label="Senha atual"><Input autoComplete="current-password" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} /></Field><Field label="Nova senha" hint="Mínimo de 8 caracteres e máximo de 72 bytes. Deixe vazio para manter a atual."><Input autoComplete="new-password" type="password" minLength={8} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} /></Field></div>
       <Button type="submit" disabled={busy}>{busy ? "Salvando…" : "Salvar alterações"}</Button>
     </form>

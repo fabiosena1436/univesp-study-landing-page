@@ -25,7 +25,6 @@ export async function POST(req: NextRequest) {
     if (!ok) throw new ApiError(401, "E-mail ou senha incorretos.");
     if (user.isBlocked) throw new ApiError(403, "Sua conta está bloqueada. Entre em contato com o administrador.");
 
-    if (!user.emailVerifiedAt) throw new ApiError(403, "Confirme seu e-mail antes de entrar. Solicite um link em /confirmar-email.");
     await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, user.id));
     await createSession(user.id);
     return Response.json({ user: safeUser(user) });

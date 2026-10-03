@@ -25,7 +25,7 @@ export default function AuthShell({ children }: { children: ReactNode }) {
             {[
               { icon: Zap, t: "Treinos com gabarito e feedback disponível" },
               { icon: ShieldCheck, t: "Catálogo compartilhado e histórico individual" },
-              { icon: Wallet, t: "Acesso gratuito para alunos com e-mail confirmado" },
+              { icon: Wallet, t: "Acesso gratuito com cadastro e senha" },
             ].map((f) => (
               <li key={f.t} className="flex items-start gap-3 text-sm text-paper/85">
                 <span className="w-8 h-8 shrink-0 rounded-lg bg-paper/10 grid place-items-center text-brand">

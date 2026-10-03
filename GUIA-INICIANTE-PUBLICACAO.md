@@ -9,7 +9,7 @@ Faça uma etapa por vez. Só avance quando chegar ao resultado indicado. Os nome
 | GitHub | Guarda o código do projeto e suas atualizações. |
 | Neon | Guarda alunos, questões, matérias e histórico no banco de dados. |
 | Vercel | Coloca o site na internet e executa as APIs. |
-| Resend | Envia confirmação de cadastro e recuperação de senha. |
+| Resend | Opcional: envia recuperação de senha. Cadastro não usa e-mail. |
 | Gemini | Gera questões por IA; é opcional. |
 
 “Deploy” significa publicar uma versão do site. “Variável de ambiente” é uma configuração preenchida fora do código, como a conexão do banco. “Migração” é o comando que cria ou atualiza as tabelas do banco.
@@ -121,7 +121,7 @@ Também é possível conferir as tabelas no painel de tabelas do Neon, como `use
 
 ## Etapa 5 — preparar o envio de e-mails
 
-O site pode ser publicado sem Resend, mas o cadastro e os links de recuperação não funcionarão até o envio estar configurado.
+Esta etapa é opcional. Cadastro e login funcionam sem Resend e sem abrir links. Configure-o somente se desejar recuperação de senha por e-mail; o recebimento depende do provedor do destinatário.
 
 1. Entre em https://resend.com e crie sua conta.
 2. Em **Domains**, adicione um domínio que você controla.
@@ -130,7 +130,7 @@ O site pode ser publicado sem Resend, mas o cadastro e os links de recuperação
 5. Em **API Keys**, crie uma chave para envio de e-mails e guarde-a em local privado.
 6. Defina um remetente desse domínio, por exemplo `Aprova UNIVESP <noreply@seudominio.com.br>`.
 
-O exemplo acima precisa ser substituído pelo seu domínio real. O endereço `fabiosena1436@gmail.com` é o contato do serviço; ele não substitui a verificação de um domínio de envio. Você também não controla o domínio `vercel.app` para verificar no Resend. Se ainda não tem domínio próprio, pode publicar o site, mas essa etapa ficará pendente.
+O exemplo acima precisa ser substituído pelo seu domínio real. O endereço `fabiosena1436@gmail.com` é o contato do serviço; ele não substitui a verificação de um domínio de envio. Você também não controla o domínio `vercel.app` para verificar no Resend. Se ainda não tem domínio próprio, pode publicar o site, a recuperação por e-mail ficará pendente.
 
 Referência: [verificação de domínio no Resend](https://resend.com/docs/dashboard/domains/introduction).
 
@@ -158,8 +158,8 @@ Preencha uma por vez. Nos campos do painel, cole o valor sem aspas externas:
 | --- | --- |
 | `DATABASE_URL` | A conexão Neon com `-pooler`, copiada na etapa 3. |
 | `APP_URL` | O endereço HTTPS estável do seu site, sem barra no final. |
-| `RESEND_API_KEY` | Sua chave privada do Resend. |
-| `RESEND_FROM_EMAIL` | O remetente do seu domínio verificado. |
+| `RESEND_API_KEY` | Opcional: chave Resend para recuperação de senha. |
+| `RESEND_FROM_EMAIL` | Opcional: remetente do seu domínio verificado. |
 | `DB_POOL_MAX` | `3` |
 | `TZ` | `UTC` |
 | `GEMINI_API_KEY` | Sua chave Gemini, somente se quiser geração por IA. |
@@ -196,24 +196,24 @@ Referência: [variáveis de ambiente na Vercel](https://vercel.com/docs/environm
 ## Etapa 9 — criar sua conta e virar administrador
 
 1. Abra seu site e clique em criar conta.
-2. Use seu e-mail institucional terminado em `@aluno.univesp.br`.
-3. Confira o e-mail recebido e confirme a conta pelo link.
-4. No computador, mantenha `.env.neon` configurado e execute, substituindo o endereço pelo seu e-mail institucional real:
+2. Para a conta administrativa, cadastre `26241463@aluno.univesp.br`. Para testar como aluno, cadastre `fabiosena1436@gmail.com`. Escolha senhas para cada conta.
+3. Entre com e-mail e senha. Não é necessário receber ou abrir um link.
+4. No computador, mantenha `.env.neon` configurado e execute, para promover a conta institucional já cadastrada:
 
 ```powershell
-node --env-file=.env.neon scripts/admin.mjs seu-email@aluno.univesp.br
+node --env-file=.env.neon scripts/admin.mjs 26241463@aluno.univesp.br
 ```
 
 5. Quando aparecer `Administrator promoted.`, saia do site e entre de novo.
 6. Confira as opções administrativas. Crie uma matéria e publique questões para testar.
 
-Seu Gmail de contato não pode ser usado como conta de aluno neste fluxo. O comando também não cria uma conta: ela precisa existir e estar confirmada antes.
+fabiosena1436@gmail.com foi autorizado como aluno, sem permissões administrativas. A conta institucional só recebe administração após executar o comando acima. O comando não cria a conta: cadastre-a primeiro.
 
 **Deu certo quando:** você consegue acessar as funções administrativas, publicar conteúdo e realizar um simulado com o resultado no histórico.
 
 ## Etapa 10 — conferir o funcionamento e atualizar no futuro
 
-Teste cadastro, confirmação, login, recuperação de senha, importação, simulado e histórico. Geração Gemini só funciona com a chave configurada e com acesso ao modelo na sua conta.
+Teste cadastro, login, importação, simulado e histórico. Recuperação de senha por e-mail é opcional e depende do Resend e do recebimento pelo provedor. Geração Gemini só funciona com a chave configurada e com acesso ao modelo na sua conta.
 
 Em futuras alterações de código, use GitHub Desktop: confira Changes, faça Commit e depois Push origin. A integração GitHub/Vercel cria uma nova publicação a cada push na branch conectada. Se uma alteração incluir migrações, aplique-as no Neon pelo comando da etapa 4 antes de liberar a versão que precisa delas.
 
@@ -226,9 +226,9 @@ Backups e limpeza periódica ainda precisam de um agendamento externo; publicar 
 | `DATABASE_URL is required` | Variável DATABASE_URL salva para Production e novo deploy realizado. |
 | Tabela inexistente / `relation does not exist` | Etapa 4 executada no mesmo banco usado pela Vercel. |
 | Origem não permitida | APP_URL igual ao domínio aberto, com HTTPS; redeploy após corrigir. |
-| Cadastro indisponível | Chave e remetente Resend configurados; domínio verificado. |
+| Cadastro recusado | Use @aluno.univesp.br ou a exceção fabiosena1436@gmail.com; confira os campos e a senha. |
 | E-mail não chega | Spam, endereço institucional digitado e logs de envio no Resend. |
-| Conta não vira administrador | Conta cadastrada e confirmada; comando usando o arquivo do Neon correto. |
+| Conta não vira administrador | Conta institucional cadastrada e não bloqueada; comando usando o arquivo do Neon correto. |
 | Importação de PDF falha por tamanho | Vercel limita o payload das funções a 4,5 MB; divida o arquivo ou importe o texto. |
 | IA não gera questões | GEMINI_API_KEY, modelo disponível e cota da conta. |
 | Site antigo após mudar variável | Execute Redeploy; confira que abriu o domínio estável. |

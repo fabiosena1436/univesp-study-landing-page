@@ -36,8 +36,8 @@ Configure estas variáveis no ambiente Production:
 | --- | --- |
 | `DATABASE_URL` | URL Neon com pool e TLS |
 | `APP_URL` | URL HTTPS estável do projeto, por exemplo `https://aprova-univesp.vercel.app` |
-| `RESEND_API_KEY` | Chave privada do Resend |
-| `RESEND_FROM_EMAIL` | Remetente autorizado no Resend |
+| `RESEND_API_KEY` | Opcional: chave privada do Resend para recuperação de senha |
+| `RESEND_FROM_EMAIL` | Opcional: remetente autorizado no Resend |
 | `GEMINI_API_KEY` | Chave privada do Gemini, se usar geração |
 | `GEMINI_MODELS` | Modelo disponível na sua conta; padrão do código `gemini-2.5-flash` |
 | `DB_POOL_MAX` | `3` como ponto inicial; ajustar após observar carga |
@@ -57,7 +57,7 @@ Backups não devem ser gravados no disco temporário das funções. Execute `db:
 
 ## 5. Conferência após publicar
 
-Verifique `/api/health`, cadastro e confirmação de e-mail, login, publicação administrativa, simulado e histórico. Teste a entrega de recuperação de senha e uma geração Gemini. Promova um usuário institucional já confirmado usando `npm run db:admin -- email@aluno.univesp.br`, com o ambiente apontando explicitamente para o banco desejado.
+Verifique `/api/health`, cadastro sem confirmação por e-mail, login, publicação administrativa, simulado e histórico. Teste a entrega de recuperação de senha e uma geração Gemini. Promova a conta institucional já cadastrada usando `npm run db:admin -- 26241463@aluno.univesp.br`, com o ambiente apontando explicitamente para o banco desejado.
 
 Confira os logs da Vercel e a utilização de conexões no Neon. O sucesso do build não confirma que as migrações ou o envio de e-mail estejam configurados.
 

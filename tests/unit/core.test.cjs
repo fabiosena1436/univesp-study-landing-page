@@ -6,6 +6,15 @@ const { createResetToken, hashResetToken } = require('../../.test-build/lib/pass
 const options = ['A', 'B', 'C', 'D', 'E'].map(key => ({ key, text: 'Alternativa ' + key }));
 const question = { id: 'q1', subjectId: 's1', correctKey: 'B', options };
 
+test('registration allows institutional addresses and only the explicit personal exception', () => {
+  const { registrationEmailAllowed } = require('../../.test-build/lib/constants');
+  assert.equal(registrationEmailAllowed('26241463@aluno.univesp.br'), true);
+  assert.equal(registrationEmailAllowed(' FABIOSENA1436@GMAIL.COM '), true);
+  assert.equal(registrationEmailAllowed('other@gmail.com'), false);
+  assert.equal(registrationEmailAllowed('fabiosena1436+teste@gmail.com'), false);
+  assert.equal(registrationEmailAllowed('user@aluno.univesp.br.example.com'), false);
+});
+
 test('Neon migrations use direct connection and refuse transaction pool endpoints', async () => {
   const { migrationDatabaseUrl } = await import('../../scripts/database-url.mjs');
   const direct = 'postgresql://test:fake@ep-test.region.aws.neon.tech/test?sslmode=require';

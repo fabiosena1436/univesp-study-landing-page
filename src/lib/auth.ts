@@ -84,7 +84,7 @@ export async function getSessionUser(): Promise<User | null> {
     return null;
   }
   const admin = await db.select({ userId: admins.userId }).from(admins).where(eq(admins.userId, row.user.id)).limit(1);
-  if (!row.user.emailVerifiedAt || row.user.isBlocked) return null;
+  if (row.user.isBlocked) return null;
   return safeUser({ ...row.user, isAdmin: Boolean(admin[0]) });
 }
 

@@ -1,27 +1,5 @@
-"use client";
-import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import Link from "next/link";
+﻿import Link from "next/link";
 import AuthShell from "@/components/AuthShell";
-import { Button, Field, Input } from "@/components/ui";
-import { api } from "@/lib/api";
-export default function ConfirmarEmail() { return <Suspense fallback={<p>Carregando…</p>}><Confirmation /></Suspense>; }
-function Confirmation() {
-  const token = useSearchParams().get("token");
-  const [email, setEmail] = useState("");
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  async function submit() {
-    setBusy(true); setError("");
-    try { const result = await api<{ message: string }>(token ? "/api/auth/verify-email" : "/api/auth/resend-verification", { method: "POST", body: JSON.stringify(token ? { token } : { email }) }); setMessage(result.message); }
-    catch (e) { setError(e instanceof Error ? e.message : "Não foi possível confirmar."); }
-    finally { setBusy(false); }
-  }
-  return <AuthShell><h1 className="font-display text-3xl">Confirmar e-mail</h1><p className="mt-3 text-muted">Confirme que você controla seu endereço institucional para acessar o catálogo.</p><form className="mt-6 space-y-4" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
-    {!token && <Field label="E-mail institucional"><Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" /></Field>}
-    {message && <p role="status">{message}</p>}{error && <p role="alert" className="text-red">{error}</p>}
-    <Button type="submit" disabled={busy || Boolean(token && message)}>{busy ? "Enviando…" : token ? "Confirmar meu e-mail" : "Enviar novo link"}</Button>
-    <Link className="block text-pen" href="/entrar">Ir para o login</Link>{token && <Link className="block text-pen" href="/confirmar-email">Solicitar outro link</Link>}
-  </form></AuthShell>;
+export default function ConfirmarEmail() {
+  return <AuthShell><h1 className="font-display text-3xl">Seu cadastro não precisa de confirmação</h1><p className="mt-3 text-muted">O acesso por e-mail e senha é liberado após criar a conta. Não é necessário receber ou abrir um link.</p><Link className="block mt-6 text-pen underline" href="/entrar">Entrar na minha conta</Link><Link className="block mt-4 text-pen underline" href="/cadastro">Criar conta</Link></AuthShell>;
 }
