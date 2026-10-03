@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { api, formatDate } from "@/lib/api";
 import { Badge, Button, Input, Spinner } from "@/components/ui";
 import { toast, useApp } from "@/components/AppShell";
@@ -41,6 +42,7 @@ export default function AdminPage() {
   if (!user.isAdmin) return <p className="card p-6">Acesso restrito ao administrador.</p>;
   if (error) return <div role="alert" className="card p-6">{error}<Button onClick={() => window.location.reload()}>Tentar novamente</Button></div>;
   return <div className="space-y-6"><h1 className="font-display text-3xl font-semibold">Administração</h1>
+    <section className="card p-5 space-y-3"><h2 className="font-semibold text-xl">Gerenciar conteúdo</h2><p className="text-sm text-muted">Edite ou exclua matérias, materiais e questões. A exclusão retira o conteúdo do banco e preserva as provas concluídas.</p><div className="flex flex-wrap gap-3"><Link className="text-pen font-semibold underline" href="/app">Matérias: nome, cor e exclusão</Link><Link className="text-pen font-semibold underline" href="/app/materiais">Materiais: título, conteúdo e exclusão</Link><Link className="text-pen font-semibold underline" href="/app/questoes">Questões: alternativas, gabarito e exclusão</Link></div></section>
     <section className="card p-5"><h2 className="font-semibold text-xl">Usuários cadastrados</h2>
       <Pagination page={userPage} next={users?.length === 50} setPage={setUserPage} />
       {!users ? <Spinner /> : users.map((item) => <div key={item.id} className="py-4 border-b border-line flex flex-wrap gap-3 items-center"><div className="flex-1 min-w-52"><p className="font-semibold">{item.name} {item.isAdmin && <Badge>Admin</Badge>} {item.isBlocked && <Badge tone="red">Bloqueado</Badge>}</p><p className="text-sm break-all">{item.email}</p><p className="text-xs text-muted">{item.attempts} provas · {item.answered} respostas · {item.correct} acertos</p></div>
