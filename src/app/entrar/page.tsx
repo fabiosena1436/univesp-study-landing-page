@@ -71,6 +71,9 @@ export default function EntrarPage() {
         <Link href="/recuperar-senha" className="text-pen font-semibold hover:underline">Esqueci minha senha</Link>
       </p>
       <p className="mt-3 text-sm text-muted text-center">
+        <Link href="/confirmar-email" className="text-pen font-semibold hover:underline">Confirmar e-mail ou reenviar link</Link>
+      </p>
+      <p className="mt-3 text-sm text-muted text-center">
         Ainda não tem conta?{" "}
         <Link href="/cadastro" className="text-pen font-semibold hover:underline">
           Criar grátis

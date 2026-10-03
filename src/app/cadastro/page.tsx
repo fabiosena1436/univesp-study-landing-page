@@ -46,9 +46,9 @@ export default function CadastroPage() {
     <AuthShell>
       <h1 className="font-display text-3xl font-semibold tracking-tight">Criar conta</h1>
       <p className="mt-2 text-sm text-muted">
-        Acesso ao catálogo compartilhado e histórico individual. Após o cadastro, entre com seu e-mail e senha.
+        Após o cadastro, confirme seu e-mail pelo link enviado para acessar o catálogo compartilhado e seu histórico individual.
       </p>
-      {message && <p role="status" className="mt-5">{message} <Link href="/entrar" className="text-pen underline">Entrar na minha conta</Link></p>}
+      {message && <p role="status" className="mt-5">{message} <Link href="/confirmar-email" className="text-pen underline">Solicitar novo link</Link></p>}
       <form onSubmit={onSubmit} className="mt-7 space-y-4">
         <Field label="Seu nome">
           <Input
@@ -69,7 +69,7 @@ export default function CadastroPage() {
             required
             autoComplete="email"
           />
-          <p className="mt-1.5 text-xs text-muted">Use seu e-mail @aluno.univesp.br ou um endereço autorizado pelo responsável. Não é necessário receber um link.</p>
+          <p className="mt-1.5 text-xs text-muted">Use seu e-mail @aluno.univesp.br ou um endereço autorizado pelo responsável. Você precisará confirmar o endereço pelo link recebido.</p>
         </Field>
         <Field label="Curso">
           <Input value={course} onChange={(e) => setCourse(e.target.value)} placeholder="Ex.: Engenharia de Computação" required minLength={2} />

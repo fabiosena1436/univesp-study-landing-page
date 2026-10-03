@@ -7,6 +7,7 @@ import { passwordError } from "@/lib/validation";
 import { rateLimit } from "@/lib/rateLimit";
 import { ApiError, handleError, str } from "@/lib/errors";
 import { EMAIL_RE, registrationEmailAllowed } from "@/lib/constants";
+import { appUrl, sendVerification } from "@/lib/accountEmail";
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,6 +26,9 @@ export async function POST(req: NextRequest) {
     if (badPassword) throw new ApiError(400, badPassword);
     await rateLimit("register", "global", 100, 60_000);
     await rateLimit("register.email", email, 3, 3600000);
+    appUrl();
+    if (!process.env.RESEND_API_KEY || !process.env.RESEND_FROM_EMAIL)
+      throw new ApiError(503, "O envio de confirmação ainda não foi configurado.");
 
     const existing = await db
       .select({ id: users.id })
@@ -40,7 +44,9 @@ export async function POST(req: NextRequest) {
     const user = rows[0];
     if (!user) throw new ApiError(500, "Não foi possível criar a conta.");
 
-    return Response.json({ message: "Conta criada. Você já pode entrar com seu e-mail e senha." }, { status: 201 });
+    try { await sendVerification(user); }
+    catch { return Response.json({ message: "Conta criada, mas não foi possível enviar o link agora. Solicite um novo link na página de confirmação." }, { status: 201 }); }
+    return Response.json({ message: "Conta criada. Confirme seu e-mail para entrar. A mensagem pode levar alguns minutos; confira também Outros e Lixo Eletrônico." }, { status: 201 });
   } catch (e) {
     return handleError(e);
   }
