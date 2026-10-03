@@ -148,10 +148,12 @@ export default function MateriaisPage() {
             ? "Questões existentes extraídas do material. Revise antes de salvar."
             : "Gerado pela IA com o conteúdo da revisão. Revise antes de salvar."),
       );
-      if (res.questions.length === 0) toast("Não consegui criar questões desse material.", "err");
+      if (res.questions.length === 0) toast(res.note || "Não foram encontradas questões válidas nesse material.", "err");
       else toast(`${res.questions.length} questões geradas — confira antes de salvar.`);
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Falha ao gerar questões.", "err");
+      const message = e instanceof Error ? e.message : "Falha ao gerar questões.";
+      setGenNote(message);
+      toast(message, "err");
     } finally {
       setGenerating(false);
     }
@@ -219,7 +221,7 @@ export default function MateriaisPage() {
         </span>
         <div className="flex-1 min-w-52">
           <p className="text-sm font-semibold">
-            {engine === "gemini" ? "IA conectada (Gemini)" : "Extração de questões existentes"}
+            {engine === "gemini" ? "IA configurada (Gemini)" : "Extração de questões existentes"}
           </p>
           <p className="text-xs text-muted leading-relaxed">
             {engine === "gemini"
