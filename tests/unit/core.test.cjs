@@ -73,8 +73,39 @@ test('large materials sample beginning, middle and end and disclose partial cove
 test('small count never creates more chunks than requested questions', () => assert.equal(selectChunks('x'.repeat(90000), 1).chunks.length, 1));
 test('local mode does not claim to generate new questions', async () => {
   const previous = process.env.GEMINI_API_KEY; delete process.env.GEMINI_API_KEY;
-  try { const result = await generateQuestions('Conteúdo sem alternativas sobre um conceito básico.', 5, 'Teste'); assert.equal(result.questions.length, 0); assert.match(result.note, /não gera questões/); }
+  try { await assert.rejects(generateQuestions('Conteúdo sem alternativas sobre um conceito básico.', 5, 'Teste'), error => error.status === 503 && /GEMINI_API_KEY/.test(error.message)); }
   finally { if (previous) process.env.GEMINI_API_KEY = previous; }
+});
+
+test('PDF whitespace is recovered as a literal excerpt that can be saved', () => {
+  const content = excerpt.replace(/ /g, '\r\n  ');
+  const result = coerceQuestions({ questions: [raw] }, content);
+  assert.equal(result.length, 1);
+  assert.equal(result[0].sourceExcerpt, content);
+  assert.ok(content.includes(result[0].sourceExcerpt));
+  assert.deepEqual(coerceQuestions({ questions: [{ ...raw, sourceExcerpt: excerpt.replace('conceito', 'fato inventado') }] }, content), []);
+});
+
+test('provider failures reach the caller instead of returning empty success', async () => {
+  const originalFetch = global.fetch;
+  const originalKey = process.env.GEMINI_API_KEY;
+  const originalModels = process.env.GEMINI_MODELS;
+  process.env.GEMINI_API_KEY = 'fake-test-key';
+  process.env.GEMINI_MODELS = 'test-model';
+  try {
+    for (const [status, message] of [[429, /cota/], [403, /permissões/], [404, /Modelo/]]) {
+      global.fetch = async () => Response.json({}, { status });
+      await assert.rejects(generateQuestions(excerpt, 1, 'Teste'), error => error.status === 502 && message.test(error.message));
+    }
+    global.fetch = async () => { throw new TypeError('fetch failed', { cause: { code: 'UNABLE_TO_VERIFY_LEAF_SIGNATURE' } }); };
+    await assert.rejects(generateQuestions(excerpt, 1, 'Teste'), /certificado/);
+    global.fetch = async () => Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ questions: [{ ...raw, sourceExcerpt: 'Trecho inventado que não consta na fonte.' }] }) }] } }] });
+    await assert.rejects(generateQuestions(excerpt, 1, 'Teste'), /origem verificável/);
+  } finally {
+    global.fetch = originalFetch;
+    if (originalKey === undefined) delete process.env.GEMINI_API_KEY; else process.env.GEMINI_API_KEY = originalKey;
+    if (originalModels === undefined) delete process.env.GEMINI_MODELS; else process.env.GEMINI_MODELS = originalModels;
+  }
 });
 test('reset tokens are independent, hashed and reproducible only from original token', () => {
   const a = createResetToken(), b = createResetToken();
