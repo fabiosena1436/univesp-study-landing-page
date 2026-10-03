@@ -1,4 +1,5 @@
 import type { OptionT } from "@/lib/types";
+import { orderedOptions } from "@/lib/options";
 import { CheckCircle2 } from "lucide-react";
 
 export type DisplayQuestion = {
@@ -31,7 +32,7 @@ export function QuestionCard({
       </div>
       {q.options.length > 0 && (
         <ul className="mt-4 space-y-2">
-          {q.options.map((o) => {
+          {orderedOptions(q.options).map((o) => {
             const isCorrect = showAnswer && q.correctKey === o.key;
             const dimmed = showAnswer && !!q.correctKey && !isCorrect;
             return (

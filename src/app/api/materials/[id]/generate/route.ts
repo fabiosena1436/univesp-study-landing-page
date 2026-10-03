@@ -7,6 +7,7 @@ import { uuid } from "@/lib/validation";
 import { rateLimit } from "@/lib/rateLimit";
 import { activeEngine, generateQuestions } from "@/lib/ai";
 import { ApiError, handleError } from "@/lib/errors";
+import { orderedOptions } from "@/lib/options";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       questions: questions.map((q, i) => ({
         tempId: `g${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`,
         statement: q.statement,
-        options: q.options,
+        options: orderedOptions(q.options),
         correctKey: q.correctKey,
         feedback: q.feedback,
         sourceExcerpt: q.sourceExcerpt,

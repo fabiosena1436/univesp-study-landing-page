@@ -15,6 +15,7 @@ import { toast, useApp } from "@/components/AppShell";
 import { api, formatDuration } from "@/lib/api";
 import { Badge, Button, ScoreRing, Select, Spinner, ToggleRow } from "@/components/ui";
 import type { AnswerRecord, QuizQuestion } from "@/lib/types";
+import { orderedOptions } from "@/lib/options";
 
 type Stage = "setup" | "run" | "done";
 
@@ -34,7 +35,6 @@ function ProvaInner() {
   const [stage, setStage] = useState<Stage>("setup");
   const [subjectId, setSubjectId] = useState(searchParams.get("m") ?? subjects[0]?.id ?? "");
   const [count, setCount] = useState("10");
-  const [shuffleOptions, setShuffleOptions] = useState(true);
   const [onlyWrong, setOnlyWrong] = useState(false);
   const [source, setSource] = useState<"all" | "revisao" | "material">("all");
   const [loading, setLoading] = useState(false);
@@ -110,7 +110,6 @@ function ProvaInner() {
         body: JSON.stringify({
           subjectId: effectiveSubjectId,
           count: count === "all" ? 200 : Number(count),
-          shuffleOptions,
           onlyWrong,
           source,
         }),
@@ -253,12 +252,6 @@ function ProvaInner() {
 
           <div className="space-y-3">
             <ToggleRow
-              label="Embaralhar a ordem das alternativas"
-              hint="A letra certa muda de lugar a cada prova"
-              checked={shuffleOptions}
-              onChange={setShuffleOptions}
-            />
-            <ToggleRow
               label="Só as questões que eu já errei"
               hint="Modo revisão: foca no que ainda te pega"
               checked={onlyWrong}
@@ -327,7 +320,7 @@ function ProvaInner() {
           <p className="whitespace-pre-line leading-relaxed text-[15px]">{q.statement}</p>
 
           <div className="mt-5 space-y-2.5">
-            {q.options.map((o) => {
+            {orderedOptions(q.options).map((o) => {
               const isSel = selected === o.key;
               let style = "border-line bg-surface hover:border-line-strong";
               if (checked) {

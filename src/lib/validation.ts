@@ -1,5 +1,6 @@
 import { ApiError, isUuid } from "./errors";
 import type { OptionT } from "./types";
+import { orderedOptions } from "./options";
 
 export function uuid(value: string, message = "Identificador inválido.") {
   if (!isUuid(value)) throw new ApiError(400, message);
@@ -26,7 +27,7 @@ export function validateOptions(value: unknown, correctKey: unknown, requireAnsw
   if (new Set(options.map((o) => o.key)).size !== options.length) throw new ApiError(400, "As letras das alternativas devem ser únicas.");
   const answer = typeof correctKey === "string" ? correctKey.trim().toUpperCase() : null;
   if ((answer && !options.some((o) => o.key === answer)) || (requireAnswer && !answer)) throw new ApiError(400, "Selecione um gabarito válido.");
-  return { options, correctKey: answer || null };
+  return { options: orderedOptions(options), correctKey: answer || null };
 }
 
 type GradingQuestion = { id: string; subjectId: string; correctKey: string | null; options: OptionT[] };

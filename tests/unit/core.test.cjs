@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const { gradeAnswers, validateOptions, passwordError, pageParams } = require('../../.test-build/lib/validation');
 const { coerceQuestions, selectChunks, generateQuestions } = require('../../.test-build/lib/ai');
 const { createResetToken, hashResetToken } = require('../../.test-build/lib/passwordReset');
+const { orderedOptions } = require('../../.test-build/lib/options');
 const options = ['A', 'B', 'C', 'D', 'E'].map(key => ({ key, text: 'Alternativa ' + key }));
 const question = { id: 'q1', subjectId: 's1', correctKey: 'B', options };
 
@@ -57,6 +58,18 @@ test('AI preserves original keys when alternatives arrive out of order', () => {
   const result = coerceQuestions({ questions: [{ ...raw, options: [options[4], ...options.slice(0, 4)] }] }, excerpt);
   assert.equal(result[0].correctKey, 'B');
   assert.equal(result[0].options.find(o => o.key === 'B').text, 'Alternativa B');
+  assert.deepEqual(result[0].options.map(o => o.key), ['A', 'B', 'C', 'D', 'E']);
+});
+
+test('ordering old or restored alternatives preserves text, answer and input array', () => {
+  const mixed = [options[4], options[2], options[0], options[3], options[1]];
+  const before = mixed.map(o => o.key);
+  const sorted = orderedOptions(mixed);
+  assert.deepEqual(sorted, options);
+  assert.deepEqual(mixed.map(o => o.key), before);
+  assert.equal(sorted.find(o => o.key === question.correctKey).text, 'Alternativa B');
+  assert.equal(gradeAnswers([{ questionId: 'q1', selectedKey: 'B' }], [{ ...question, options: sorted }], 's1')[0].isCorrect, true);
+  assert.equal(gradeAnswers([{ questionId: 'q1', selectedKey: 'A' }], [{ ...question, options: sorted }], 's1')[0].isCorrect, false);
 });
 test('AI rejects malformed and ungrounded questions', () => {
   for (const q of [{ ...raw, options: options.slice(0, 4) }, { ...raw, sourceExcerpt: 'Texto que não existe no material, mas parece confiável.' }, { ...raw, correctKey: null }, { ...raw, options: [...options.slice(0, 4), options[0]] }]) {

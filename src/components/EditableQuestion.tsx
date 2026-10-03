@@ -2,6 +2,7 @@
 
 import type { ParsedQuestion } from "@/lib/types";
 import { LETTERS } from "@/lib/parser";
+import { orderedOptions } from "@/lib/options";
 import { Badge, Button, TextArea } from "./ui";
 import { AlertTriangle, Plus, Trash2 } from "lucide-react";
 
@@ -57,7 +58,7 @@ export function EditableQuestion({
           Alternativas — clique no círculo para marcar a correta
         </p>
         <div className="space-y-2">
-          {q.options.map((o) => {
+          {orderedOptions(q.options).map((o) => {
             const isCorrect = q.correctKey === o.key;
             return (
               <div
@@ -93,10 +94,8 @@ export function EditableQuestion({
                     title="Remover alternativa"
                     onClick={() =>
                       set({
-                        options: q.options
-                          .filter((x) => x.key !== o.key)
-                          .map((x, i) => ({ ...x, key: LETTERS[i] })),
-                        correctKey: q.correctKey === o.key ? null : LETTERS[q.options.filter((x) => x.key !== o.key).findIndex((x) => x.key === q.correctKey)] ?? null,
+                        options: q.options.filter((x) => x.key !== o.key),
+                        correctKey: q.correctKey === o.key ? null : q.correctKey,
                       })
                     }
                     className="p-1.5 mt-1 rounded-md text-muted hover:text-red hover:bg-red-soft transition-colors cursor-pointer"
@@ -115,7 +114,7 @@ export function EditableQuestion({
             className="mt-2"
             onClick={() =>
               set({
-                options: [...q.options, { key: LETTERS[q.options.length], text: "" }],
+                options: orderedOptions([...q.options, { key: LETTERS.find((key) => !q.options.some((o) => o.key === key))!, text: "" }]),
               })
             }
           >

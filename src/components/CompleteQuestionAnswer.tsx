@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { api } from "@/lib/api";
+import { orderedOptions } from "@/lib/options";
 import { Button, Select } from "@/components/ui";
 import type { QuestionDB } from "@/lib/types";
 
@@ -24,7 +25,7 @@ export default function CompleteQuestionAnswer({ question, index, onSaved }: {
     <div className="flex flex-wrap gap-3">
       <Select aria-label={`Gabarito da questão ${index}`} className="sm:w-48" value={answer} disabled={busy} onChange={(e) => setAnswer(e.target.value)}>
         <option value="">Selecione a correta</option>
-        {question.options.map((o) => <option key={o.key} value={o.key}>Alternativa {o.key}</option>)}
+        {orderedOptions(question.options).map((o) => <option key={o.key} value={o.key}>Alternativa {o.key}</option>)}
       </Select>
       <Button disabled={!answer || busy} onClick={() => void save()}>{busy ? "Salvando…" : "Salvar gabarito"}</Button>
     </div>

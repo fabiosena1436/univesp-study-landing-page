@@ -6,6 +6,7 @@ import { questions, subjects } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { pageParams, uuid } from "@/lib/validation";
 import { handleError } from "@/lib/errors";
+import { orderedOptions } from "@/lib/options";
 
 export async function GET(req: NextRequest) {
   try {
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest) {
       .where(and(...conds))
       .orderBy(desc(questions.createdAt), desc(questions.id))
       .limit(limit).offset(offset);
-    return Response.json(rows);
+    return Response.json(rows.map((q) => ({ ...q, options: orderedOptions(q.options) })));
   } catch (e) {
     return handleError(e);
   }
