@@ -20,10 +20,10 @@ export async function api<T = unknown>(path: string, init?: RequestInit): Promis
   });
   if (res.status === 401 && typeof window !== "undefined") {
     const p = window.location.pathname;
-    if (p.startsWith("/app")) {
+    if (p === "/app" || p.startsWith("/app/")) {
       window.location.href = "/entrar";
+      throw new ApiClientError(401, "Sessão expirada. Entre novamente.");
     }
-    throw new ApiClientError(401, "Sessão expirada. Entre novamente.");
   }
   const body = (await res.json().catch(() => ({}))) as { error?: string };
   if (!res.ok) throw new ApiClientError(res.status, body.error || "Algo deu errado.");
