@@ -3,9 +3,15 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string) {
 }
 
 export async function sendAccountEmail(to: string, subject: string, url: string, label: string, description: string) {
+  const purpose = subject.startsWith("Confirme") ? "verification" : "password_reset";
+  const context = { purpose, requestId: randomUUID(), recipientDomain: to.split("@")[1], at: new Date().toISOString() };
   const key = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL;
-  if (!key || !from) throw new Error("RESEND_API_KEY e RESEND_FROM_EMAIL não configurados.");
+  if (!key || !from) {
+    console.error(JSON.stringify({ event: "email.send.failed", ...context, reason: "missing_configuration" }));
+    throw new Error("Envio de e-mail não configurado.");
+  }
+  try {
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
@@ -18,5 +24,19 @@ export async function sendAccountEmail(to: string, subject: string, url: string,
     }),
     signal: AbortSignal.timeout(10000),
   });
-  if (!res.ok) throw new Error("Não foi possível enviar o e-mail de recuperação.");
+  const data = await res.json().catch(() => null) as { id?: string; name?: string } | null;
+  if (!res.ok || !data?.id) {
+    console.error(JSON.stringify({ event: "email.send.failed", ...context, status: res.status,
+      reason: data?.name && /^[a-z_]{1,80}$/.test(data.name) ? data.name : "provider_rejected" }));
+    throw new Error("Não foi possível enviar o e-mail.");
+  }
+  console.info(JSON.stringify({ event: "email.send.accepted", ...context, providerId: data.id }));
+  return data.id;
+  } catch (error) {
+    if (error instanceof Error && error.message === "Não foi possível enviar o e-mail.") throw error;
+    console.error(JSON.stringify({ event: "email.send.failed", ...context, reason: "network_or_timeout" }));
+    throw new Error("Não foi possível enviar o e-mail.");
+  }
 }
+import { randomUUID } from "crypto";
+
