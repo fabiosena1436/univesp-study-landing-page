@@ -3,14 +3,14 @@ import { and, desc, eq, ilike, isNull } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { questions, subjects } from "@/db/schema";
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { pageParams, uuid } from "@/lib/validation";
 import { handleError } from "@/lib/errors";
 import { orderedOptions } from "@/lib/options";
 
 export async function GET(req: NextRequest) {
   try {
-    await requireUser();
+    await requireAdmin();
     const sp = req.nextUrl.searchParams;
     const subjectId = sp.get("subjectId") || undefined;
     const q = (sp.get("q") || "").trim().slice(0, 120);

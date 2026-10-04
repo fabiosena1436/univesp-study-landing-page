@@ -262,7 +262,7 @@ function ProvaInner() {
           {emptyMsg && (
             <div role="alert" className="text-sm font-semibold text-red bg-red-soft border border-red/20 rounded-xl px-3.5 py-2.5">
               <p>{emptyMsg}</p>
-              <button className="mt-2 underline cursor-pointer" onClick={() => router.push(`/app/questoes?m=${effectiveSubjectId}`)}>{user.isAdmin ? "Abrir banco e completar gabaritos" : "Consultar banco de questões"}</button>
+              {user.isAdmin && <button className="mt-2 underline cursor-pointer" onClick={() => router.push(`/app/questoes?m=${effectiveSubjectId}`)}>Abrir banco e completar gabaritos</button>}
             </div>
           )}
 
@@ -499,9 +499,9 @@ function ProvaInner() {
           <Button variant="ghost" onClick={() => setStage("setup")}>
             Nova prova
           </Button>
-          <Button variant="soft" onClick={() => router.push(`/app/questoes?m=${subjectId}`)}>
+          {user.isAdmin && <Button variant="soft" onClick={() => router.push(`/app/questoes?m=${subjectId}`)}>
             Ver no banco
-          </Button>
+          </Button>}
         </div>
       </div>
 

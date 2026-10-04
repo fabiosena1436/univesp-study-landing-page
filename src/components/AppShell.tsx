@@ -94,7 +94,7 @@ export default function AppShell({ children, initialUser }: { children: ReactNod
     .join("")
     .toUpperCase();
 
-  const visibleNav = user.isAdmin ? NAV : NAV.filter((n) => n.href !== "/app/importar" && n.href !== "/app/materiais");
+  const visibleNav = user.isAdmin ? NAV : NAV.filter((n) => !["/app/importar", "/app/materiais", "/app/questoes"].includes(n.href));
   const navLinks = (
     <>
       {visibleNav.map((n) => {
@@ -184,7 +184,7 @@ export default function AppShell({ children, initialUser }: { children: ReactNod
               {subjects.map((s) => (
                 <li key={s.id}>
                   <Link
-                    href={`/app/questoes?m=${s.id}`}
+                    href={user.isAdmin ? `/app/questoes?m=${s.id}` : `/app/prova?m=${s.id}`}
                     className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-card text-sm transition-colors"
                   >
                     <span

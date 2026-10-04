@@ -55,7 +55,10 @@ test('application integrity and account flows against PostgreSQL', async t => {
   await t.test('student authorization and invalid IDs are enforced', async () => {
     assert.equal((await call('/api/subjects', { method: 'POST', cookie: studentCookie, body: { name: 'Inválida' } })).status, 403);
     assert.equal((await call('/api/parse', { method: 'POST', cookie: studentCookie, body: { text: 'abc' } })).status, 403);
-    assert.equal((await call('/api/questions?subjectId=invalid', { cookie: studentCookie })).status, 400);
+    assert.equal((await call('/api/questions', { cookie: studentCookie })).status, 403);
+    assert.equal((await call('/api/questions?subjectId=invalid', { cookie: adminCookie })).status, 400);
+    const bankPage = await fetch(config.baseUrl + '/app/questoes', { headers: { Cookie: studentCookie }, redirect: 'manual' });
+    assert.equal(bankPage.status, 307); assert.equal(bankPage.headers.get('location'), '/app');
     assert.equal((await call('/api/attempts?offset=-1', { cookie: studentCookie })).status, 400);
   });
   await t.test('quiz excludes ungraded questions and grades forged result on server', async () => {
@@ -87,7 +90,7 @@ test('application integrity and account flows against PostgreSQL', async t => {
     assert.equal(subject.status, 201);
     const imported = await call('/api/questions/bulk', { method: 'POST', cookie: adminCookie, body: { subjectId: subject.data.id, questions: [{ statement: 'Quanto é dois somado com dois?', options: [{ key: 'A', text: 'Três' }, { key: 'B', text: 'Quatro' }], correctKey: null }] } });
     assert.equal(imported.status, 201);
-    const listed = await call('/api/questions?subjectId=' + subject.data.id, { cookie: studentCookie });
+    const listed = await call('/api/questions?subjectId=' + subject.data.id, { cookie: adminCookie });
     const id = listed.data[0].id;
     const before = await call('/api/quiz', { method: 'POST', cookie: studentCookie, body: { subjectId: subject.data.id } });
     assert.equal(before.data.questions.length, 0);

@@ -160,9 +160,9 @@ export default function DashboardPage() {
       <section>
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-display text-xl font-semibold">Suas matérias</h2>
-          <Link href="/app/questoes" className="text-sm font-semibold text-pen hover:underline inline-flex items-center gap-1">
+          {user.isAdmin && <Link href="/app/questoes" className="text-sm font-semibold text-pen hover:underline inline-flex items-center gap-1">
             <LibraryBig size={14} /> Ver banco completo
-          </Link>
+          </Link>}
         </div>
 
         {subjects.length === 0 ? (
