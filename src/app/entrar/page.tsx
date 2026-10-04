@@ -25,7 +25,7 @@ export default function EntrarPage() {
       });
       router.replace("/app");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Não foi possível entrar.");
+      setError(err instanceof TypeError ? "Não foi possível conectar ao site. Confira sua internet e tente novamente." : err instanceof Error ? err.message : "Não foi possível entrar.");
     } finally {
       setBusy(false);
     }
@@ -59,7 +59,7 @@ export default function EntrarPage() {
           />
         </Field>
         {error && (
-          <p className="text-sm font-semibold text-red bg-red-soft border border-red/20 rounded-xl px-3.5 py-2.5">
+          <p role="alert" className="text-sm font-semibold text-red bg-red-soft border border-red/20 rounded-xl px-3.5 py-2.5">
             {error}
           </p>
         )}
