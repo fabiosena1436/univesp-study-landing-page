@@ -2,6 +2,7 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    public retryAfter?: number,
   ) {
     super(message);
     this.name = "ApiError";
@@ -10,7 +11,7 @@ export class ApiError extends Error {
 
 export function handleError(e: unknown): Response {
   if (e instanceof ApiError) {
-    return Response.json({ error: e.message }, { status: e.status });
+    return Response.json({ error: e.message, ...(e.retryAfter ? { retryAfter: e.retryAfter } : {}) }, { status: e.status, ...(e.retryAfter ? { headers: { "Retry-After": String(e.retryAfter) } } : {}) });
   }
   const requestId = crypto.randomUUID();
   const error = e as { code?: string; name?: string };
