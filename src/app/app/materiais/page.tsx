@@ -227,8 +227,8 @@ export default function MateriaisPage() {
           </p>
           <p className="text-xs text-muted leading-relaxed">
             {engine === "gemini"
-              ? "A IA avalia e organiza a revisão colada antes de criar novas questões."
-              : "A importação estruturada funciona sem IA. Configure GEMINI_API_KEY para gerar questões novas a partir de textos de aula."}
+              ? "O Gemini completa gabaritos e justificativas das questões do PDF, pesquisando quando necessário, e cria questões a partir de textos de aula."
+              : "Questões completas podem ser extraídas sem IA. Configure o Gemini para completar respostas e justificativas ausentes ou criar questões de textos de aula."}
           </p>
         </div>
         <Badge tone={engine === "gemini" ? "pen" : "brand"}>

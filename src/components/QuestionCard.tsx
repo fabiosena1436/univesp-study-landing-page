@@ -7,6 +7,7 @@ export type DisplayQuestion = {
   statement: string;
   options: OptionT[];
   correctKey?: string | null;
+  feedback?: string | null;
 };
 
 export function QuestionCard({
@@ -58,6 +59,7 @@ export function QuestionCard({
           })}
         </ul>
       )}
+      {showAnswer && q.feedback && <div className="mt-4 rounded-xl border border-line bg-surface p-4"><p className="text-sm font-semibold mb-2">Justificativa</p><p className="text-sm whitespace-pre-line break-words leading-relaxed">{q.feedback}</p></div>}
     </article>
   );
 }

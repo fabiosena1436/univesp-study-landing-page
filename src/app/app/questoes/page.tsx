@@ -136,7 +136,7 @@ function QuestoesInner() {
             <div key={q.id} className="relative group">
               <QuestionCard q={q} index={i + 1} />
               {user.isAdmin && <EditQuestionText question={q} index={i + 1} onSaved={(updated) => { setList((rows) => rows?.map((row) => row.id === updated.id ? updated : row) ?? null); void refreshSubjects(); toast("Questão atualizada."); }} />}
-              {!q.correctKey && (user.isAdmin ? <CompleteQuestionAnswer question={q} index={i + 1} onSaved={(updated) => { setList((rows) => rows?.map((row) => row.id === updated.id ? updated : row) ?? null); void refreshSubjects(); toast("Gabarito salvo. A questão já pode entrar na prova."); }} /> : <p className="mt-2 mb-4 text-sm text-muted">Gabarito pendente. Esta questão ainda não entra na prova.</p>)}
+              {(!q.correctKey || !q.feedback?.trim()) && (user.isAdmin ? <CompleteQuestionAnswer question={q} index={i + 1} onSaved={(updated) => { setList((rows) => rows?.map((row) => row.id === updated.id ? updated : row) ?? null); void refreshSubjects(); toast("Questão atualizada."); }} /> : !q.correctKey && <p className="mt-2 mb-4 text-sm text-muted">Gabarito pendente. Esta questão ainda não entra na prova.</p>)}
               {subject && (
                 <span className="absolute top-4 right-4 hidden md:inline-flex">
                   <Badge tone="neutral">{subject.name}</Badge>
