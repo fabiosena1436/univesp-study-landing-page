@@ -2,15 +2,14 @@
 
 import { useState, FormEvent } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import AuthShell from "@/components/AuthShell";
 import { api } from "@/lib/api";
 import { Button, Field, Input } from "@/components/ui";
 import { registrationEmailAllowed } from "@/lib/constants";
-import EmailVerificationPending from "@/components/EmailVerificationPending";
 
 export default function CadastroPage() {
-  const [message, setMessage] = useState("");
-  const [emailSent, setEmailSent] = useState(true);
+  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [course, setCourse] = useState("");
@@ -32,14 +31,12 @@ export default function CadastroPage() {
     }
     setBusy(true);
     try {
-      const result = await api<{ message: string; emailSent: boolean }>("/api/auth/register", {
+      await api("/api/auth/register", {
         method: "POST",
         body: JSON.stringify({ name, email, course, password }),
       });
-      setMessage(result.message);
-      setEmailSent(result.emailSent);
-      setPassword("");
-      setConfirm("");
+      router.replace("/app");
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não foi possível criar a conta.");
     } finally {
@@ -47,16 +44,11 @@ export default function CadastroPage() {
     }
   }
 
-  if (message) return <AuthShell>
-    <h1 className="font-display text-3xl font-semibold tracking-tight">Conta criada! Confira seu e-mail</h1>
-    <div className="mt-5"><EmailVerificationPending email={email.trim().toLowerCase()} message={message} sent={emailSent} /></div>
-  </AuthShell>;
-
   return (
     <AuthShell>
       <h1 className="font-display text-3xl font-semibold tracking-tight">Criar conta</h1>
       <p className="mt-2 text-sm text-muted">
-        Após o cadastro, confirme seu e-mail pelo link enviado para acessar o catálogo compartilhado e seu histórico individual.
+        Crie sua conta e acesse imediatamente o catálogo compartilhado e seu histórico individual.
       </p>
       <form onSubmit={onSubmit} className="mt-7 space-y-4">
         <Field label="Seu nome">
@@ -78,7 +70,7 @@ export default function CadastroPage() {
             required
             autoComplete="email"
           />
-          <p className="mt-1.5 text-xs text-muted">Use seu e-mail @aluno.univesp.br ou um endereço autorizado pelo responsável. Você precisará confirmar o endereço pelo link recebido.</p>
+          <p className="mt-1.5 text-xs text-muted">Use seu e-mail @aluno.univesp.br ou um endereço autorizado pelo responsável. Não é necessário confirmar o e-mail. Enviaremos e-mails apenas para recuperação de senha.</p>
         </Field>
         <Field label="Curso">
           <Input value={course} onChange={(e) => setCourse(e.target.value)} placeholder="Ex.: Engenharia de Computação" required minLength={2} />
@@ -110,7 +102,7 @@ export default function CadastroPage() {
             {error}
           </p>
         )}
-        <Button type="submit" size="lg" className="w-full" disabled={busy || Boolean(message)}>
+        <Button type="submit" size="lg" className="w-full" disabled={busy}>
           {busy ? "Criando…" : "Criar conta grátis"}
         </Button>
       </form>

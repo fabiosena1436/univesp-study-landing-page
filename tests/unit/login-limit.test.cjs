@@ -5,9 +5,9 @@ const vm = require('node:vm');
 const ts = require('typescript');
 const { ApiError, handleError, str } = require('../../.test-build/lib/errors.js');
 
-function loginHarness({ correct = true, blocked = false, outage = false } = {}) {
+function loginHarness({ correct = true, blocked = false, outage = false, unverified = false, accountBlocked = false } = {}) {
   const counts = { failures: 0, clears: 0, checks: 0, verified: 0 };
-  const user = { id: 'user', name: 'Aluno', passwordHash: 'hash', isBlocked: false, emailVerifiedAt: new Date() };
+  const user = { id: 'user', name: 'Aluno', passwordHash: 'hash', isBlocked: accountBlocked, emailVerifiedAt: unverified ? null : new Date() };
   const code = ts.transpileModule(fs.readFileSync('src/app/api/auth/login/route.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
   const exports = {};
   const modules = {
@@ -41,4 +41,9 @@ test('blocked attempts stop before password verification and disclose retry time
   const response = await h.login();
   assert.equal(response.status, 429); assert.equal(response.headers.get('Retry-After'), '42');
   assert.equal((await response.json()).retryAfter, 42); assert.equal(h.counts.verified, 0);
+});
+
+test('unconfirmed accounts can log in, but blocked accounts cannot', async () => {
+  assert.equal((await loginHarness({ unverified: true }).login()).status, 200);
+  assert.equal((await loginHarness({ unverified: true, accountBlocked: true }).login()).status, 403);
 });

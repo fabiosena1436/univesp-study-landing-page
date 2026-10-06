@@ -19,7 +19,7 @@ npm run dev
 
 Abra http://localhost:3000. O PostgreSQL local usa a porta 55432, restrita a 127.0.0.1. As credenciais do compose são exclusivas para desenvolvimento.
 
-O cadastro exige confirmação por link e configuração do Resend. Aceita endereços @aluno.univesp.br e a exceção explícita fabiosena1436@gmail.com para aluno. Cadastre 26241463@aluno.univesp.br para a conta administrativa e promova-a pelo comando abaixo. Confirme o endereço antes de entrar; a entrega pode levar alguns minutos. Contas cadastradas enquanto a confirmação estava desativada podem solicitar um link em `/confirmar-email`, mantendo dados e permissões.
+O cadastro libera acesso imediato, sem confirmação de e-mail e sem depender do Resend. Aceita endereços @aluno.univesp.br e a exceção explícita fabiosena1436@gmail.com para aluno. Cadastre 26241463@aluno.univesp.br para a conta administrativa e promova-a pelo comando abaixo. Contas com confirmação pendente também podem entrar com sua senha. O envio de e-mail pelo Resend é usado apenas para recuperação de senha.
 
 Em produção, `APP_URL` deve ser HTTPS. Configure `TZ=UTC` no processo Node e dimensione `DB_POOL_MAX` conforme o limite de conexões do banco. Não use as credenciais de desenvolvimento em produção.
 

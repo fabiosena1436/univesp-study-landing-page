@@ -3,7 +3,7 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string) {
 }
 
 export async function sendAccountEmail(to: string, subject: string, url: string, label: string, description: string) {
-  const purpose = subject.startsWith("Confirme") ? "verification" : "password_reset";
+  const purpose = "password_reset";
   const context = { purpose, requestId: randomUUID(), recipientDomain: to.split("@")[1], at: new Date().toISOString() };
   const key = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL;
