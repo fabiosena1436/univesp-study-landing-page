@@ -1,0 +1,34 @@
+"use client";
+import { useEffect, useState } from "react";
+import { api, formatDate } from "@/lib/api";
+import type { AiUsageSummary } from "@/lib/aiUsage";
+import { Badge, Button, Spinner } from "@/components/ui";
+
+const number = (value: number | null) => value === null ? "Não informado" : value.toLocaleString("pt-BR");
+export default function AiUsagePanel() {
+  const [usage, setUsage] = useState<AiUsageSummary | null>(null);
+  const [error, setError] = useState("");
+  const [refresh, setRefresh] = useState(0);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let alive = true;
+    api<AiUsageSummary>("/api/admin/ai-usage").then((data) => { if (alive) { setUsage(data); setError(""); } })
+      .catch((e) => { if (alive) setError(e instanceof Error ? e.message : "Não foi possível consultar o uso da IA."); })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [refresh]);
+  return <section className="card p-5 space-y-4" aria-labelledby="ai-usage-title">
+    <div className="flex flex-wrap gap-3 items-center justify-between"><h2 id="ai-usage-title" className="font-semibold text-xl">Gemini: uso e limites</h2><Button variant="ghost" disabled={loading} onClick={() => { setLoading(true); setRefresh((r) => r + 1); }}>Atualizar consumo</Button></div>
+    <p className="text-sm text-muted">Consumo das chamadas feitas por este site. O saldo restante e os limites oficiais do projeto são consultados no Google AI Studio. Um bloqueio pode ocorrer por solicitações ou tokens por minuto, cota diária ou faturamento.</p>
+    <a className="text-pen font-semibold underline" href="https://aistudio.google.com/usage" target="_blank" rel="noopener noreferrer">Abrir uso, cotas e faturamento no Google AI Studio</a>
+    {loading && <Spinner />}
+    {error && <p role="alert" className="text-red">{error}</p>}
+    {usage && <>
+      <p className="text-sm"><Badge tone={usage.configured ? "pen" : "red"}>{usage.configured ? "Chave configurada" : "Gemini não configurado"}</Badge> <span className="break-words">Modelos: {usage.models.join(", ") || "Nenhum modelo válido"}</span></p>
+      <p className="text-xs text-muted">{usage.startedAt ? `Primeira chamada registrada em ${formatDate(usage.startedAt)}.` : "Nenhuma chamada registrada ainda."} Chamadas anteriores a esta atualização e uso em outros aplicativos não entram neste contador. Períodos no horário de São Paulo.</p>
+      <div className="overflow-x-auto"><table className="w-full text-sm text-left"><caption className="sr-only">Uso de tokens do Gemini pelo site</caption><thead><tr className="border-b border-line"><th className="p-2">Período</th><th className="p-2">Chamadas</th><th className="p-2">Falhas da API</th><th className="p-2">Entrada</th><th className="p-2">Saída</th><th className="p-2">Raciocínio</th><th className="p-2">Total de tokens</th></tr></thead><tbody>{([['Hoje', usage.today], ['Este mês', usage.month]] as const).map(([name, p]) => <tr className="border-b border-line" key={name}><th scope="row" className="p-2">{name}</th><td className="p-2">{number(p.calls)}</td><td className="p-2">{number(p.failures)}</td><td className="p-2">{number(p.input)}</td><td className="p-2">{number(p.output)}</td><td className="p-2">{number(p.thinking)}</td><td className="p-2 font-semibold">{number(p.total)}</td></tr>)}</tbody></table></div>
+      <p className="text-xs text-muted">Valores informados pela API; o total pode incluir tokens adicionais de ferramentas. {usage.month.unreported > 0 && `${usage.month.unreported} resposta(s) neste mês não informou(aram) o total de tokens; a soma está incompleta.`} Cada etapa de pesquisa, organização e tentativa em outro modelo conta como uma chamada.</p>
+      <div className="space-y-3"><h3 className="font-semibold">Últimas chamadas</h3>{usage.recent.length === 0 ? <p className="text-sm text-muted">Faça uma geração para iniciar o acompanhamento.</p> : usage.recent.map((event, i) => <div className="border border-line rounded-xl p-3 space-y-1" key={`${event.createdAt}-${i}`}><p className="text-sm">{formatDate(event.createdAt)} · {event.model} · <Badge tone={event.status === 200 ? "pen" : "red"}>{event.status === 200 ? "Resposta recebida" : event.status === 429 ? "Cota ou limite atingido" : event.status === 0 ? "Falha de conexão ou resposta" : `Erro ${event.status}`}</Badge></p><p className="text-xs text-muted">Tokens: {number(event.tokens.total)}</p>{event.message && <p className="text-sm">{event.message}</p>}</div>)}</div>
+    </>}
+  </section>;
+}

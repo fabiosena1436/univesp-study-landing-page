@@ -2,6 +2,7 @@ import type { GeneratedQuestion } from "./generatedQuestion";
 import { parseReviewText } from "./parser";
 import { validateOptions } from "./validation";
 import { ApiError } from "./errors";
+import { geminiModels, quotaDiagnostic, recordAiRequest, tokenUsage } from "./aiUsage";
 
 export type GenEngine = "gemini" | "local";
 export function activeEngine(): GenEngine { return process.env.GEMINI_API_KEY?.trim() ? "gemini" : "local"; }
@@ -74,12 +75,13 @@ export function selectChunks(content: string, count: number, size = 24000): { ch
   return { chunks, partial: n < all.length };
 }
 
-type GeminiResponse = { candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] }; groundingMetadata?: { groundingChunks?: { web?: { uri?: string; title?: string } }[] } }[] };
+type GeminiResponse = { usageMetadata?: unknown; candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] }; groundingMetadata?: { groundingChunks?: { web?: { uri?: string; title?: string } }[] } }[] };
 
 async function requestGemini<T>(body: Record<string, unknown>, key: string, signal: AbortSignal, decode: (text: string, response: GeminiResponse) => T): Promise<T> {
-  const models = (process.env.GEMINI_MODELS ?? "gemini-2.5-flash").split(",").map((m) => m.trim()).filter((m) => /^[a-zA-Z0-9.\-_]+$/.test(m)).slice(0, 2);
+  const models = geminiModels();
   let lastError = "Modelo não configurado.";
   for (const model of models) {
+    let recorded = false;
     try {
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
         method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key },
@@ -87,16 +89,21 @@ async function requestGemini<T>(body: Record<string, unknown>, key: string, sign
         signal: AbortSignal.any([signal, AbortSignal.timeout(40000)]),
       });
       if (!res.ok) {
+        const diagnostic = res.status === 429 ? quotaDiagnostic(await res.json().catch(() => null), res.headers.get("Retry-After")) : null;
         lastError = res.status === 429
-          ? "Limite ou cota do Gemini atingido. Confira a cota do projeto e tente novamente mais tarde."
+          ? diagnostic!.message
           : res.status === 400 || res.status === 401 || res.status === 403
             ? "O Gemini recusou a configuração. Confira a chave de API e as permissões do projeto no servidor."
             : res.status === 404
               ? "Modelo do Gemini não encontrado. Confira GEMINI_MODELS no servidor."
               : `O Gemini está indisponível (${res.status}). Tente novamente mais tarde.`;
+        await recordAiRequest({ model, status: res.status, tokens: tokenUsage(null), message: lastError, retryAfter: diagnostic?.retryAfter ?? null });
+        recorded = true;
         continue;
       }
       const json = await res.json() as GeminiResponse;
+      await recordAiRequest({ model, status: res.status, tokens: tokenUsage(json.usageMetadata), message: null, retryAfter: null });
+      recorded = true;
       const text = json.candidates?.[0]?.content?.parts?.filter((p) => !p.thought).map((p) => p.text ?? "").join("") ?? "";
       return decode(text, json);
     } catch (error) {
@@ -106,6 +113,7 @@ async function requestGemini<T>(body: Record<string, unknown>, key: string, sign
         : error instanceof ApiError ? error.message : error instanceof SyntaxError
           ? "O Gemini retornou uma resposta inválida. Tente gerar menos questões."
           : "Não foi possível conectar ao Gemini ou o prazo foi excedido. Tente novamente.";
+      if (!recorded) await recordAiRequest({ model, status: 0, tokens: tokenUsage(null), message: lastError, retryAfter: null });
       if (signal.aborted) break;
     }
   }
