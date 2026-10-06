@@ -20,7 +20,7 @@ export default function AiUsagePanel() {
   return <section className="card p-5 space-y-4" aria-labelledby="ai-usage-title">
     <div className="flex flex-wrap gap-3 items-center justify-between"><h2 id="ai-usage-title" className="font-semibold text-xl">Gemini: uso e limites</h2><Button variant="ghost" disabled={loading} onClick={() => { setLoading(true); setRefresh((r) => r + 1); }}>Atualizar consumo</Button></div>
     <p className="text-sm text-muted">Consumo das chamadas feitas por este site. O saldo restante e os limites oficiais do projeto são consultados no Google AI Studio. Um bloqueio pode ocorrer por solicitações ou tokens por minuto, cota diária ou faturamento.</p>
-    <a className="text-pen font-semibold underline" href="https://aistudio.google.com/usage" target="_blank" rel="noopener noreferrer">Abrir uso, cotas e faturamento no Google AI Studio</a>
+    <a className="inline-flex items-center justify-center rounded-xl bg-ink px-4 py-2 text-sm font-semibold text-paper" href="https://aistudio.google.com/usage?timeRange=last-28-days&project=gen-lang-client-0918704470" target="_blank" rel="noopener noreferrer">Consultar consumo no Google AI Studio</a>
     {loading && <Spinner />}
     {error && <p role="alert" className="text-red">{error}</p>}
     {usage && <>
