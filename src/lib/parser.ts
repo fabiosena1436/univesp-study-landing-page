@@ -25,6 +25,8 @@ const NOISE_PATTERNS: RegExp[] = [
   /^incorreto\s*[.:]?\s*$/i,
   /^parcialmente\s+correto\s*[.:]?\s*$/i,
   /^atingiu\s+[\d.,]+\s+de\s+[\d.,]+/i,
+  /^completo\s*(?:[—–-]\s*)?atingiu\s+/i,
+  /^[-*_]{3,}$/,
   /^marcar\s+questão\s*$/i,
   /^texto\s+da\s+questão\s*$/i,
   /^sua\s+resposta\s+está\s+(correta|errada|parcialmente\s+correta)\s*[.:]?\s*$/i,
@@ -37,13 +39,13 @@ const NOISE_PATTERNS: RegExp[] = [
   /^questão\s+\d+\s*resposta/i,
 ];
 
-const OPTION_RE = /^([A-Fa-f])\s*[.):\-–—]\s*(.*)$/;
+const OPTION_RE = /^(?:[-*+]\s+)?([A-Fa-f])\s*[.):\-–—]\s*(.*)$/;
 const CORRECT_RE =
   /^(?:a|as)\s+resposta(?:s)?\s+correta(?:s)?\s+(?:é|são)\s*:?\s*(.*)$/i;
 const FEEDBACK_RE = /^#{0,6}\s*feedback\s*:?\s*$/i;
 const JUSTIFICATION_RE = /^#{0,6}\s*justificativa\s*:?\s*$/i;
-const HEADER_RE = /^#{0,6}\s*Questão\s+\d+\s*(?:Resposta)?\s*$/i;
-const RESPONSE_MARKER_RE = /^Questão\s+\d+\s*Resposta\b/i;
+const HEADER_RE = /^Questão\s+\d+\s*[:.]?\s*$/i;
+const RESPONSE_MARKER_RE = /^Questão\s+\d+\s*(?:[—–-]\s*)?Resposta\b/i;
 const HEADER_SIGNATURES = [
   /^correto/i,
   /^errado/i,
@@ -85,6 +87,11 @@ export const LETTERS = ["A", "B", "C", "D", "E", "F"];
 function matchCorrectLetter(options: OptionT[], correctRaw: string): string | null {
   if (options.length === 0) return null;
   const target = normalizeText(correctRaw);
+  const letter = correctRaw.match(/^(?:alternativa\s*)?([A-F])(?:\s*[.):—–-]|\s*$)/i)?.[1].toUpperCase();
+  if (letter && options.some((o) => o.key === letter)) return letter;
+  const exact = options.filter((o) => normalizeText(o.text) === target);
+  if (target && exact.length === 1) return exact[0].key;
+  if (exact.length > 1) return null;
   if (target.length < 8) return null;
   let best: string | null = null;
   let bestScore = 0;
@@ -147,6 +154,11 @@ function processChunk(lines: string[], chunkStart: number, chunkEnd: number, idx
     feedbackIdx >= 0 ? feedbackIdx : correctIdx >= 0 ? correctIdx : raw.length;
 
   const options: OptionT[] = [];
+  const markedKeys = new Set<string>();
+  function cleanOptionText(text: string, key: string): string {
+    if (/✅|✔(?:️)?|☑(?:️)?/.test(text)) markedKeys.add(key);
+    return text.replace(/[✅✔☑❌✘]\uFE0F?/gu, "").trim();
+  }
   let current: OptionT | null = null;
   let inJustification = false;
   const regionStart =
@@ -157,7 +169,8 @@ function processChunk(lines: string[], chunkStart: number, chunkEnd: number, idx
     const m = t ? OPTION_RE.exec(t) : null;
     if (m) {
       if (current) options.push(current);
-      current = { key: m[1].toUpperCase(), text: m[2].trim() };
+      const key = m[1].toUpperCase();
+      current = { key, text: cleanOptionText(m[2], key) };
       inJustification = false;
       continue;
     }
@@ -169,7 +182,10 @@ function processChunk(lines: string[], chunkStart: number, chunkEnd: number, idx
       if (t) justificationParts.push(t);
       continue;
     }
-    if (current && t) current.text = current.text ? `${current.text} ${t}` : t;
+    if (current && t && !isNoiseLine(t)) {
+      const continuation = cleanOptionText(t, current.key);
+      current.text = current.text ? `${current.text} ${continuation}`.trim() : continuation;
+    }
   }
   if (current) options.push(current);
   feedback = [...justificationParts, feedback].filter(Boolean).join("\n\n").trim();
@@ -185,13 +201,17 @@ function processChunk(lines: string[], chunkStart: number, chunkEnd: number, idx
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
-  const correctKey = matchCorrectLetter(options, correctRaw);
+  const matchedKey = matchCorrectLetter(options, correctRaw);
+  const markedKey = markedKeys.size === 1 ? [...markedKeys][0] : null;
+  const conflicting = markedKeys.size > 1 || !!(markedKey && matchedKey && markedKey !== matchedKey);
+  const correctKey = conflicting ? null : matchedKey || markedKey;
 
   if (statement.length < 10)
     warnings.push("Enunciado não identificado ou muito curto — confira o texto.");
   if (options.length < 2)
     warnings.push("Menos de 2 alternativas detectadas — complete manualmente.");
-  if (!correctRaw) warnings.push("Resposta correta não encontrada no texto.");
+  if (conflicting) warnings.push("Marcações de gabarito conflitantes — confira a alternativa correta.");
+  else if (!correctRaw && !markedKey) warnings.push("Resposta correta não encontrada no texto.");
   else if (!correctKey)
     warnings.push("Gabarito identificado, mas não bateu com nenhuma alternativa — clique na correta.");
 
@@ -218,9 +238,11 @@ export function parseReviewText(rawInput: string): ParseResult {
   const text = rawInput
     .replace(/\r\n?/g, "\n")
     .replace(/\t/g, "  ")
-    .replace(/^\s*#{1,6}\s*(Questão\s+\d+)/gim, "$1")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/__(.+?)__/g, "$1")
+    .replace(/^\s*#{1,6}\s+/gm, "")
     .replace(/Questão\s+(\d+)\s*Resposta/gi, "Questão $1 Resposta")
-    .replace(/Questão\s+(\d+)\s*-\s*Resposta/gi, "Questão $1 Resposta")
+    .replace(/Questão\s+(\d+)\s*[—–-]\s*Resposta/gi, "Questão $1 Resposta")
     .trim();
   if (!text)
     return {
@@ -251,7 +273,7 @@ export function parseReviewText(rawInput: string): ParseResult {
     const preEnd = starts.length > 0 ? starts[0] : lines.length;
     const hasContentBefore = lines
       .slice(0, preEnd)
-      .some((l) => l.trim() && !isNoiseLine(l));
+      .some((l) => OPTION_RE.test(l.trim()));
     if (hasContentBefore && (starts.length === 0 || starts[0] > 0)) {
       starts.unshift(0);
     }
@@ -275,6 +297,8 @@ export function parseReviewText(rawInput: string): ParseResult {
       const ci = correctIdxs.find((c) => c >= starts[i]);
       end = ci !== undefined ? ci + 1 : lines.length;
     }
+    const summary = lines.findIndex((line, index) => index > starts[i] && /^[^\p{L}\p{N}]*resumo\s+do\s+gabarito\b/iu.test(line.trim()));
+    if (summary >= 0 && summary < end) end = summary;
     const q = processChunk(lines, starts[i], end, i);
     if (q.options.length >= 2) questions.push(q);
   }
