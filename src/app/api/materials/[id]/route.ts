@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { materials, questions } from "@/db/schema";
+import { materials, questions, subjects } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { requireAdmin, requireUser } from "@/lib/auth";
 import { ApiError, handleError, isUuid } from "@/lib/errors";
@@ -35,11 +35,12 @@ export async function GET(_req: NextRequest, { params }: Params) {
     const { id } = await params;
     if (!isUuid(id)) throw new ApiError(404, "Material não encontrado.");
     const rows = await db
-      .select()
+      .select({ material: materials })
       .from(materials)
-      .where(and(eq(materials.id, id), isNull(materials.archivedAt)))
+      .innerJoin(subjects, eq(materials.subjectId, subjects.id))
+      .where(and(eq(materials.id, id), isNull(materials.archivedAt), isNull(subjects.archivedAt)))
       .limit(1);
-    const m = rows[0];
+    const m = rows[0]?.material;
     if (!m) throw new ApiError(404, "Material não encontrado.");
     return Response.json({
       id: m.id,

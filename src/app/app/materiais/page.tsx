@@ -17,6 +17,7 @@ import { EditableQuestion } from "@/components/EditableQuestion";
 import { Badge, Button, EmptyState, Input, Select, Spinner, TextArea } from "@/components/ui";
 import { SAMPLE_TEXT } from "@/lib/sample";
 import { EditMaterial } from "@/components/EditMaterial";
+import { MaterialLibrary } from "@/components/MaterialLibrary";
 import type { GenerateResponse, MaterialDetail, MaterialRow, ParsedQuestion } from "@/lib/types";
 
 export default function MateriaisPage() {
@@ -47,21 +48,15 @@ export default function MateriaisPage() {
   }, [page]);
 
   useEffect(() => {
+    if (!user.isAdmin) return;
     loadList();
     api<{ engine: "gemini" | "local" }>("/api/ai-engine")
       .then((d) => setEngine(d.engine))
       .catch(() => setEngine("local"));
-  }, [loadList]);
+  }, [loadList, user.isAdmin]);
 
   if (!user.isAdmin) {
-    return (
-      <div className="card p-6">
-        <h1 className="font-display text-2xl font-semibold">Área administrativa</h1>
-        <p className="mt-2 text-ink-soft">
-          Materiais, geração por IA e cadastro de questões são gerenciados somente pelo administrador.
-        </p>
-      </div>
-    );
+    return <MaterialLibrary />;
   }
 
   const targetSubject = subjectId || subjects[0]?.id || "";

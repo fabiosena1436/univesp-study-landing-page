@@ -94,7 +94,7 @@ export default function AppShell({ children, initialUser }: { children: ReactNod
     .join("")
     .toUpperCase();
 
-  const visibleNav = user.isAdmin ? NAV : NAV.filter((n) => !["/app/importar", "/app/materiais", "/app/questoes"].includes(n.href));
+  const visibleNav = user.isAdmin ? NAV : NAV.filter((n) => !["/app/importar", "/app/questoes"].includes(n.href));
   const navLinks = (
     <>
       {visibleNav.map((n) => {
