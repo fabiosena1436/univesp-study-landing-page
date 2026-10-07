@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { gradeAnswers, validateOptions, passwordError, pageParams } = require('../../.test-build/lib/validation');
-const { coerceQuestions, selectChunks, generateQuestions } = require('../../.test-build/lib/ai');
+const { coerceQuestions, selectChunks, generateQuestions, generationPassages } = require('../../.test-build/lib/ai');
 const { createResetToken, hashResetToken } = require('../../.test-build/lib/passwordReset');
 const { orderedOptions } = require('../../.test-build/lib/options');
 const options = ['A', 'B', 'C', 'D', 'E'].map(key => ({ key, text: 'Alternativa ' + key }));
@@ -76,6 +76,42 @@ test('AI rejects malformed and ungrounded questions', () => {
     assert.deepEqual(coerceQuestions({ questions: [q] }, excerpt), []);
   }
   assert.deepEqual(coerceQuestions(null, excerpt), []);
+});
+
+test('PDF source identifiers recover original broken words without accepting invented identifiers', () => {
+  const content = 'O mecanismo de aten\nção atribui pesos aos tokens para considerar o contexto. '.repeat(60);
+  const passages = generationPassages(content);
+  assert.ok(passages.size > 1);
+  for (const text of passages.values()) { assert.ok(content.includes(text)); assert.ok(text.length <= 2000); }
+  const result = coerceQuestions({ questions: [{ ...raw, sourceId: 'S1', sourceExcerpt: 'Citação reescrita pela IA.' }] }, content, passages);
+  assert.equal(result.length, 1);
+  assert.equal(result[0].sourceExcerpt, passages.get('S1').trim());
+  assert.ok(content.includes(result[0].sourceExcerpt));
+  for (const sourceId of ['S999', '__proto__', 1]) {
+    assert.deepEqual(coerceQuestions({ questions: [{ ...raw, sourceId }] }, content, passages), []);
+  }
+});
+
+test('generation uses structured answers and literal passages for a PDF', async () => {
+  const originalFetch = global.fetch, originalKey = process.env.GEMINI_API_KEY, originalModels = process.env.GEMINI_MODELS;
+  process.env.GEMINI_API_KEY = 'test-key'; process.env.GEMINI_MODELS = 'test-model';
+  const content = 'A atenção atribui pesos aos tokens e preserva o con\ntexto da frase, sem garantir verdade factual.';
+  global.fetch = async (_url, init) => {
+    const body = JSON.parse(init.body), schema = body.generationConfig.responseJsonSchema;
+    assert.deepEqual(schema.properties.questions.items.properties.sourceId.enum, ['S1']);
+    assert.equal(schema.properties.questions.items.properties.options.minItems, 5);
+    return Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ questions: [{ ...raw, sourceExcerpt: undefined, sourceId: 'S1' }] }) }] } }] });
+  };
+  try {
+    const result = await generateQuestions(content, 5, 'PDF');
+    assert.equal(result.questions.length, 1);
+    assert.equal(result.questions[0].sourceExcerpt, content);
+  } finally {
+    global.fetch = originalFetch;
+    for (const [name, value] of [['GEMINI_API_KEY', originalKey], ['GEMINI_MODELS', originalModels]]) {
+      if (value === undefined) delete process.env[name]; else process.env[name] = value;
+    }
+  }
 });
 
 test('AI rejects questions that require an unavailable source document', () => {
