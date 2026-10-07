@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { parseReviewText } = require('../../.test-build/lib/parser');
 const fs = require('node:fs');
 const path = require('node:path');
-const { completeQuestionAnswers } = require('../../.test-build/lib/ai');
+const { completeQuestionAnswers, importQuestions } = require('../../.test-build/lib/ai');
 
 test('fully answered Markdown import does not need a Gemini call', async () => {
   const text = fs.readFileSync(path.join(__dirname, '../fixtures/markdown-assessment.md'), 'utf8');
@@ -25,6 +25,7 @@ test('imports four Markdown assessment questions, answers and detailed feedback 
     assert.doesNotMatch(q.statement, /Texto da questão|Completo|Resumo da tentativa|Questão \d+.*Resposta|\*\*/);
     for (const o of q.options) assert.doesNotMatch(o.text, /✅|Feedback|Sua resposta|A resposta correta|Resumo do gabarito/);
     assert.ok(q.feedback.length > 50);
+    assert.doesNotMatch(q.feedback, /Sua resposta está correta/);
   }
   assert.equal(result.questions[0].options[4].text, 'R$ 130,00');
   assert.match(result.questions[0].feedback, /150 − 50 \+ 30 − 80 − 40 \+ 100 = 110/);
@@ -33,6 +34,38 @@ test('imports four Markdown assessment questions, answers and detailed feedback 
   assert.match(result.questions[2].feedback, /a × \(b − c\)/);
   assert.match(result.questions[3].feedback, /36 ÷ 4 = 9/);
   assert.doesNotMatch(result.questions[3].feedback, /Resumo do gabarito/);
+});
+
+test('Gemini organizes unfamiliar raw platform copies and completes only missing answers', async () => {
+  const previous = { fetch: global.fetch, key: process.env.GEMINI_API_KEY, models: process.env.GEMINI_MODELS, search: process.env.GEMINI_GOOGLE_SEARCH };
+  process.env.GEMINI_API_KEY = 'test-key'; process.env.GEMINI_MODELS = 'test-model'; delete process.env.GEMINI_GOOGLE_SEARCH;
+  const input = 'Curso: Matemática\nFinalizada\nPergunta 1: Quanto é dois mais dois?\nOpção 1 → Três\nOpção 2 → Quatro\nContinuar\nVoltar';
+  const bodies = [];
+  global.fetch = async (_url, init) => {
+    const body = JSON.parse(init.body); bodies.push(body);
+    const data = bodies.length === 1
+      ? { overflow: false, questions: [{ statement: 'Quanto é dois mais dois?', options: [{ key: 'A', text: 'Três' }, { key: 'B', text: 'Quatro' }], correctKey: null, feedback: '' }] }
+      : { answers: [{ id: 0, correctKey: 'B', feedback: 'Dois mais dois resulta em quatro.' }] };
+    return Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify(data) }] } }] });
+  };
+  try {
+    const result = await importQuestions(input);
+    assert.equal(bodies.length, 2);
+    assert.equal(bodies[0].contents[0].parts[0].text, input);
+    assert.ok(bodies[0].generationConfig.responseJsonSchema);
+    assert.equal(bodies[0].tools, undefined);
+    assert.equal(result.questions[0].correctKey, 'B');
+    assert.equal(result.questions[0].statement, 'Quanto é dois mais dois?');
+    assert.equal(result.questions[0].feedback, 'Dois mais dois resulta em quatro.');
+    assert.deepEqual(result.errors, []);
+    global.fetch = async () => Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ overflow: false, questions: [{ statement: 'Quanto é dois mais dois?', options: [{ key: 'A', text: 'Alternativa inventada' }, { key: 'B', text: 'Quatro' }], correctKey: 'B', feedback: 'Original.' }] }) }] } }] });
+    await assert.rejects(importQuestions(input), /alterou alternativas/);
+  } finally {
+    global.fetch = previous.fetch;
+    for (const [name, value] of [['GEMINI_API_KEY', previous.key], ['GEMINI_MODELS', previous.models], ['GEMINI_GOOGLE_SEARCH', previous.search]]) {
+      if (value === undefined) delete process.env[name]; else process.env[name] = value;
+    }
+  }
 });
 
 test('supports Markdown lists, short answers, explicit letters and different response separators', () => {

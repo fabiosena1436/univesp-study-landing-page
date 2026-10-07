@@ -1,9 +1,8 @@
 import { NextRequest } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { rateLimit } from "@/lib/rateLimit";
-import { parseReviewText } from "@/lib/parser";
 import { ApiError, handleError } from "@/lib/errors";
-import { completeQuestionAnswers } from "@/lib/ai";
+import { importQuestions } from "@/lib/ai";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -18,11 +17,7 @@ export async function POST(req: NextRequest) {
     if (text.length > 300000)
       throw new ApiError(400, "Texto muito grande (máximo 300 mil caracteres). Divida em partes.");
 
-    const result = parseReviewText(text);
-    result.questions = (await completeQuestionAnswers(result.questions, text)).map((q) => ({
-      ...q,
-      warnings: q.warnings.filter((warning) => !warning.startsWith("Resposta correta não encontrada") && !warning.startsWith("Gabarito identificado, mas")),
-    }));
+    const result = await importQuestions(text);
     return Response.json(result);
   } catch (e) {
     return handleError(e);

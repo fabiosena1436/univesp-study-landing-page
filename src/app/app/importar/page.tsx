@@ -159,9 +159,9 @@ export default function ImportarPage() {
       <div className="anim-fade-up">
         <h1 className="font-display text-3xl font-semibold tracking-tight">Importar questões</h1>
         <p className="mt-2 text-ink-soft max-w-2xl">
-          Copie o texto da tela de revisão da plataforma da faculdade, cole aqui e o
-          motor de análise monta tudo sozinho: enunciado, alternativas, gabarito e
-          explicação.
+          Cole tudo como você copiou da faculdade, sem limpar ou formatar. O sistema
+          organiza os enunciados, alternativas e gabaritos, remove informações da
+          tentativa e usa IA quando necessário para organizar e completar as respostas.
         </p>
       </div>
 
@@ -261,7 +261,7 @@ export default function ImportarPage() {
               rows={9}
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder={"Cole aqui tudo que você copiou da área de revisão — incluindo 'Questão 1', as alternativas A. a E., o feedback e a linha 'A resposta correta é: …'."}
+              placeholder={"Cole a cópia completa da prova ou revisão, do jeito que veio. Pode incluir menus, notas, datas, tabelas, gabaritos e explicações — não é necessário formatar antes."}
               className="mt-3 leading-relaxed"
             />
             <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">

@@ -144,7 +144,7 @@ function processChunk(lines: string[], chunkStart: number, chunkEnd: number, idx
   let feedback = "";
   if (feedbackIdx >= 0) {
     const end = correctIdx > feedbackIdx ? correctIdx : raw.length;
-    feedback = raw.slice(feedbackIdx + 1, end).join("\n").trim();
+    feedback = raw.slice(feedbackIdx + 1, end).filter((line) => !isNoiseLine(line)).join("\n").trim();
   }
 
   // região das alternativas: depois do marcador de resposta, senão a partir da 1ª letra
