@@ -52,7 +52,8 @@ test('Gemini organizes unfamiliar raw platform copies and completes only missing
     const result = await importQuestions(input);
     assert.equal(bodies.length, 2);
     assert.equal(bodies[0].contents[0].parts[0].text, input);
-    assert.ok(bodies[0].generationConfig.responseJsonSchema);
+    assert.equal(bodies[0].generationConfig.responseMimeType, 'application/json');
+    assert.match(bodies[0].system_instruction.parts[0].text, /Responda somente JSON/);
     assert.equal(bodies[0].tools, undefined);
     assert.equal(result.questions[0].correctKey, 'B');
     assert.equal(result.questions[0].statement, 'Quanto é dois mais dois?');
