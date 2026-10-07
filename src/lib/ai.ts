@@ -35,7 +35,7 @@ Não use no enunciado, nas alternativas ou no feedback referências como "segund
 O feedback deve explicar o conceito e justificar a alternativa correta de forma independente. O servidor recupera a citação original pelo sourceId para o administrador conferir a origem. Escolha apenas um identificador fornecido e não mencione os identificadores nos enunciados, alternativas ou justificativas.
 Não renomeie letras nem invente referências. Responda apenas JSON: {"questions":[{"statement":"...","options":[{"key":"A","text":"..."}],"correctKey":"A","feedback":"...","sourceId":"S1"}]}`;
 
-const SOURCE_REFERENCE = /\b(?:(?:segundo|conforme|de acordo com)\s+(?:o|a)\s+(?:material|texto|pdf|apostila|aula)|(?:no|na|do|da|pelo|pela)\s+(?:material|texto|pdf|apostila|aula)\b|(?:o material|o texto|o autor)\s+(?:afirma|aponta|apresenta|descreve|conceitua|explica|destaca|define))/iu;
+const SOURCE_REFERENCE = /\b(?:(?:segundo|conforme|de acordo com)\s+(?:o|a)\s+(?:material|texto|pdf|apostila|aula)|(?:no|na|do|da|pelo|pela)\s+(?:material|pdf|apostila|aula)\b|(?:no|pelo)\s+texto\b|(?:o material|o texto|o autor)\s+(?:afirma|aponta|apresenta|descreve|conceitua|explica|destaca|define))/iu;
 
 export function coerceQuestions(raw: unknown, content: string, passages?: ReadonlyMap<string, string>): GeneratedQuestion[] {
   if (!raw || typeof raw !== "object") return [];
@@ -141,7 +141,7 @@ async function callGemini(content: string, count: number, key: string, signal: A
   const passages = generationPassages(content);
   const responseJsonSchema = {
     type: "object", required: ["questions"], properties: { questions: {
-      type: "array", minItems: 1, maxItems: count, items: {
+      type: "array", minItems: count, maxItems: count, items: {
         type: "object", required: ["statement", "options", "correctKey", "feedback", "sourceId"],
         properties: {
           statement: { type: "string" }, feedback: { type: "string" },

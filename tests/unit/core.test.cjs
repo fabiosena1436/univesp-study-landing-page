@@ -99,6 +99,8 @@ test('generation uses structured answers and literal passages for a PDF', async 
   global.fetch = async (_url, init) => {
     const body = JSON.parse(init.body), schema = body.generationConfig.responseJsonSchema;
     assert.deepEqual(schema.properties.questions.items.properties.sourceId.enum, ['S1']);
+    assert.equal(schema.properties.questions.minItems, 5);
+    assert.equal(schema.properties.questions.maxItems, 5);
     assert.equal(schema.properties.questions.items.properties.options.minItems, 5);
     return Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ questions: [{ ...raw, sourceExcerpt: undefined, sourceId: 'S1' }] }) }] } }] });
   };
@@ -122,6 +124,12 @@ test('AI rejects questions that require an unavailable source document', () => {
   assert.deepEqual(coerceQuestions({ questions: [{ ...raw, options: options.map((o, i) => i === 0 ? { ...o, text: 'A definição apresentada na apostila.' } : o) }] }, excerpt), []);
   const independent = { ...raw, statement: 'Por que o conhecimento científico é considerado falível?', feedback: 'O conhecimento científico pode ser revisado quando surgem novas evidências.' };
   assert.equal(coerceQuestions({ questions: [independent] }, excerpt).length, 1);
+});
+
+test('AI accepts standalone questions about text processing without treating text as a missing source', () => {
+  const independent = { ...raw, statement: 'Como o mecanismo de atenção preserva o contexto do texto em um Transformer?', feedback: 'Os pesos relacionam os tokens e ajudam na interpretação do texto.', options: options.map((o, i) => i === 1 ? { ...o, text: 'Relacionando os tokens do texto pelo contexto.' } : o) };
+  assert.equal(coerceQuestions({ questions: [independent] }, excerpt).length, 1);
+  assert.deepEqual(coerceQuestions({ questions: [{ ...independent, statement: 'Segundo o texto, como o mecanismo de atenção funciona?' }] }, excerpt), []);
 });
 test('large materials sample beginning, middle and end and disclose partial coverage', () => {
   const material = 'BEGIN ' + 'x'.repeat(150000) + ' END';
