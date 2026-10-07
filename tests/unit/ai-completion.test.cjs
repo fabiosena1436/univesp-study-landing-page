@@ -5,12 +5,13 @@ const { completeQuestionAnswers, generateQuestions } = require('../../.test-buil
 const question = { statement: 'Qual é o resultado da soma de dois com dois?', options: [{ key: 'B', text: 'Quatro' }, { key: 'A', text: 'Três' }], correctKey: null, feedback: '' };
 const response = (text) => Response.json({ candidates: [{ content: { parts: [{ text }] } }] });
 async function withProvider(run) {
-  const previous = { fetch: global.fetch, key: process.env.GEMINI_API_KEY, models: process.env.GEMINI_MODELS };
+  const previous = { fetch: global.fetch, key: process.env.GEMINI_API_KEY, models: process.env.GEMINI_MODELS, search: process.env.GEMINI_GOOGLE_SEARCH };
   process.env.GEMINI_API_KEY = 'test-key'; process.env.GEMINI_MODELS = 'test-model';
+  process.env.GEMINI_GOOGLE_SEARCH = 'true';
   try { await run(); }
   finally {
     global.fetch = previous.fetch;
-    for (const [name, value] of [['GEMINI_API_KEY', previous.key], ['GEMINI_MODELS', previous.models]]) {
+    for (const [name, value] of [['GEMINI_API_KEY', previous.key], ['GEMINI_MODELS', previous.models], ['GEMINI_GOOGLE_SEARCH', previous.search]]) {
       if (value === undefined) delete process.env[name]; else process.env[name] = value;
     }
   }
@@ -33,6 +34,24 @@ test('completion enables research, then validates JSON without changing the orig
   assert.equal(result.correctKey, 'B'); assert.ok(result.feedback);
   assert.equal(result.statement, question.statement); assert.deepEqual(result.options, question.options);
   assert.equal(input[0].correctKey, null);
+}));
+
+test('default completion works without paid search in one call and rejects uncertain answers', async () => withProvider(async () => {
+  delete process.env.GEMINI_GOOGLE_SEARCH;
+  const bodies = [];
+  global.fetch = async (_url, init) => {
+    bodies.push(JSON.parse(init.body));
+    return response(JSON.stringify({ answers: [{ id: 0, correctKey: 'B', feedback: 'Dois mais dois são quatro.' }] }));
+  };
+  const [result] = await completeQuestionAnswers([question], 'Contexto de estudo.');
+  assert.equal(result.correctKey, 'B');
+  assert.equal(bodies.length, 1);
+  assert.equal(bodies[0].tools, undefined);
+  assert.equal(bodies[0].generationConfig.responseMimeType, 'application/json');
+  assert.match(bodies[0].contents[0].parts[0].text, /Contexto de estudo/);
+  assert.match(bodies[0].system_instruction.parts[0].text, /não invente fontes/);
+  global.fetch = async () => response(JSON.stringify({ answers: [{ id: 0, correctKey: null, feedback: 'Exige verificação externa.' }] }));
+  await assert.rejects(completeQuestionAnswers([question]), error => error.status === 502);
 }));
 
 test('existing questions extracted from a PDF are completed by Gemini', async () => withProvider(async () => {

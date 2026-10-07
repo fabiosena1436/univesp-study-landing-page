@@ -63,6 +63,8 @@ Sem `GEMINI_API_KEY`, a extração local preserva questões estruturadas existen
 
 Com Gemini, configure `GEMINI_MODELS` com um ou dois códigos separados por vírgula. O padrão é `gemini-2.5-flash`; confirme disponibilidade e cotas na sua conta. Referência oficial: https://ai.google.dev/gemini-api/docs/models/gemini-2.5-flash.
 
+Para usar somente a cota gratuita, o projeto da chave precisa estar no nível gratuito, sem vínculo com uma conta de faturamento. O contador de tokens do site não é um bloqueio de cobrança. A pesquisa com Google Search fica desativada por padrão: questões sem gabarito são resolvidas em uma chamada JSON usando o material e o conhecimento do modelo, sem inventar fontes. `GEMINI_GOOGLE_SEARCH=true` habilita a pesquisa e pode exigir o plano pago. Não habilite essa opção em uma configuração exclusivamente gratuita. Ao atingir a cota, o site informa o bloqueio do provedor; não troca de projeto nem ativa faturamento.
+
 A geração tem prazo total de 95 segundos e exige cinco alternativas únicas, gabarito válido e trecho de origem encontrado no material. Materiais grandes são amostrados em trechos distribuídos e recebem aviso de cobertura parcial. Isso verifica a existência do trecho, não garante que o raciocínio da IA esteja correto: o administrador precisa conferir os rascunhos no editor antes de publicar.
 
 PDFs têm limite de 20 MB e 500 páginas; texto extraído tem limite de 400 mil caracteres. Apenas o texto extraído é armazenado, não o arquivo PDF original. Hospedagens com limites menores de upload precisam de armazenamento de arquivos e processamento separado; o compose é para banco local, não um deploy completo.
