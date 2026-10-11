@@ -21,6 +21,14 @@ export const users = pgTable("users", {
   isBlocked: boolean("is_blocked").notNull().default(false),
   lastLoginAt: timestamp("last_login_at"),
   emailVerifiedAt: timestamp("email_verified_at"),
+  accessStatus: text("access_status").$type<"pending" | "approved" | "rejected">().notNull().default("pending"),
+  whatsapp: text("whatsapp"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const authorizedEmails = pgTable("authorized_emails", {
+  email: text("email").primaryKey(),
+  addedBy: uuid("added_by").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

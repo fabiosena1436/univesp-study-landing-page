@@ -15,6 +15,13 @@
       "when": 1790886962833,
       "tag": "0001_reliability",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791757873727,
+      "tag": "0002_wise_virginia_dare",
+      "breakpoints": true
     }
   ]
 }

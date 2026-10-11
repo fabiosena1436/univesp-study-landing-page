@@ -1,12 +1,14 @@
 import { NextRequest } from "next/server";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { users } from "@/db/schema";
+import { authorizedEmails, users } from "@/db/schema";
 import { createSession, hashPassword, safeUser } from "@/lib/auth";
 import { passwordError } from "@/lib/validation";
 import { rateLimit } from "@/lib/rateLimit";
 import { ApiError, handleError, str } from "@/lib/errors";
-import { EMAIL_RE, registrationEmailAllowed } from "@/lib/constants";
+import { EMAIL_RE } from "@/lib/constants";
+import { normalizeWhatsapp } from "@/lib/access";
+import { issueVerification } from "@/lib/emailVerification";
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,12 +16,12 @@ export async function POST(req: NextRequest) {
     const name = str(body?.name, 80);
     const email = str(body?.email, 200).toLowerCase();
     const course = str(body?.course, 120);
+    const whatsapp = normalizeWhatsapp(body?.whatsapp);
     const password = typeof body?.password === "string" ? body.password : "";
 
     if (name.length < 2) throw new ApiError(400, "Informe seu nome (mínimo 2 letras).");
     if (!EMAIL_RE.test(email)) throw new ApiError(400, "Informe um e-mail válido.");
-    if (!registrationEmailAllowed(email))
-      throw new ApiError(400, "Use um e-mail @aluno.univesp.br ou um endereço autorizado pelo responsável.");
+    if (!whatsapp) throw new ApiError(400, "Informe um WhatsApp brasileiro válido com DDD.");
     if (course.length < 2) throw new ApiError(400, "Informe o curso que você faz na UNIVESP.");
     const badPassword = passwordError(password);
     if (badPassword) throw new ApiError(400, badPassword);
@@ -33,15 +35,19 @@ export async function POST(req: NextRequest) {
       .limit(1);
     if (existing[0]) throw new ApiError(409, "Esse e-mail já possui uma conta. Entre com sua senha.");
 
-    const rows = await db
-      .insert(users)
-      .values({ name, email, course, passwordHash: await hashPassword(password) })
-      .returning();
-    const user = rows[0];
+    const passwordHash = await hashPassword(password);
+    const user = await db.transaction(async tx => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext('registration-approval'))`);
+      const [authorized] = await tx.select().from(authorizedEmails).where(eq(authorizedEmails.email, email)).limit(1);
+      const [created] = await tx.insert(users).values({ name, email, course, whatsapp, passwordHash, accessStatus: authorized ? "approved" : "pending" }).returning();
+      return created;
+    });
     if (!user) throw new ApiError(500, "Não foi possível criar a conta.");
 
     await createSession(user.id);
-    return Response.json({ user: safeUser(user) }, { status: 201 });
+    let verificationSent = true;
+    try { await issueVerification(user.id); } catch { verificationSent = false; }
+    return Response.json({ user: safeUser(user), verificationSent }, { status: 201 });
   } catch (e) {
     return handleError(e);
   }

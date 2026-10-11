@@ -7,3 +7,8 @@ tests
 .test-build
 .test-env.json
 docker-compose*.yml
+.codex
+.codex-remote-attachments
+.presentation-build
+apresentacao-comunidade
+video-aprova-univesp

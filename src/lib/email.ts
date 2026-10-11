@@ -2,8 +2,7 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string) {
   return sendAccountEmail(to, "Redefinição de senha — Aprova UNIVESP", resetUrl, "Criar nova senha", "O link expira em 30 minutos. Se você não pediu isso, ignore este e-mail.");
 }
 
-export async function sendAccountEmail(to: string, subject: string, url: string, label: string, description: string) {
-  const purpose = "password_reset";
+export async function sendAccountEmail(to: string, subject: string, url: string, label: string, description: string, purpose = "password_reset") {
   const context = { purpose, requestId: randomUUID(), recipientDomain: to.split("@")[1], at: new Date().toISOString() };
   const key = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL;

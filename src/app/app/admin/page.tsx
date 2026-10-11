@@ -5,6 +5,7 @@ import { api, formatDate } from "@/lib/api";
 import { Badge, Button, Input, Spinner } from "@/components/ui";
 import { toast, useApp } from "@/components/AppShell";
 import AiUsagePanel from "@/components/AiUsagePanel";
+import AccessManagement from "@/components/AccessManagement";
 type AdminUser = { id: string; name: string; email: string; isAdmin: boolean; isBlocked: boolean; createdAt: string; attempts: number; answered: number; correct: number };
 type Ticket = { id: string; userName: string; userEmail: string; subject: string; status: string };
 type Message = { id: string; ticketId: string; body: string; createdAt: string };
@@ -43,6 +44,7 @@ export default function AdminPage() {
   if (!user.isAdmin) return <p className="card p-6">Acesso restrito ao administrador.</p>;
   if (error) return <div role="alert" className="card p-6">{error}<Button onClick={() => window.location.reload()}>Tentar novamente</Button></div>;
   return <div className="space-y-6"><h1 className="font-display text-3xl font-semibold">Administração</h1>
+    <AccessManagement />
     <AiUsagePanel />
     <section className="card p-5 space-y-3"><h2 className="font-semibold text-xl">Gerenciar conteúdo</h2><p className="text-sm text-muted">Edite ou exclua matérias, materiais e questões. A exclusão retira o conteúdo do banco e preserva as provas concluídas.</p><div className="flex flex-wrap gap-3"><Link className="text-pen font-semibold underline" href="/app">Matérias: nome, cor e exclusão</Link><Link className="text-pen font-semibold underline" href="/app/materiais">Materiais: título, conteúdo e exclusão</Link><Link className="text-pen font-semibold underline" href="/app/questoes">Questões: alternativas, gabarito e exclusão</Link></div></section>
     <section className="card p-5"><h2 className="font-semibold text-xl">Usuários cadastrados</h2>

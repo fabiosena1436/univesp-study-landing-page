@@ -57,7 +57,7 @@ Backups não devem ser gravados no disco temporário das funções. Execute `db:
 
 ## 5. Conferência após publicar
 
-Verifique `/api/health`, cadastro com acesso imediato, sem confirmação de e-mail, login, publicação administrativa, simulado e histórico. Teste a entrega de recuperação de senha e uma geração Gemini. Promova a conta institucional já cadastrada usando `npm run db:admin -- 26241463@aluno.univesp.br`, com o ambiente apontando explicitamente para o banco desejado.
+Verifique `/api/health`, cadastro com confirmação de e-mail e aprovação administrativa, lista de e-mails pré-autorizados, login, publicação administrativa, simulado e histórico. Teste a entrega da confirmação de e-mail e da recuperação de senha e uma geração Gemini. Promova a conta institucional já cadastrada usando `npm run db:admin -- 26241463@aluno.univesp.br`, com o ambiente apontando explicitamente para o banco desejado.
 
 Confira os logs da Vercel e a utilização de conexões no Neon. O sucesso do build não confirma que as migrações ou o envio de e-mail estejam configurados.
 

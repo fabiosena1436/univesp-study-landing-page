@@ -6,13 +6,14 @@ import { useRouter } from "next/navigation";
 import AuthShell from "@/components/AuthShell";
 import { api } from "@/lib/api";
 import { Button, Field, Input } from "@/components/ui";
-import { registrationEmailAllowed } from "@/lib/constants";
+import { normalizeWhatsapp } from "@/lib/access";
 
 export default function CadastroPage() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [course, setCourse] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -25,17 +26,17 @@ export default function CadastroPage() {
       setError("As senhas não conferem.");
       return;
     }
-    if (!registrationEmailAllowed(email)) {
-      setError("Use seu e-mail @aluno.univesp.br ou um endereço autorizado pelo responsável.");
+    if (!normalizeWhatsapp(whatsapp)) {
+      setError("Informe um WhatsApp brasileiro válido com DDD.");
       return;
     }
     setBusy(true);
     try {
-      await api("/api/auth/register", {
+      const result = await api<{ verificationSent: boolean }>("/api/auth/register", {
         method: "POST",
-        body: JSON.stringify({ name, email, course, password }),
+        body: JSON.stringify({ name, email, course, whatsapp, password }),
       });
-      router.replace("/app");
+      router.replace(result.verificationSent ? "/aguardando-aprovacao" : "/aguardando-aprovacao?envio=pendente");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não foi possível criar a conta.");
@@ -48,7 +49,7 @@ export default function CadastroPage() {
     <AuthShell>
       <h1 className="font-display text-3xl font-semibold tracking-tight">Criar conta</h1>
       <p className="mt-2 text-sm text-muted">
-        Crie sua conta e acesse imediatamente o catálogo compartilhado e seu histórico individual.
+        Crie sua conta, confirme seu e-mail e aguarde a autorização de acesso. E-mails da lista do administrador já ficam pré-autorizados.
       </p>
       <form onSubmit={onSubmit} className="mt-7 space-y-4">
         <Field label="Seu nome">
@@ -70,12 +71,13 @@ export default function CadastroPage() {
             required
             autoComplete="email"
           />
-          <p className="mt-1.5 text-xs text-muted">Use seu e-mail @aluno.univesp.br ou um endereço autorizado pelo responsável. Não é necessário confirmar o e-mail. Enviaremos e-mails apenas para recuperação de senha.</p>
+          <p className="mt-1.5 text-xs text-muted">Use preferencialmente seu e-mail @aluno.univesp.br. Enviaremos um link para confirmar que o endereço é seu.</p>
         </Field>
         <Field label="Curso">
           <Input value={course} onChange={(e) => setCourse(e.target.value)} placeholder="Ex.: Engenharia de Computação" required minLength={2} />
         </Field>
         <Field label="Senha" hint="Mínimo de 8 caracteres.">
+          {/* A autorização e a confirmação do e-mail são verificadas no servidor. */}
           <Input
             type="password"
             value={password}
@@ -96,6 +98,10 @@ export default function CadastroPage() {
             minLength={8}
             autoComplete="new-password"
           />
+        </Field>
+        <Field label="WhatsApp com DDD">
+          <Input type="tel" autoComplete="tel" required maxLength={40} value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="(11) 99999-9999" />
+          <p className="mt-1.5 text-xs text-muted">O administrador poderá usar este número para avisar sobre a aprovação do acesso.</p>
         </Field>
         {error && (
           <p className="text-sm font-semibold text-red bg-red-soft border border-red/20 rounded-xl px-3.5 py-2.5">

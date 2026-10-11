@@ -5,6 +5,9 @@ export type User = {
   course: string | null;
   createdAt: string;
   isAdmin?: boolean;
+  accessStatus?: "pending" | "approved" | "rejected";
+  emailVerifiedAt?: string | null;
+  whatsapp?: string | null;
 };
 
 export type Subject = {

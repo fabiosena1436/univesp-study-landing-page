@@ -121,7 +121,7 @@ Também é possível conferir as tabelas no painel de tabelas do Neon, como `use
 
 ## Etapa 5 — preparar o envio de e-mails
 
-Configure o Resend para recuperação de senha. Novos cadastros têm acesso imediato e não dependem do envio de e-mail. A entrega depende também do processamento pelo provedor do destinatário.
+Configure o Resend para confirmação de e-mail e recuperação de senha. Novos cadastros precisam confirmar o endereço e receber autorização do administrador. A entrega depende também do processamento pelo provedor do destinatário.
 
 1. Entre em https://resend.com e crie sua conta.
 2. Em **Domains**, adicione um domínio que você controla.
@@ -197,7 +197,7 @@ Referência: [variáveis de ambiente na Vercel](https://vercel.com/docs/environm
 
 1. Abra seu site e clique em criar conta.
 2. Para a conta administrativa, cadastre `26241463@aluno.univesp.br`. Para testar como aluno, cadastre `fabiosena1436@gmail.com`. Escolha senhas para cada conta.
-3. Após o cadastro, confira o acesso imediato à área de estudos. Contas existentes, inclusive com confirmação pendente, podem entrar com e-mail e senha e mantêm seus dados e permissões.
+3. Após o cadastro, confira a tela de espera, a confirmação do e-mail e a aprovação administrativa. A lista de e-mails pré-autorizados dispensa somente a aprovação manual. A migração preserva o acesso das contas existentes.
 4. No computador, mantenha `.env.neon` configurado e execute, para promover a conta institucional já cadastrada:
 
 ```powershell
@@ -213,7 +213,7 @@ fabiosena1436@gmail.com foi autorizado como aluno, sem permissões administrativ
 
 ## Etapa 10 — conferir o funcionamento e atualizar no futuro
 
-Teste cadastro com acesso imediato, login, recuperação de senha, importação, simulado e histórico. Apenas a recuperação de senha depende do Resend e do recebimento pelo provedor. Geração Gemini só funciona com a chave configurada e com acesso ao modelo na sua conta.
+Teste cadastro pendente, confirmação, lista de e-mails pré-autorizados, aprovação, recusa, bloqueio, login, recuperação de senha, importação, simulado e histórico. Confirmação e recuperação de senha dependem do Resend e do recebimento pelo provedor. Geração Gemini só funciona com a chave configurada e com acesso ao modelo na sua conta.
 
 Em futuras alterações de código, use GitHub Desktop: confira Changes, faça Commit e depois Push origin. A integração GitHub/Vercel cria uma nova publicação a cada push na branch conectada. Se uma alteração incluir migrações, aplique-as no Neon pelo comando da etapa 4 antes de liberar a versão que precisa delas.
 

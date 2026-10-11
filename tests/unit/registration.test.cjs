@@ -17,21 +17,25 @@ function load(path, modules) {
   return exports;
 }
 
-test('registration without email configuration creates an authenticated account and never calls an email provider', async () => {
+test('email delivery failure preserves a pending account and reports that confirmation must be resent', async () => {
   const created = [];
   const sessions = [];
   const modules = {
-    'drizzle-orm': { eq: () => null }, '@/db/schema': { users: {} },
+    'drizzle-orm': { eq: () => null, sql: () => null }, '@/db/schema': { users: {}, authorizedEmails: {} },
     '@/db': { db: {
       select: () => ({ from: () => ({ where: () => ({ limit: async () => [] }) }) }),
       insert: () => ({ values: data => { created.push(data); return { returning: async () => [{ id: 'new-user', ...data }] }; } }),
+      execute: async () => {},
+      transaction: async callback => callback(modules['@/db'].db),
     } },
     '@/lib/auth': { hashPassword: async () => 'hashed-password', createSession: async id => sessions.push(id), safeUser: ({ passwordHash, ...user }) => user },
     '@/lib/errors': { ApiError, handleError, str }, '@/lib/constants': { EMAIL_RE, registrationEmailAllowed },
     '@/lib/validation': { passwordError }, '@/lib/rateLimit': { rateLimit: async () => {} },
+    '@/lib/access': require('../../.test-build/lib/access.js'),
+    '@/lib/emailVerification': { issueVerification: async () => { throw new Error('Envio indisponível'); } },
   };
   const { POST } = load('src/app/api/auth/register/route.ts', modules);
-  const response = await POST(new Request('http://localhost/api/auth/register', { method: 'POST', body: JSON.stringify({ name: 'Aluno', email: ' NOVO@ALUNO.UNIVESP.BR ', course: 'Computação', password: 'TestingOnly123!' }) }));
+  const response = await POST(new Request('http://localhost/api/auth/register', { method: 'POST', body: JSON.stringify({ name: 'Aluno', email: ' NOVO@ALUNO.UNIVESP.BR ', course: 'Computação', whatsapp: '(11) 99999-1234', password: 'TestingOnly123!' }) }));
   assert.equal(response.status, 201);
   assert.deepEqual(sessions, ['new-user']);
   assert.equal(created[0].email, 'novo@aluno.univesp.br');
@@ -39,9 +43,11 @@ test('registration without email configuration creates an authenticated account 
   const body = await response.json();
   assert.equal(body.user.id, 'new-user');
   assert.equal(body.user.passwordHash, undefined);
+  assert.equal(body.user.accessStatus, 'pending');
+  assert.equal(body.verificationSent, false);
 });
 
-test('sessions accept unconfirmed accounts and still reject blocked or expired accounts', async () => {
+test('pending sessions may view their account but cannot pass the study authorization gate', async () => {
   for (const scenario of ['pending', 'blocked', 'expired']) {
     const user = { id: 'user', name: 'Aluno', email: 'aluno@aluno.univesp.br', course: 'Computação', createdAt: new Date(), emailVerifiedAt: null, isBlocked: scenario === 'blocked' };
     const row = { user, expiresAt: new Date(Date.now() + (scenario === 'expired' ? -60000 : 60000)) };
@@ -49,24 +55,30 @@ test('sessions accept unconfirmed accounts and still reject blocked or expired a
       crypto: require('node:crypto'), 'next/headers': { cookies: async () => ({ get: () => ({ value: 'session-token' }) }) },
       'drizzle-orm': { eq: () => null }, bcryptjs: {}, '@/db/schema': { users: {}, sessions: {}, admins: {} },
       '@/lib/errors': { ApiError }, './errors': { ApiError },
+      './access': require('../../.test-build/lib/access.js'),
       '@/db': { db: {
         select: () => ({ from: () => ({ innerJoin: () => ({ where: () => ({ limit: async () => [row] }) }), where: () => ({ limit: async () => [] }) }) }),
         delete: () => ({ where: async () => {} }),
       } },
     };
-    const { getSessionUser } = load('src/lib/auth.ts', modules);
+    const { getSessionUser, requireUser } = load('src/lib/auth.ts', modules);
     const result = await getSessionUser();
     assert.equal(result?.id ?? null, scenario === 'pending' ? 'user' : null);
+    await assert.rejects(requireUser(), error => error.status === (scenario === 'pending' ? 403 : 401));
   }
 });
 
-test('legacy confirmation endpoints never load email or database dependencies', async () => {
-  for (const route of ['verify-email', 'resend-verification']) {
-    const { POST } = load(`src/app/api/auth/${route}/route.ts`, {});
-    const response = await POST();
-    assert.equal(response.status, 200);
-    assert.match((await response.json()).message, /Não é necessário confirmar/);
-  }
+test('resending confirmation reports provider failures and skips already verified accounts', async () => {
+  let sent = 0;
+  let confirmed = false;
+  const { POST } = load('src/app/api/auth/resend-verification/route.ts', {
+    '@/lib/auth': { requireAccount: async () => ({ id: 'user', emailVerifiedAt: confirmed ? new Date() : null }) },
+    '@/lib/emailVerification': { issueVerification: async () => { sent++; throw new Error('Provider rejected'); } },
+    '@/lib/errors': { ApiError, handleError }, '@/lib/rateLimit': { rateLimit: async () => {} },
+  });
+  assert.equal((await POST()).status, 503); assert.equal(sent, 1);
+  confirmed = true;
+  assert.equal((await POST()).status, 200); assert.equal(sent, 1);
 });
 
 test('password recovery still stores a hashed token and sends the reset link', async () => {
