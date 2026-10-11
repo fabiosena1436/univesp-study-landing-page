@@ -1,0 +1,37 @@
+[
+  {
+    "id": "intro",
+    "duration": 12,
+    "text": "Conheça o Aprova Univesp. Um espaço gratuito para a nossa comunidade praticar questões e revisar o conteúdo."
+  },
+  {
+    "id": "overview",
+    "duration": 19,
+    "text": "No site, você encontra questões organizadas por matéria, faz simulados com correção e acompanha seus resultados no histórico individual. Os números da página inicial são apenas exemplos."
+  },
+  {
+    "id": "signup",
+    "duration": 21,
+    "text": "Para começar, escolha Criar conta grátis. Informe seu nome, curso e e-mail de aluno da Univesp. Crie uma senha com pelo menos oito caracteres e confirme. Após o cadastro, o acesso é imediato."
+  },
+  {
+    "id": "practice",
+    "duration": 24,
+    "text": "Abra Nova prova e escolha uma matéria disponível. Comece com cinco questões, se houver essa quantidade no catálogo. Responda, conclua o treino e confira seu resultado. Leia o feedback, principalmente nas questões que você errou."
+  },
+  {
+    "id": "review",
+    "duration": 18,
+    "text": "Depois do treino, use o filtro Só as questões que eu já errei. Nos flashcards, tente lembrar antes de revelar a resposta. Em Meu plano, acompanhe as revisões programadas."
+  },
+  {
+    "id": "community",
+    "duration": 18,
+    "text": "Sua contribuição ajuda a comunidade. Envie sugestões e relate erros em Falar com admin. Confira as respostas com o material da disciplina. O treino não garante aprovação."
+  },
+  {
+    "id": "invitation",
+    "duration": 21,
+    "text": "Seu primeiro treino pode ser hoje. Crie sua conta gratuitamente e escolha uma matéria para começar. Aponte a câmera do celular para o código na tela, ou acesse o endereço do site. Esperamos você!"
+  }
+]
