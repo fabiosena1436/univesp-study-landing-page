@@ -2,6 +2,8 @@
 
 Antes de publicar a nova versão, aplique a migração com `npm run db:migrate` no ambiente correto, depois do backup. A migração `0002_wise_virginia_dare.sql` preserva o acesso das contas existentes, marcando-as como autorizadas e dispensadas da nova confirmação. Novos cadastros precisam confirmar o e-mail e receber autorização.
 
+Na Vercel, `vercel.json` executa `scripts/vercel-build.mjs`: somente em produção, verifica a configuração de e-mail e o domínio, aplica as migrações versionadas e depois executa o build. Em endpoints Neon com pool, usa a conexão direta correspondente sem copiar as credenciais para o computador. Pré-publicações não alteram o banco por esse script. Uma falha interrompe o build e mantém a versão anterior no ar; as migrações aditivas concluídas permanecem compatíveis com essa versão.
+
 ## Para o administrador
 
 Abra **Administração → Aprovação de acesso**.
