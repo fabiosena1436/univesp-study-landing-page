@@ -5,12 +5,15 @@ import { BookOpenText, FileText } from "lucide-react";
 import { api } from "@/lib/api";
 import type { MaterialDetail, MaterialRow } from "@/lib/types";
 import { PdfViewer } from "./PdfViewer";
-import { Button, EmptyState, Spinner } from "@/components/ui";
+import { Badge, Button, EmptyState, Spinner } from "@/components/ui";
+
+type MaterialFormat = "pdf" | "text";
 
 export function MaterialLibrary() {
   const [page, setPage] = useState(0);
   const [list, setList] = useState<MaterialRow[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedFormat, setSelectedFormat] = useState<MaterialFormat>("text");
   const [active, setActive] = useState<MaterialDetail | null>(null);
   const [error, setError] = useState("");
   const heading = useRef<HTMLHeadingElement>(null);
@@ -49,11 +52,18 @@ export function MaterialLibrary() {
     setPage(next);
   }
 
+  function openMaterial(material: MaterialRow, format: MaterialFormat) {
+    setActive(null);
+    setError("");
+    setSelectedFormat(format);
+    setSelectedId(material.id);
+  }
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="font-display text-3xl font-semibold">Materiais de estudo</h1>
-        <p className="text-ink-soft mt-1">Leia os materiais disponibilizados pelo administrador.</p>
+        <p className="text-ink-soft mt-1">Escolha entre os arquivos PDF originais e os materiais em texto para estudar.</p>
       </div>
       {error && <p role="alert" className="text-red">{error}</p>}
       {selectedId ? (
@@ -63,13 +73,25 @@ export function MaterialLibrary() {
           </Button>
           {active ? (
             <>
-              <h2 ref={heading} tabIndex={-1} className="font-display text-2xl font-semibold mt-5 break-words">{active.title}</h2>
+              <div className="mt-5"><Badge tone={selectedFormat === "pdf" ? "pen" : "brand"}>{selectedFormat === "pdf" ? "PDF original" : "Material em texto"}</Badge></div>
+              <h2 ref={heading} tabIndex={-1} className="font-display text-2xl font-semibold mt-3 break-words">{active.title}</h2>
               <p className="text-xs text-muted mt-2 mb-6">
                 {list?.find((m) => m.id === active.id)?.subjectName}
-                {active.pageCount > 0 ? ` · ${active.pageCount} pág.` : ""} · Somente leitura
+                {selectedFormat === "pdf" && active.pageCount > 0 ? ` · ${active.pageCount} pág.` : ""} · Somente leitura
               </p>
-              {active.hasPdf && <PdfViewer id={active.id} title={active.title} />}
-              <article className="text-sm sm:text-base whitespace-pre-wrap leading-relaxed break-words">{active.content}</article>
+              {selectedFormat === "pdf" ? (
+                active.hasPdf ? <>
+                  <p className="text-sm text-muted">Arquivo original, com a formatação e as páginas do PDF.</p>
+                  <PdfViewer id={active.id} title={active.title} defaultOpen />
+                  {active.content.trim() && <div className="mt-5 border-t border-line pt-4"><Button variant="ghost" size="sm" onClick={() => setSelectedFormat("text")}><BookOpenText size={16} aria-hidden="true" /> Ler a versão em texto</Button></div>}
+                </> : <p className="text-sm text-muted">O PDF original deste material ainda não foi anexado.</p>
+              ) : <>
+                <div className="mb-6 rounded-xl border border-line bg-brand-soft/40 p-4">
+                  <p className="text-sm text-ink-soft">Conteúdo copiado ou extraído do PDF, organizado para leitura em texto.</p>
+                  {active.hasPdf && <Button className="mt-3" variant="ghost" size="sm" onClick={() => setSelectedFormat("pdf")}><FileText size={16} aria-hidden="true" /> Abrir o PDF original</Button>}
+                </div>
+                <article className="text-sm sm:text-base whitespace-pre-wrap leading-relaxed break-words">{active.content}</article>
+              </>}
             </>
           ) : !error ? <div role="status" className="flex items-center gap-2 py-8"><Spinner size={20} /> Abrindo material…</div> : null}
         </section>
@@ -78,20 +100,10 @@ export function MaterialLibrary() {
       ) : list.length === 0 ? (
         <EmptyState icon={<BookOpenText size={20} />} title="Nenhum material disponível" desc="Os materiais aparecerão aqui quando forem disponibilizados pelo administrador." />
       ) : (
-        <section aria-label="Materiais disponíveis" className="card divide-y divide-line">
-          {list.map((m) => (
-            <div key={m.id} className="flex flex-wrap items-center gap-3 px-5 py-4">
-              <FileText size={20} className="text-pen shrink-0" aria-hidden="true" />
-              <div className="flex-1 min-w-40">
-                <h2 className="text-sm font-semibold break-words">{m.title}</h2>
-                <p className="text-xs text-muted mt-1">{m.subjectName}{m.pageCount > 0 ? ` · ${m.pageCount} pág.` : ""}</p>
-              </div>
-              <Button size="sm" variant="soft" aria-label={`Ler material: ${m.title}`} onClick={() => { setActive(null); setError(""); setSelectedId(m.id); }}>
-                <BookOpenText size={16} /> Ler material
-              </Button>
-            </div>
-          ))}
-        </section>
+        <div className="space-y-6">
+          <MaterialSection format="pdf" items={list.filter(material => material.hasPdf)} onOpen={openMaterial} />
+          <MaterialSection format="text" items={list.filter(material => material.charCount > 0)} onOpen={openMaterial} />
+        </div>
       )}
       {!selectedId && list !== null && (page > 0 || list.length >= 50) && (
         <nav aria-label="Páginas de materiais" className="flex items-center gap-3">
@@ -102,4 +114,35 @@ export function MaterialLibrary() {
       )}
     </div>
   );
+}
+
+function MaterialSection({ format, items, onOpen }: { format: MaterialFormat; items: MaterialRow[]; onOpen: (material: MaterialRow, format: MaterialFormat) => void }) {
+  const pdf = format === "pdf";
+  const Icon = pdf ? FileText : BookOpenText;
+  return <section aria-label={pdf ? "PDFs originais" : "Materiais em texto"} className="card overflow-hidden">
+    <div className={`flex items-start gap-3 border-b border-line p-5 sm:p-6 ${pdf ? "bg-pen-soft/40" : "bg-brand-soft/50"}`}>
+      <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${pdf ? "bg-pen-soft text-pen" : "bg-brand text-ink"}`}><Icon size={22} aria-hidden="true" /></span>
+      <div>
+        <h2 className="font-display text-xl font-semibold">{pdf ? "PDFs originais" : "Materiais em texto"}</h2>
+        <p className="mt-1 text-sm text-muted">{pdf ? "Abra ou baixe o arquivo completo, com suas páginas e formatação." : "Leia o conteúdo copiado ou extraído dos PDFs diretamente no site."}</p>
+      </div>
+    </div>
+    {items.length === 0 ? <p className="p-5 text-sm text-muted">{pdf ? "Nenhum PDF original anexado nesta página." : "Nenhum material em texto nesta página."}</p> : <div className="divide-y divide-line">
+      {items.map(material => <div key={material.id} className="flex flex-wrap items-center gap-3 p-5">
+        <div className="min-w-40 flex-1">
+          <div className="mb-2"><Badge tone={pdf ? "pen" : "brand"}>{pdf ? "Arquivo PDF" : "Texto para leitura"}</Badge></div>
+          <h3 className="break-words text-sm font-semibold">{material.title}</h3>
+          <p className="mt-1 text-xs text-muted">{material.subjectName}{pdf ? material.pageCount > 0 ? ` · ${material.pageCount} pág.` : "" : ` · ${material.charCount.toLocaleString("pt-BR")} caracteres`}</p>
+          {pdf && material.charCount > 0 && <p className="mt-1 text-xs text-muted">Também disponível na seção Materiais em texto.</p>}
+          {!pdf && material.hasPdf && <p className="mt-1 text-xs text-muted">Também disponível na seção PDFs originais.</p>}
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button size="sm" variant={pdf ? "primary" : "soft"} aria-label={`${pdf ? "Abrir PDF" : "Ler texto"}: ${material.title}`} onClick={() => onOpen(material, format)}>
+            <Icon size={16} aria-hidden="true" /> {pdf ? "Abrir PDF" : "Ler texto"}
+          </Button>
+          {pdf && <a href={`/api/materials/${material.id}/pdf?download=1`} aria-label={`Baixar PDF: ${material.title}`} className="text-sm font-semibold text-pen underline underline-offset-4">Baixar PDF</a>}
+        </div>
+      </div>)}
+    </div>}
+  </section>;
 }

@@ -2,8 +2,8 @@
 import { useState } from "react";
 import { Button } from "./ui";
 
-export function PdfViewer({ id, title }: { id: string; title: string }) {
-  const [open, setOpen] = useState(false);
+export function PdfViewer({ id, title, defaultOpen = false }: { id: string; title: string; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
   const url = `/api/materials/${id}/pdf`;
   return <div className="my-4 space-y-3">
     <div className="flex flex-wrap items-center gap-3">
