@@ -31,7 +31,7 @@ export function ManageSubject({ subject }: { subject: Subject }) {
     </div>}
     <div className="flex flex-wrap gap-2">
       {editing ? <><Button size="sm" disabled={busy || name.trim().length < 2} onClick={() => void change()}>{busy ? "Salvando…" : "Salvar matéria"}</Button><Button size="sm" variant="ghost" disabled={busy} onClick={() => setEditing(false)}>Cancelar</Button></> : <Button size="sm" variant="ghost" onClick={() => { setName(subject.name); setColor(subject.color); setEditing(true); }}>Editar matéria</Button>}
-      <Button size="sm" variant="danger" disabled={busy} onClick={() => void change(true)}>Excluir matéria</Button>
+      {user.isAdmin && <Button size="sm" variant="danger" disabled={busy} onClick={() => void change(true)}>Excluir matéria</Button>}
     </div>
   </div>;
 }

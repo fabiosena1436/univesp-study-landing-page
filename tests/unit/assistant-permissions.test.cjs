@@ -16,18 +16,6 @@ function load(path, modules) {
   return exports;
 }
 
-function authentication(account, admin = false) {
-  const query = { innerJoin: () => query, where: () => query, limit: async () => [{ user: account, expiresAt: new Date(Date.now() + 60000) }] };
-  return load('src/lib/auth.ts', {
-    crypto: require('node:crypto'), bcryptjs: {},
-    'next/headers': { cookies: async () => ({ get: () => ({ value: 'session' }) }) },
-    'drizzle-orm': { eq: () => null },
-    '@/db/schema': { users: {}, sessions: {}, admins: {} },
-    '@/db': { db: { select: () => ({ from: table => table === undefined ? query : query }) } },
-    './errors': { ApiError }, './access': access,
-  });
-}
-
 test('assistants must have approved access and cannot pass the principal administrator gate', async () => {
   // Session query followed by the principal-admin lookup, using the actual auth gates.
   for (const status of ['approved', 'pending', 'rejected']) {
@@ -68,5 +56,39 @@ test('assistant cannot delete content or manage accounts, approvals, audit, or A
     const res = await route[method](null, { params: Promise.resolve({ id: '8aad91a1-5678-4123-9123-123456789abc' }) });
     assert.equal(res.status, 403, `${method} ${path}`);
     assert.equal(dbTouched, false);
+  }
+});
+
+test('principal can grant and revoke assistants, but must approve/unblock accounts first and cannot demote principal admins', async () => {
+  for (const [status, blocked, principal, assistant, expected] of [
+    ['approved', false, false, true, 200], ['approved', false, false, false, 200],
+    ['pending', false, false, true, 400], ['rejected', false, false, true, 400],
+    ['approved', true, false, true, 400], ['approved', false, true, true, 403],
+  ]) {
+    const schema = { users: {}, admins: {} };
+    const account = { id: '8aad91a1-5678-4123-9123-123456789abc', accessStatus: status, isBlocked: blocked, isAssistant: !assistant };
+    const changes = [];
+    const events = [];
+    const tx = {
+      select: () => ({ from: table => ({ where: () => {
+        const result = Promise.resolve(table === schema.admins ? (principal ? [{}] : []) : [account]);
+        result.for = () => result;
+        return { limit: () => result };
+      } }) }),
+      update: () => ({ set: values => ({ where: async () => { changes.push(values); } }) }),
+    };
+    const route = load('src/app/api/admin/users/route.ts', {
+      'drizzle-orm': { eq: () => null }, '@/db/schema': schema, '@/db': { db: { transaction: callback => callback(tx) } },
+      '@/lib/auth': { requireAdmin: async () => ({ id: 'principal' }) },
+      '@/lib/errors': { ApiError, handleError }, '@/lib/validation': require('../../.test-build/lib/validation.js'),
+      '@/lib/audit': { audit: async (...args) => events.push(args) },
+    });
+    const res = await route.PATCH({ json: async () => ({ id: account.id, assistant }) });
+    assert.equal(res.status, expected);
+    if (expected === 200) {
+      assert.equal(changes.length, 1);
+      assert.equal(changes[0].isAssistant, assistant);
+      assert.equal(events[0][1], assistant ? 'user.assistant.grant' : 'user.assistant.revoke');
+    } else { assert.equal(changes.length, 0); assert.equal(events.length, 0); }
   }
 });

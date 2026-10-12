@@ -1,29 +1,31 @@
-# Aprovação de acesso
+# Aprovação de acesso e administradores assistentes
 
-Antes de publicar a nova versão, aplique a migração com `npm run db:migrate` no ambiente correto, depois do backup. A migração `0002_wise_virginia_dare.sql` preserva o acesso das contas existentes, marcando-as como autorizadas e dispensadas da nova confirmação. Novos cadastros precisam confirmar o e-mail e receber autorização.
+Aplique as migrações versionadas antes de executar a nova versão. A migração `0003_assistant_and_pdf.sql` adiciona a função de assistente e a tabela dos PDFs originais. Na Vercel, o script de build existente aplica as migrações somente em produção antes do build; pré-publicações não alteram o banco.
 
-Na Vercel, `vercel.json` executa `scripts/vercel-build.mjs`: somente em produção, verifica a configuração de e-mail e o domínio, aplica as migrações versionadas e depois executa o build. Em endpoints Neon com pool, usa a conexão direta correspondente sem copiar as credenciais para o computador. Pré-publicações não alteram o banco por esse script. Uma falha interrompe o build e mantém a versão anterior no ar; as migrações aditivas concluídas permanecem compatíveis com essa versão.
-
-## Para o administrador
+## Para o administrador principal
 
 Abra **Administração → Aprovação de acesso**.
 
-- Em **E-mails pré-autorizados**, cole até 500 endereços, um por linha. Vírgula e ponto e vírgula também são aceitos. Os endereços são normalizados e duplicados não são inseridos.
-- Um cadastro com e-mail dessa lista fica pré-autorizado, mas o aluno ainda precisa confirmar o endereço pelo link recebido.
-- Adicionar um endereço depois do cadastro aprova a conta pendente. Contas recusadas não são aprovadas automaticamente; bloqueios continuam valendo.
-- Em **Aguardando aprovação**, confira nome, e-mail, curso, WhatsApp e situação da confirmação. Use **Aprovar** ou **Recusar acesso**.
-- Após aprovar, use **Avisar pelo WhatsApp**. O botão abre uma conversa com texto pronto. Você confere e envia manualmente; o site não envia mensagens automaticamente.
-- Use os filtros **Autorizados** e **Recusados** para rever decisões. O bloqueio continua disponível em Usuários cadastrados.
-- Remover um e-mail da lista impede sua pré-autorização em novos cadastros, mas não revoga aprovações existentes. Para revogar, recuse o acesso ou bloqueie a conta.
+- Em **E-mails pré-autorizados**, cole até 500 endereços. Um cadastro dessa lista já pode entrar no conteúdo, sem confirmação de e-mail.
+- Fora da lista, o cadastro aguarda sua aprovação. Confira nome, e-mail, curso e WhatsApp e use **Aprovar** ou **Recusar acesso**.
+- Adicionar um e-mail depois do cadastro aprova a conta pendente. Contas recusadas precisam de aprovação manual; bloqueios continuam valendo.
+- Após aprovar, **Avisar pelo WhatsApp** abre uma conversa com mensagem pronta. Você confere e envia manualmente.
+- Remover um e-mail da lista não revoga aprovações existentes. Para retirar o acesso, recuse ou bloqueie a conta.
+
+Em **Usuários cadastrados**, use **Tornar assistente** para uma conta aprovada e desbloqueada. **Remover assistente** revoga a função, inclusive nas sessões abertas.
+
+Assistentes podem adicionar e editar matérias, questões e materiais, gerar questões e anexar PDFs. Somente o administrador principal pode excluir conteúdo, administrar contas, aprovar cadastros, gerenciar permissões, responder atendimentos como administrador e consultar auditoria e uso de IA. As APIs verificam essas restrições.
 
 ## Para o aluno
 
-O cadastro aceita um e-mail válido, preferencialmente institucional, e pede WhatsApp brasileiro com DDD. Após criar a conta, o aluno vê `/aguardando-aprovacao`, com as duas etapas separadas. Pode reenviar a confirmação, consultar o acesso e sair. A confirmação exige um clique no botão da página, evitando consumo automático por prévias e verificadores de links de e-mail.
+O cadastro pede e-mail válido, curso, senha e WhatsApp brasileiro com DDD. Não há confirmação de e-mail. Contas pré-autorizadas entram diretamente; as demais veem `/aguardando-aprovacao`. A tela consulta o acesso a cada 15 segundos, além do botão **Consultar acesso**. Aprovação libera o conteúdo, e recusa ou bloqueio impede as APIs de estudo.
 
-Os links são de uso único, armazenados como hash e expiram em 24 horas. Reenviar invalida links anteriores. Há limite de três reenvios por hora por conta. Aprovar não confirma o e-mail. Recusar ou bloquear retira o acesso às APIs mesmo de sessões que já estavam abertas. A página inicial continua pública.
+Em **Materiais**, abra o material e use **Visualizar PDF**, **Abrir PDF em nova aba** ou **Baixar PDF** quando houver anexo. Materiais antigos conservam seu texto; o administrador ou assistente pode anexar o arquivo original posteriormente.
 
-## Configuração de envio
+## PDFs e envio de e-mail
 
-Configure `APP_URL` com o endereço HTTPS público, `RESEND_API_KEY` e `RESEND_FROM_EMAIL` com um domínio de envio validado. O Resend é necessário para a confirmação e a recuperação de senha. Falha no envio preserva a conta, informa o problema e mantém o conteúdo protegido até a confirmação. Nenhum token aparece nas respostas de cadastro ou nos logs.
+PDFs originais são armazenados no PostgreSQL em uma tabela separada, sem carregar o arquivo nas listagens. Uploads aceitam até 4 MB e 500 páginas. PDFs digitalizados podem ser lidos, mas gerar questões exige texto selecionável ou conteúdo adicionado manualmente. Editar o texto não altera o arquivo anexado.
 
-Os testes de integração usam PostgreSQL isolado e respostas simuladas do Resend. Eles não enviam e-mails reais nem mensagens de WhatsApp.
+O Resend continua sendo usado para recuperação de senha. Configure `APP_URL`, `RESEND_API_KEY` e `RESEND_FROM_EMAIL` para esse envio. O cadastro não depende de envio de e-mail. Rotas antigas de confirmação permanecem compatíveis com links anteriores e não condicionam o acesso.
+
+Os testes de integração usam PostgreSQL isolado e respostas simuladas do Resend, sem enviar e-mails reais ou mensagens de WhatsApp.

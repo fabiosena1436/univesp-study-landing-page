@@ -19,7 +19,7 @@ import { SAMPLE_TEXT } from "@/lib/sample";
 import { EditMaterial } from "@/components/EditMaterial";
 import { PdfViewer } from "@/components/PdfViewer";
 import { MaterialLibrary } from "@/components/MaterialLibrary";
-import { pdfValidationError } from "@/lib/pdf";
+import { pdfValidationError } from "@/lib/pdfValidation";
 import type { GenerateResponse, MaterialDetail, MaterialRow, ParsedQuestion } from "@/lib/types";
 
 export default function MateriaisPage() {

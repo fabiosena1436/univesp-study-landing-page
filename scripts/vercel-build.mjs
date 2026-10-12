@@ -6,7 +6,7 @@ import { pathToFileURL } from "node:url";
 export function productionDatabaseUrl(env) {
   if (env.VERCEL !== "1" || env.VERCEL_ENV !== "production") throw new Error("Production migrations require the Vercel production environment.");
   if (env.VERCEL_GIT_REPO_SLUG && env.VERCEL_GIT_REPO_SLUG !== "univesp-study-landing-page") throw new Error("Unexpected deployment repository.");
-  if (!env.RESEND_API_KEY || !env.RESEND_FROM_EMAIL) throw new Error("Configure RESEND_API_KEY and RESEND_FROM_EMAIL before publishing signup confirmation.");
+  if (!env.RESEND_API_KEY || !env.RESEND_FROM_EMAIL) throw new Error("Configure RESEND_API_KEY and RESEND_FROM_EMAIL for password recovery before publishing.");
   if (!env.APP_URL || new URL(env.APP_URL).origin !== "https://univesp-study-landing-page.vercel.app") throw new Error("APP_URL must match the approved production domain.");
   const raw = env.DATABASE_URL_UNPOOLED || env.DATABASE_URL;
   if (!raw) throw new Error("Production database is not configured.");

@@ -6,7 +6,7 @@ import { Badge, Button, Select, TextArea } from "./ui";
 
 type Account = { id: string; name: string; email: string; course: string | null; whatsapp: string | null; accessStatus: "pending" | "approved" | "rejected"; emailVerifiedAt: string | null; isBlocked: boolean; createdAt: string };
 type Allowed = { email: string };
-export default function AccessManagement() {
+export default function AccessManagement({ onChanged }: { onChanged?: () => void }) {
   const [status, setStatus] = useState("pending");
   const [page, setPage] = useState(0);
   const [emailPage, setEmailPage] = useState(0);
@@ -30,7 +30,7 @@ export default function AccessManagement() {
   async function mutate(action: () => Promise<void>) {
     if (busy) return;
     setBusy(true); setError("");
-    try { await action(); setRevision(r => r + 1); }
+    try { await action(); setRevision(r => r + 1); onChanged?.(); }
     catch (e) { setError(e instanceof Error ? e.message : "Não foi possível salvar."); }
     finally { setBusy(false); }
   }

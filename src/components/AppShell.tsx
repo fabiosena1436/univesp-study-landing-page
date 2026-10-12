@@ -166,7 +166,7 @@ export default function AppShell({ children, initialUser }: { children: ReactNod
               <ShieldCheck size={17} /> Administração
             </Link>
           )}
-          {!(user.isAdmin || user.isAssistant) && (
+          {!user.isAdmin && (
             <Link href="/app/contato" className="mt-3 nav-link flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold">
               <MessageSquare size={17} /> Falar com admin
             </Link>

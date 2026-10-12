@@ -44,7 +44,10 @@ export default function AdminPage() {
   if (!user.isAdmin) return <p className="card p-6">Acesso restrito ao administrador.</p>;
   if (error) return <div role="alert" className="card p-6">{error}<Button onClick={() => window.location.reload()}>Tentar novamente</Button></div>;
   return <div className="space-y-6"><h1 className="font-display text-3xl font-semibold">Administração</h1>
-    <AccessManagement />
+    <AccessManagement onChanged={() => {
+      api<AdminUser[]>(`/api/admin/users?limit=50&offset=${userPage * 50}`).then(setUsers)
+        .catch(() => toast("Não foi possível atualizar os usuários. Recarregue a página.", "err"));
+    }} />
     <AiUsagePanel />
     <section className="card p-5 space-y-3"><h2 className="font-semibold text-xl">Gerenciar conteúdo</h2><p className="text-sm text-muted">Edite ou exclua matérias, materiais e questões. A exclusão retira o conteúdo do banco e preserva as provas concluídas.</p><div className="flex flex-wrap gap-3"><Link className="text-pen font-semibold underline" href="/app">Matérias: nome, cor e exclusão</Link><Link className="text-pen font-semibold underline" href="/app/materiais">Materiais: título, conteúdo e exclusão</Link><Link className="text-pen font-semibold underline" href="/app/questoes">Questões: alternativas, gabarito e exclusão</Link></div></section>
     <section className="card p-5"><h2 className="font-semibold text-xl">Usuários cadastrados</h2><p className="text-sm text-muted">Assistentes podem adicionar e editar provas, questões e materiais. Exclusões, aprovação de usuários e permissões ficam com o administrador principal. Aprove e desbloqueie a conta antes de torná-la assistente.</p>
