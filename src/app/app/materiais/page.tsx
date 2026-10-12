@@ -18,6 +18,7 @@ import { Badge, Button, EmptyState, Input, Select, Spinner, TextArea } from "@/c
 import { SAMPLE_TEXT } from "@/lib/sample";
 import { EditMaterial } from "@/components/EditMaterial";
 import { PdfViewer } from "@/components/PdfViewer";
+import { PdfFilePicker } from "@/components/PdfFilePicker";
 import { MaterialLibrary } from "@/components/MaterialLibrary";
 import { pdfValidationError } from "@/lib/pdfValidation";
 import type { GenerateResponse, MaterialDetail, MaterialRow, ParsedQuestion } from "@/lib/types";
@@ -299,11 +300,17 @@ export default function MateriaisPage() {
         )}
       </div>
 
-      <section className="card p-5 space-y-3">
-        <h2 className="font-semibold">Enviar PDF original</h2>
-        <p className="text-sm text-muted">O arquivo fica disponível para leitura e download. O texto extraído pode ser usado para gerar questões. PDFs digitalizados também podem ser disponibilizados para leitura. Máximo de 4 MB e 500 páginas.</p>
-        <label className="block text-sm">Arquivo PDF<input key={fileRevision} type="file" accept="application/pdf,.pdf" disabled={uploading} onChange={e => setPdfFile(e.target.files?.[0] ?? null)} className="block mt-2 w-full" /></label>
-        <Button disabled={uploading || !pdfFile} onClick={() => void uploadPdf()}>{uploading ? "Enviando…" : "Enviar e salvar PDF"}</Button>
+      <section className="card p-5 sm:p-6">
+        <PdfFilePicker
+          key={fileRevision}
+          title="Enviar PDF original"
+          description="Selecione o arquivo e envie para disponibilizar a leitura e o download aos alunos. O texto extraído também pode ser usado para gerar questões."
+          file={pdfFile}
+          onChange={setPdfFile}
+          onSave={() => void uploadPdf()}
+          saveLabel="Enviar e salvar PDF"
+          busy={uploading}
+        />
       </section>
 
       {/* fonte do material */}
@@ -376,10 +383,17 @@ export default function MateriaisPage() {
           </div>
 
           {active.hasPdf && <PdfViewer key={fileRevision} id={active.id} title={active.title} />}
-          <div className="mt-4 space-y-3">
-            <label className="block text-sm">{active.hasPdf ? "Substituir PDF original" : "Anexar PDF original a este material"}<input key={`attachment-${active.id}-${fileRevision}`} type="file" accept="application/pdf,.pdf" disabled={uploading} onChange={e => setAttachment(e.target.files?.[0] ?? null)} className="block mt-2 w-full" /></label>
-            <Button size="sm" variant="soft" disabled={uploading || !attachment} onClick={() => void attachPdf()}>{uploading ? "Salvando PDF…" : "Salvar anexo PDF"}</Button>
-            <p className="text-xs text-muted">O anexo não altera o texto nem as questões existentes.</p>
+          <div className="mt-5 border-t border-line pt-5">
+            <PdfFilePicker
+              key={`attachment-${active.id}-${fileRevision}`}
+              title={active.hasPdf ? "Substituir PDF original" : "Anexar PDF a este material"}
+              description="Busque o arquivo que os alunos poderão visualizar. O anexo não altera o texto nem as questões existentes."
+              file={attachment}
+              onChange={setAttachment}
+              onSave={() => void attachPdf()}
+              saveLabel={active.hasPdf ? "Substituir PDF" : "Salvar anexo PDF"}
+              busy={uploading}
+            />
           </div>
           {active.charCount < 400 && <p className="mt-3 text-sm text-muted">Este PDF tem pouco texto extraível. Edite o material e adicione pelo menos 400 caracteres para gerar questões.</p>}
           {showContent && (
