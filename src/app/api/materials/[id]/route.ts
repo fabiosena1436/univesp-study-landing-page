@@ -1,25 +1,26 @@
 import { NextRequest } from "next/server";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, getTableColumns, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { materials, questions, subjects } from "@/db/schema";
+import { materialFiles, materials, questions, subjects } from "@/db/schema";
 import { audit } from "@/lib/audit";
-import { requireAdmin, requireUser } from "@/lib/auth";
+import { requireContentManager, requireAdmin, requireUser } from "@/lib/auth";
 import { ApiError, handleError, isUuid } from "@/lib/errors";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: NextRequest, { params }: Params) {
   try {
-    const user = await requireAdmin();
+    const user = await requireContentManager();
     const { id } = await params;
     if (!isUuid(id)) throw new ApiError(404, "Material não encontrado.");
     const body = await req.json().catch(() => null);
     const title = typeof body?.title === "string" ? body.title.trim() : "";
     const content = typeof body?.content === "string" ? body.content.trim() : "";
-    if (title.length < 2 || title.length > 90 || content.length < 400 || content.length > 400000) throw new ApiError(400, "Use um título de 2 a 90 caracteres e conteúdo de 400 a 400.000 caracteres.");
+    if (title.length < 2 || title.length > 90 || content.length > 400000) throw new ApiError(400, "Use um título de 2 a 90 caracteres e conteúdo de 400 a 400.000 caracteres.");
     const updated = await db.transaction(async (tx) => {
-      const original = (await tx.select().from(materials).where(and(eq(materials.id, id), isNull(materials.archivedAt))).limit(1).for("update"))[0];
+      const original = (await tx.select({ ...getTableColumns(materials), hasPdf: sql<boolean>`exists (select 1 from ${materialFiles} f where f.material_id = ${materials.id})` }).from(materials).where(and(eq(materials.id, id), isNull(materials.archivedAt))).limit(1).for("update"))[0];
       if (!original) throw new ApiError(404, "Material não encontrado.");
+      if (!original.hasPdf && content.length < 400) throw new ApiError(400, "Adicione pelo menos 400 caracteres ao material de texto.");
       if (body.originalTitle !== original.title || body.originalContent !== original.content) throw new ApiError(409, "Este material foi atualizado. Reabra o material antes de editar.");
       const result = (await tx.update(materials).set({ title, content, charCount: content.length }).where(eq(materials.id, id)).returning())[0];
       await audit(user.id, "material.update", id, tx);
@@ -35,7 +36,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     const { id } = await params;
     if (!isUuid(id)) throw new ApiError(404, "Material não encontrado.");
     const rows = await db
-      .select({ material: materials })
+      .select({ material: materials, hasPdf: sql<boolean>`exists (select 1 from ${materialFiles} f where f.material_id = ${materials.id})` })
       .from(materials)
       .innerJoin(subjects, eq(materials.subjectId, subjects.id))
       .where(and(eq(materials.id, id), isNull(materials.archivedAt), isNull(subjects.archivedAt)))
@@ -47,6 +48,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       subjectId: m.subjectId,
       title: m.title,
       filename: m.filename,
+      hasPdf: rows[0].hasPdf,
       pageCount: m.pageCount,
       charCount: m.charCount,
       content: m.content,

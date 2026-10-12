@@ -3,7 +3,7 @@ import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { questions, subjects } from "@/db/schema";
 import { audit } from "@/lib/audit";
-import { requireAdmin, requireUser } from "@/lib/auth";
+import { requireContentManager, requireUser } from "@/lib/auth";
 import { ApiError, handleError, HEX_COLOR_RE, str } from "@/lib/errors";
 import { SUBJECT_COLORS } from "@/lib/constants";
 
@@ -31,7 +31,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const user = await requireAdmin();
+    const user = await requireContentManager();
     const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
     const name = str(body?.name, 60);
     const color = str(body?.color, 7);

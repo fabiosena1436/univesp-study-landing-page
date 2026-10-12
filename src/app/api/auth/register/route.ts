@@ -8,7 +8,6 @@ import { rateLimit } from "@/lib/rateLimit";
 import { ApiError, handleError, str } from "@/lib/errors";
 import { EMAIL_RE } from "@/lib/constants";
 import { normalizeWhatsapp } from "@/lib/access";
-import { issueVerification } from "@/lib/emailVerification";
 
 export async function POST(req: NextRequest) {
   try {
@@ -45,9 +44,7 @@ export async function POST(req: NextRequest) {
     if (!user) throw new ApiError(500, "Não foi possível criar a conta.");
 
     await createSession(user.id);
-    let verificationSent = true;
-    try { await issueVerification(user.id); } catch { verificationSent = false; }
-    return Response.json({ user: safeUser(user), verificationSent }, { status: 201 });
+    return Response.json({ user: safeUser(user) }, { status: 201 });
   } catch (e) {
     return handleError(e);
   }

@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { materials } from "@/db/schema";
-import { requireAdmin } from "@/lib/auth";
+import { requireContentManager } from "@/lib/auth";
 import { uuid } from "@/lib/validation";
 import { rateLimit } from "@/lib/rateLimit";
 import { activeEngine, generateQuestions } from "@/lib/ai";
@@ -20,7 +20,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest, { params }: Params) {
   try {
-    const user = await requireAdmin();
+    const user = await requireContentManager();
     const { id } = await params;
     uuid(id);
     await rateLimit("generation", user.id, 5, 60000);

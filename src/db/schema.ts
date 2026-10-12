@@ -10,6 +10,7 @@ import {
   index,
   uniqueIndex,
   check,
+  customType,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -23,6 +24,7 @@ export const users = pgTable("users", {
   emailVerifiedAt: timestamp("email_verified_at"),
   accessStatus: text("access_status").$type<"pending" | "approved" | "rejected">().notNull().default("pending"),
   whatsapp: text("whatsapp"),
+  isAssistant: boolean("is_assistant").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -255,3 +257,12 @@ export const auditEvents = pgTable("audit_events", {
   targetId: text("target_id").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (t) => [index("idx_audit_created").on(t.createdAt)]);
+
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => "bytea" });
+
+export const materialFiles = pgTable("material_files", {
+  materialId: uuid("material_id").primaryKey().references(() => materials.id, { onDelete: "cascade" }),
+  filename: text("filename").notNull(),
+  data: bytea("data").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [check("material_files_size_check", sql`octet_length(${t.data}) between 1 and 4194304`)]);

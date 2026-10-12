@@ -3,7 +3,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { questions } from "@/db/schema";
 import { audit } from "@/lib/audit";
-import { requireAdmin } from "@/lib/auth";
+import { requireContentManager, requireAdmin } from "@/lib/auth";
 import { ApiError, handleError, isUuid } from "@/lib/errors";
 import { validateOptions } from "@/lib/validation";
 import { questionFingerprint } from "@/lib/fingerprint";
@@ -12,7 +12,7 @@ import { orderedOptions } from "@/lib/options";
 // Edit wording while preserving alternatives and answers, or complete pending answers.
 export async function PATCH(req: NextRequest, { params }: Params) {
   try {
-    const user = await requireAdmin();
+    const user = await requireContentManager();
     const { id } = await params;
     if (!isUuid(id)) throw new ApiError(404, "Questão não encontrada.");
     const body = await req.json().catch(() => null);

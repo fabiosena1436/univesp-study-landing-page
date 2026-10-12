@@ -1,7 +1,7 @@
 import { EMAIL_RE } from "./constants";
 
 export function canStudy(user: { isAdmin?: boolean; accessStatus?: string; emailVerifiedAt?: unknown }) {
-  return Boolean(user.isAdmin || (user.accessStatus === "approved" && user.emailVerifiedAt));
+  return Boolean(user.isAdmin || user.accessStatus === "approved");
 }
 
 export function normalizeWhatsapp(value: unknown): string | null {
@@ -23,6 +23,10 @@ export function parseAuthorizedEmails(value: unknown) {
 
 export function whatsappApprovalUrl(phone: string | null, name: string, base: string) {
   if (!phone || normalizeWhatsapp(phone) !== phone) return null;
-  const message = `Olá, ${name}! Seu cadastro no Aprova UNIVESP foi aprovado. Confirme seu e-mail, caso ainda não tenha confirmado, e entre com sua senha: ${base}/entrar`;
+  const message = `Olá, ${name}! Seu cadastro no Aprova UNIVESP foi aprovado. Entre com sua senha: ${base}/entrar`;
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+}
+
+export function canManageContent(user: { isAdmin?: boolean; isAssistant?: boolean }) {
+  return Boolean(user.isAdmin || user.isAssistant);
 }

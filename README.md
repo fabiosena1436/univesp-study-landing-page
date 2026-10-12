@@ -19,7 +19,7 @@ npm run dev
 
 Abra http://localhost:3000. O PostgreSQL local usa a porta 55432, restrita a 127.0.0.1. As credenciais do compose são exclusivas para desenvolvimento.
 
-Novos cadastros precisam confirmar o e-mail e ter acesso autorizado pelo administrador. A lista de e-mails pré-autorizados permite inclusão em lote no painel administrativo. Quem estiver fora da lista cria uma conta pendente e vê uma tela de espera. O cadastro pede WhatsApp com DDD para aviso manual sobre a aprovação. O Resend envia a confirmação e a recuperação de senha. A migração preserva o acesso das contas existentes. Veja [o guia de aprovação](GUIA-APROVACAO-ACESSO.md). Cadastre 26241463@aluno.univesp.br para a conta administrativa e promova-a pelo comando abaixo.
+Novos cadastros precisam ter acesso autorizado pelo administrador, sem confirmação de e-mail. A lista de e-mails pré-autorizados permite inclusão em lote no painel administrativo. Quem estiver fora da lista cria uma conta pendente e vê uma tela de espera. O cadastro pede WhatsApp com DDD para aviso manual sobre a aprovação. O Resend envia a recuperação de senha. A migração preserva o acesso das contas existentes. Veja [o guia de aprovação](GUIA-APROVACAO-ACESSO.md). Cadastre 26241463@aluno.univesp.br para a conta administrativa e promova-a pelo comando abaixo.
 
 Em produção, `APP_URL` deve ser HTTPS. Configure `TZ=UTC` no processo Node e dimensione `DB_POOL_MAX` conforme o limite de conexões do banco. Não use as credenciais de desenvolvimento em produção.
 
@@ -31,7 +31,7 @@ As migrações versionadas estão em `migrations/`. `npm run db:migrate` aplica 
 npm run db:migrate -- --adopt-legacy
 ```
 
-A adoção valida a estrutura inicial antes de registrá-la. A migração preenche cópias históricas de questões, agrega o progresso duplicado e converte tokens de sessão para hashes. Contas sem email_verified_at precisam confirmar seu endereço; bloqueios e senhas continuam sendo verificados. Dados antigos que violam as novas regras de contagem fazem a migração falhar e voltar a transação; inspecione esses registros antes de tentar novamente.
+A adoção valida a estrutura inicial antes de registrá-la. A migração preenche cópias históricas de questões, agrega o progresso duplicado e converte tokens de sessão para hashes. Contas aprovadas têm acesso independentemente de email_verified_at; bloqueios e senhas continuam sendo verificados. Dados antigos que violam as novas regras de contagem fazem a migração falhar e voltar a transação; inspecione esses registros antes de tentar novamente.
 
 Não execute `drizzle-kit push` em produção. Para próximas mudanças, altere o schema, execute `npm run db:generate`, revise o SQL e inclua qualquer preenchimento de dados necessário antes de aplicar. As migrações não devem ser editadas depois de aplicadas.
 
@@ -59,7 +59,7 @@ O comando exige uma conta existente e não bloqueada e registra a promoção na 
 
 ## IA e PDFs
 
-Sem `GEMINI_API_KEY`, a extração local preserva questões estruturadas existentes; não cria questões de conteúdo livre. PDFs digitalizados precisam de texto selecionável: OCR não está implementado.
+Sem `GEMINI_API_KEY`, a extração local preserva questões estruturadas existentes; não cria questões de conteúdo livre. PDFs digitalizados podem ser disponibilizados para leitura; para extrair conteúdo e gerar questões, precisam de texto selecionável ou conteúdo colado manualmente. OCR não está implementado.
 
 Com Gemini, configure `GEMINI_MODELS` com um ou dois códigos separados por vírgula. O padrão é `gemini-2.5-flash`; confirme disponibilidade e cotas na sua conta. Referência oficial: https://ai.google.dev/gemini-api/docs/models/gemini-2.5-flash.
 
@@ -67,7 +67,9 @@ Para usar somente a cota gratuita, o projeto da chave precisa estar no nível gr
 
 A geração tem prazo total de 95 segundos e exige cinco alternativas únicas, gabarito válido e trecho de origem encontrado no material. Materiais grandes são amostrados em trechos distribuídos e recebem aviso de cobertura parcial. Isso verifica a existência do trecho, não garante que o raciocínio da IA esteja correto: o administrador precisa conferir os rascunhos no editor antes de publicar.
 
-PDFs têm limite de 20 MB e 500 páginas; texto extraído tem limite de 400 mil caracteres. Apenas o texto extraído é armazenado, não o arquivo PDF original. Hospedagens com limites menores de upload precisam de armazenamento de arquivos e processamento separado; o compose é para banco local, não um deploy completo.
+PDFs têm limite de 4 MB e 500 páginas; texto extraído tem limite de 400 mil caracteres. O arquivo original é armazenado em uma tabela separada (`material_files`, bytea) no PostgreSQL e servido por uma rota autenticada, com leitura e download para alunos aprovados. Listagens não carregam o binário. Materiais antigos podem receber um anexo em Materiais; editar o texto não altera o PDF. O limite de 4 MB mantém o envio abaixo do limite do host. O compose é para banco local, não um deploy completo.
+
+O administrador principal pode conceder e revogar a função de assistente em Administração → Usuários cadastrados. Assistentes aprovados e desbloqueados podem adicionar e editar matérias, questões e materiais, anexar PDFs e gerar questões. Exclusões, aprovação de usuários, suporte administrativo, auditoria e permissões exigem o administrador principal, inclusive nas APIs. A migração `0003_assistant_and_pdf.sql` adiciona a função e a tabela de anexos; aplique-a antes de executar a nova versão.
 
 ## Qualidade e testes
 

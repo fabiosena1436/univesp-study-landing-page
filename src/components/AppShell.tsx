@@ -94,7 +94,7 @@ export default function AppShell({ children, initialUser }: { children: ReactNod
     .join("")
     .toUpperCase();
 
-  const visibleNav = user.isAdmin ? NAV : NAV.filter((n) => !["/app/importar", "/app/questoes"].includes(n.href));
+  const visibleNav = (user.isAdmin || user.isAssistant) ? NAV : NAV.filter((n) => !["/app/importar", "/app/questoes"].includes(n.href));
   const navLinks = (
     <>
       {visibleNav.map((n) => {
@@ -166,7 +166,7 @@ export default function AppShell({ children, initialUser }: { children: ReactNod
               <ShieldCheck size={17} /> Administração
             </Link>
           )}
-          {!user.isAdmin && (
+          {!(user.isAdmin || user.isAssistant) && (
             <Link href="/app/contato" className="mt-3 nav-link flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold">
               <MessageSquare size={17} /> Falar com admin
             </Link>
@@ -184,7 +184,7 @@ export default function AppShell({ children, initialUser }: { children: ReactNod
               {subjects.map((s) => (
                 <li key={s.id}>
                   <Link
-                    href={user.isAdmin ? `/app/questoes?m=${s.id}` : `/app/prova?m=${s.id}`}
+                    href={(user.isAdmin || user.isAssistant) ? `/app/questoes?m=${s.id}` : `/app/prova?m=${s.id}`}
                     className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-card text-sm transition-colors"
                   >
                     <span
@@ -201,7 +201,7 @@ export default function AppShell({ children, initialUser }: { children: ReactNod
             </ul>
             {subjects.length === 0 && (
               <p className="text-xs text-muted px-3 leading-relaxed">
-                {user.isAdmin ? (
+                {(user.isAdmin || user.isAssistant) ? (
                   <>
                     Nenhuma matéria ainda.{" "}
                     <Link href="/app/importar" className="text-pen font-semibold hover:underline">

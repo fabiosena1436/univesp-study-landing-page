@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
       { key: "X-Content-Type-Options", value: "nosniff" },
       { key: "Referrer-Policy", value: "no-referrer" },
       { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
-    ] }];
+    ] }, { source: "/api/materials/:id/pdf", headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }] }];
   },
   // o extrator de PDF (unpdf/pdfjs) é melhor fora do bundler do servidor
   serverExternalPackages: ["unpdf"],

@@ -81,7 +81,7 @@ export default function DashboardPage() {
         </h1>
         <p className="mt-2 text-ink-soft">
           {totalQ === 0
-            ? user.isAdmin
+            ? (user.isAdmin || user.isAssistant)
               ? "Seu banco está vazio — importe a primeira matéria para começar."
               : "O administrador ainda não publicou questões."
             : `Seu banco tem ${totalQ} quest${totalQ === 1 ? "ão" : "ões"} em ${subjects.length} matéria${subjects.length === 1 ? "" : "s"}.`}
@@ -112,8 +112,8 @@ export default function DashboardPage() {
       {attempts.length > 0 && <PerformanceChart attempts={attempts} />}
 
       {/* ações rápidas */}
-      <div className={`grid ${user.isAdmin ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-3`}>
-        {user.isAdmin && (
+      <div className={`grid ${(user.isAdmin || user.isAssistant) ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-3`}>
+        {(user.isAdmin || user.isAssistant) && (
           <Link
             href="/app/importar"
             className="card p-5 flex items-center gap-4 hover:border-line-strong transition-colors group"
@@ -160,7 +160,7 @@ export default function DashboardPage() {
       <section>
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-display text-xl font-semibold">Suas matérias</h2>
-          {user.isAdmin && <Link href="/app/questoes" className="text-sm font-semibold text-pen hover:underline inline-flex items-center gap-1">
+          {(user.isAdmin || user.isAssistant) && <Link href="/app/questoes" className="text-sm font-semibold text-pen hover:underline inline-flex items-center gap-1">
             <LibraryBig size={14} /> Ver banco completo
           </Link>}
         </div>
@@ -169,7 +169,7 @@ export default function DashboardPage() {
           <div className="card p-6 text-center">
             <p className="font-display text-lg font-semibold">Nenhuma matéria ainda</p>
             <p className="text-sm text-muted mt-1 max-w-sm mx-auto">
-              {user.isAdmin
+              {(user.isAdmin || user.isAssistant)
                 ? "Crie a primeira abaixo ou já vá no importador colando a revisão."
                 : "Aguarde o administrador publicar o material desta matéria."}
             </p>
@@ -206,13 +206,13 @@ export default function DashboardPage() {
                     <Button size="sm" disabled={s.questionCount === 0} onClick={() => (window.location.href = `/app/prova?m=${s.id}`)}>
                       Provar
                     </Button>
-                    {user.isAdmin && (
+                    {(user.isAdmin || user.isAssistant) && (
                       <Button size="sm" variant="ghost" onClick={() => (window.location.href = "/app/importar")}>
                         <Plus size={14} /> Importar
                       </Button>
                     )}
                   </div>
-                  {user.isAdmin && <ManageSubject subject={s} />}
+                  {(user.isAdmin || user.isAssistant) && <ManageSubject subject={s} />}
                 </div>
               );
             })}
@@ -220,7 +220,7 @@ export default function DashboardPage() {
         )}
 
         {/* nova matéria — somente administração */}
-        {user.isAdmin && <div className="card p-5 mt-3">
+        {(user.isAdmin || user.isAssistant) && <div className="card p-5 mt-3">
           <p className="text-sm font-semibold mb-3">Adicionar matéria</p>
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex-1 min-w-48">

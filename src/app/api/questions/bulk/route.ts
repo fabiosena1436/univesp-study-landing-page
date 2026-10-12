@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { materials, questions, subjects } from "@/db/schema";
-import { requireAdmin } from "@/lib/auth";
+import { requireContentManager } from "@/lib/auth";
 import { ApiError, handleError, str } from "@/lib/errors";
 import { uuid, validateOptions } from "@/lib/validation";
 import { audit } from "@/lib/audit";
@@ -15,7 +15,7 @@ export const maxDuration = 120;
 
 export async function POST(req: NextRequest) {
   try {
-    const user = await requireAdmin();
+    const user = await requireContentManager();
     await rateLimit("import", user.id, 30, 60_000);
     const body = await req.json().catch(() => null) as Record<string, unknown> | null;
     const subjectId = uuid(str(body?.subjectId, 64));

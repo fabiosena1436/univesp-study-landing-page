@@ -22,6 +22,13 @@
       "when": 1791757873727,
       "tag": "0002_wise_virginia_dare",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791822518777,
+      "tag": "0003_assistant_and_pdf",
+      "breakpoints": true
     }
   ]
 }

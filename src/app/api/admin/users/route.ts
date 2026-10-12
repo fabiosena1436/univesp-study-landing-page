@@ -17,6 +17,8 @@ export async function GET(req: NextRequest) {
         name: users.name,
         email: users.email,
         isBlocked: users.isBlocked,
+        isAssistant: users.isAssistant,
+        accessStatus: users.accessStatus,
         createdAt: users.createdAt,
         lastLoginAt: users.lastLoginAt,
         attempts: sql<number>`count(distinct ${attempts.id})::int`,
@@ -42,6 +44,18 @@ export async function PATCH(req: NextRequest) {
     const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
     const id = typeof body?.id === "string" ? body.id : "";
     uuid(id);
+    if (typeof body?.assistant === "boolean") {
+      const assistant = body.assistant;
+      await db.transaction(async (tx) => {
+        if ((await tx.select().from(admins).where(eq(admins.userId, id)).limit(1))[0]) throw new ApiError(403, "Não é possível alterar a função do administrador principal.");
+        const target = (await tx.select().from(users).where(eq(users.id, id)).limit(1).for("update"))[0];
+        if (!target) throw new ApiError(404, "Usuário não encontrado.");
+        if (assistant && (target.isBlocked || target.accessStatus !== "approved")) throw new ApiError(400, "Aprove e desbloqueie o usuário antes de torná-lo assistente.");
+        await tx.update(users).set({ isAssistant: assistant }).where(eq(users.id, id));
+        await audit(admin.id, assistant ? "user.assistant.grant" : "user.assistant.revoke", id, tx);
+      });
+      return Response.json({ ok: true });
+    }
     if (typeof body?.blocked !== "boolean") throw new ApiError(400, "Informe o estado do bloqueio.");
     const blocked = body.blocked;
     if (!id) throw new ApiError(400, "Usuário inválido.");

@@ -17,11 +17,14 @@ import { EditableQuestion } from "@/components/EditableQuestion";
 import { Badge, Button, EmptyState, Input, Select, Spinner, TextArea } from "@/components/ui";
 import { SAMPLE_TEXT } from "@/lib/sample";
 import { EditMaterial } from "@/components/EditMaterial";
+import { PdfViewer } from "@/components/PdfViewer";
 import { MaterialLibrary } from "@/components/MaterialLibrary";
+import { pdfValidationError } from "@/lib/pdf";
 import type { GenerateResponse, MaterialDetail, MaterialRow, ParsedQuestion } from "@/lib/types";
 
 export default function MateriaisPage() {
   const { user, subjects, refreshSubjects } = useApp();
+  const canManage = Boolean(user.isAdmin || user.isAssistant);
 
   const [page, setPage] = useState(0);
   const [error, setError] = useState("");
@@ -29,6 +32,9 @@ export default function MateriaisPage() {
   const [subjectId, setSubjectId] = useState("");
   const [newSubject, setNewSubject] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [attachment, setAttachment] = useState<File | null>(null);
+  const [fileRevision, setFileRevision] = useState(0);
   const [pasteText, setPasteText] = useState("");
   const [pasteTitle, setPasteTitle] = useState("");
 
@@ -48,14 +54,14 @@ export default function MateriaisPage() {
   }, [page]);
 
   useEffect(() => {
-    if (!user.isAdmin) return;
+    if (!canManage) return;
     loadList();
     api<{ engine: "gemini" | "local" }>("/api/ai-engine")
       .then((d) => setEngine(d.engine))
       .catch(() => setEngine("local"));
-  }, [loadList, user.isAdmin]);
+  }, [loadList, canManage]);
 
-  if (!user.isAdmin) {
+  if (!canManage) {
     return <MaterialLibrary />;
   }
 
@@ -88,6 +94,9 @@ export default function MateriaisPage() {
     loadList();
     setPasteText("");
     setPasteTitle("");
+    setAttachment(null);
+    setPdfFile(null);
+    setFileRevision(value => value + 1);
     try {
       const d = await api<MaterialDetail>(`/api/materials/${res.id}`);
       setActive(d);
@@ -96,6 +105,37 @@ export default function MateriaisPage() {
     } catch (e) {
       toast(e instanceof Error ? e.message : "O material foi salvo, mas não foi possível abrir seu conteúdo.", "err");
     }
+  }
+
+  async function uploadPdf() {
+    if (uploading || !pdfFile) return;
+    const bad = pdfValidationError(pdfFile.name, pdfFile.type, pdfFile.size);
+    if (bad) { toast(bad, "err"); return; }
+    setUploading(true);
+    try {
+      const sid = await ensureSubject();
+      if (!sid) return;
+      const form = new FormData();
+      form.set("subjectId", sid); form.set("title", pasteTitle); form.set("file", pdfFile);
+      const res = await api<{ id: string; charCount: number; pageCount: number; title: string }>("/api/materials", { method: "POST", body: form });
+      await afterUpload(res);
+    } catch (e) { toast(e instanceof Error ? e.message : "Não foi possível enviar o PDF.", "err"); }
+    finally { setUploading(false); }
+  }
+
+  async function attachPdf() {
+    if (uploading || !active || !attachment) return;
+    const bad = pdfValidationError(attachment.name, attachment.type, attachment.size);
+    if (bad) { toast(bad, "err"); return; }
+    if (active.hasPdf && !window.confirm("Substituir o PDF anexado? O texto e as questões serão preservados.")) return;
+    setUploading(true);
+    try {
+      const form = new FormData(); form.set("file", attachment); form.set("replace", String(active.hasPdf));
+      await api(`/api/materials/${active.id}/pdf`, { method: "POST", body: form });
+      setActive({ ...active, hasPdf: true }); setAttachment(null); setFileRevision(value => value + 1); loadList();
+      toast("PDF anexado. Os alunos já podem visualizar o arquivo.");
+    } catch (e) { toast(e instanceof Error ? e.message : "Não foi possível anexar o PDF.", "err"); }
+    finally { setUploading(false); }
   }
 
   async function uploadText() {
@@ -259,6 +299,13 @@ export default function MateriaisPage() {
         )}
       </div>
 
+      <section className="card p-5 space-y-3">
+        <h2 className="font-semibold">Enviar PDF original</h2>
+        <p className="text-sm text-muted">O arquivo fica disponível para leitura e download. O texto extraído pode ser usado para gerar questões. PDFs digitalizados também podem ser disponibilizados para leitura. Máximo de 4 MB e 500 páginas.</p>
+        <label className="block text-sm">Arquivo PDF<input key={fileRevision} type="file" accept="application/pdf,.pdf" disabled={uploading} onChange={e => setPdfFile(e.target.files?.[0] ?? null)} className="block mt-2 w-full" /></label>
+        <Button disabled={uploading || !pdfFile} onClick={() => void uploadPdf()}>{uploading ? "Enviando…" : "Enviar e salvar PDF"}</Button>
+      </section>
+
       {/* fonte do material */}
       <div className="card p-5">
         <div className="flex items-center gap-3 flex-wrap mb-3">
@@ -328,6 +375,13 @@ export default function MateriaisPage() {
             <EditMaterial key={active.id} material={active} disabled={generating || saving} onSaved={(updated) => { setActive(updated); setGenerated([]); setGenNote(null); loadList(); }} />
           </div>
 
+          {active.hasPdf && <PdfViewer key={fileRevision} id={active.id} title={active.title} />}
+          <div className="mt-4 space-y-3">
+            <label className="block text-sm">{active.hasPdf ? "Substituir PDF original" : "Anexar PDF original a este material"}<input key={`attachment-${active.id}-${fileRevision}`} type="file" accept="application/pdf,.pdf" disabled={uploading} onChange={e => setAttachment(e.target.files?.[0] ?? null)} className="block mt-2 w-full" /></label>
+            <Button size="sm" variant="soft" disabled={uploading || !attachment} onClick={() => void attachPdf()}>{uploading ? "Salvando PDF…" : "Salvar anexo PDF"}</Button>
+            <p className="text-xs text-muted">O anexo não altera o texto nem as questões existentes.</p>
+          </div>
+          {active.charCount < 400 && <p className="mt-3 text-sm text-muted">Este PDF tem pouco texto extraível. Edite o material e adicione pelo menos 400 caracteres para gerar questões.</p>}
           {showContent && (
             <div className="mt-4 rounded-xl bg-surface border border-line p-4 max-h-72 overflow-y-auto">
               <p className="text-sm whitespace-pre-line leading-relaxed">{active.content}</p>
@@ -355,7 +409,7 @@ export default function MateriaisPage() {
                 ))}
               </div>
             </div>
-            <Button className="ml-auto" onClick={generate} disabled={generating}>
+            <Button className="ml-auto" onClick={generate} disabled={generating || active.charCount < 400}>
               {generating ? (
                 <>
                   <Spinner size={16} /> Criando questões…
@@ -446,6 +500,7 @@ export default function MateriaisPage() {
                     try {
                     const d = await api<MaterialDetail>(`/api/materials/${m.id}`);
                     setActive(d);
+                    setAttachment(null);
                     setGenerated([]);
                     setGenNote(null);
                     setShowContent(false);
@@ -455,13 +510,13 @@ export default function MateriaisPage() {
                 >
                   Gerar questões
                 </Button>
-                <button
+                {user.isAdmin && <button
                   onClick={() => removeMaterial(m.id)}
                   title="Arquivar material e suas questões"
                   className="p-2 rounded-lg text-muted hover:text-red hover:bg-red-soft transition-colors cursor-pointer"
                 >
                   <Trash2 size={16} />
-                </button>
+                </button>}
               </div>
             ))}
           </div>

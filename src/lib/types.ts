@@ -5,6 +5,7 @@ export type User = {
   course: string | null;
   createdAt: string;
   isAdmin?: boolean;
+  isAssistant?: boolean;
   accessStatus?: "pending" | "approved" | "rejected";
   emailVerifiedAt?: string | null;
   whatsapp?: string | null;
@@ -38,6 +39,7 @@ export type MaterialRow = {
   subjectName: string;
   title: string;
   filename: string;
+  hasPdf: boolean;
   pageCount: number;
   charCount: number;
   questionCount: number;
@@ -49,6 +51,7 @@ export type MaterialDetail = {
   subjectId: string;
   title: string;
   filename: string;
+  hasPdf: boolean;
   pageCount: number;
   charCount: number;
   content: string;

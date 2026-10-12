@@ -3,10 +3,11 @@
 import { useState, FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import type { User } from "@/lib/types";
 import AuthShell from "@/components/AuthShell";
 import { api } from "@/lib/api";
 import { Button, Field, Input } from "@/components/ui";
-import { normalizeWhatsapp } from "@/lib/access";
+import { canStudy, normalizeWhatsapp } from "@/lib/access";
 
 export default function CadastroPage() {
   const router = useRouter();
@@ -32,11 +33,11 @@ export default function CadastroPage() {
     }
     setBusy(true);
     try {
-      const result = await api<{ verificationSent: boolean }>("/api/auth/register", {
+      const result = await api<{ user: User }>("/api/auth/register", {
         method: "POST",
         body: JSON.stringify({ name, email, course, whatsapp, password }),
       });
-      router.replace(result.verificationSent ? "/aguardando-aprovacao" : "/aguardando-aprovacao?envio=pendente");
+      router.replace(canStudy(result.user) ? "/app" : "/aguardando-aprovacao");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não foi possível criar a conta.");
@@ -49,7 +50,7 @@ export default function CadastroPage() {
     <AuthShell>
       <h1 className="font-display text-3xl font-semibold tracking-tight">Criar conta</h1>
       <p className="mt-2 text-sm text-muted">
-        Crie sua conta, confirme seu e-mail e aguarde a autorização de acesso. E-mails da lista do administrador já ficam pré-autorizados.
+        Crie sua conta e aguarde a autorização de acesso. E-mails da lista do administrador já ficam pré-autorizados.
       </p>
       <form onSubmit={onSubmit} className="mt-7 space-y-4">
         <Field label="Seu nome">
@@ -71,13 +72,13 @@ export default function CadastroPage() {
             required
             autoComplete="email"
           />
-          <p className="mt-1.5 text-xs text-muted">Use preferencialmente seu e-mail @aluno.univesp.br. Enviaremos um link para confirmar que o endereço é seu.</p>
+          <p className="mt-1.5 text-xs text-muted">Use preferencialmente seu e-mail @aluno.univesp.br.</p>
         </Field>
         <Field label="Curso">
           <Input value={course} onChange={(e) => setCourse(e.target.value)} placeholder="Ex.: Engenharia de Computação" required minLength={2} />
         </Field>
         <Field label="Senha" hint="Mínimo de 8 caracteres.">
-          {/* A autorização e a confirmação do e-mail são verificadas no servidor. */}
+          {/* A autorização de acesso é verificada no servidor. */}
           <Input
             type="password"
             value={password}

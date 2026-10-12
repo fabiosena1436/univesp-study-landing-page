@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { BookOpenText, FileText } from "lucide-react";
 import { api } from "@/lib/api";
 import type { MaterialDetail, MaterialRow } from "@/lib/types";
+import { PdfViewer } from "./PdfViewer";
 import { Button, EmptyState, Spinner } from "@/components/ui";
 
 export function MaterialLibrary() {
@@ -67,6 +68,7 @@ export function MaterialLibrary() {
                 {list?.find((m) => m.id === active.id)?.subjectName}
                 {active.pageCount > 0 ? ` · ${active.pageCount} pág.` : ""} · Somente leitura
               </p>
+              {active.hasPdf && <PdfViewer id={active.id} title={active.title} />}
               <article className="text-sm sm:text-base whitespace-pre-wrap leading-relaxed break-words">{active.content}</article>
             </>
           ) : !error ? <div role="status" className="flex items-center gap-2 py-8"><Spinner size={20} /> Abrindo material…</div> : null}

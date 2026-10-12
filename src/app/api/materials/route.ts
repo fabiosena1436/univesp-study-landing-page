@@ -1,10 +1,11 @@
 import { NextRequest } from "next/server";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { materials, questions, subjects } from "@/db/schema";
+import { materialFiles, materials, questions, subjects } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { pageParams, uuid } from "@/lib/validation";
-import { requireAdmin, requireUser } from "@/lib/auth";
+import { requireContentManager, requireUser } from "@/lib/auth";
+import { rateLimit } from "@/lib/rateLimit";
 import { ApiError, handleError, str } from "@/lib/errors";
 import { cleanExtractedText, extractPdfText, pdfValidationError } from "@/lib/pdf";
 
@@ -22,6 +23,7 @@ export async function GET(req: NextRequest) {
         subjectName: subjects.name,
         title: materials.title,
         filename: materials.filename,
+        hasPdf: sql<boolean>`exists (select 1 from ${materialFiles} f where f.material_id = ${materials.id})`,
         pageCount: materials.pageCount,
         charCount: materials.charCount,
         questionCount: sql<number>`(
@@ -45,7 +47,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const user = await requireAdmin();
+    const user = await requireContentManager();
+    await rateLimit("materials.upload", user.id, 15, 60000);
+    if (Number(req.headers.get("content-length")) > 4.5 * 1024 * 1024) throw new ApiError(413, "O envio excede o limite de 4 MB por PDF.");
 
     const ct = req.headers.get("content-type") ?? "";
     let subjectId = "";
@@ -53,6 +57,7 @@ export async function POST(req: NextRequest) {
     let text = "";
     let filename = "texto-colado.txt";
     let pages = 0;
+    let pdfData: Buffer | null = null;
     let sourceKind: "pdf" | "texto" = "texto";
 
     if (ct.includes("multipart/form-data")) {
@@ -66,6 +71,8 @@ export async function POST(req: NextRequest) {
       if (bad) throw new ApiError(400, bad);
 
       const buf = Buffer.from(await file.arrayBuffer());
+      if (buf.subarray(0, 5).toString() !== "%PDF-") throw new ApiError(422, "O arquivo não é um PDF válido.");
+      pdfData = buf;
       try {
         const { text: extracted, pages: p } = await extractPdfText(buf);
         pages = p;
@@ -89,7 +96,7 @@ export async function POST(req: NextRequest) {
 
     uuid(subjectId);
     if (!subjectId) throw new ApiError(400, "Escolha a matéria do material.");
-    if (text.length < 400)
+    if (!pdfData && text.length < 400)
       throw new ApiError(
         422,
         text.length === 0
@@ -119,6 +126,7 @@ export async function POST(req: NextRequest) {
         charCount: text.length,
       })
       .returning();
+      if (pdfData) await tx.insert(materialFiles).values({ materialId: result[0].id, filename, data: pdfData });
       await audit(user.id, "material.create", result[0].id, tx);
       return result;
     });
@@ -135,6 +143,7 @@ export async function POST(req: NextRequest) {
         charCount: material.charCount,
         createdAt: material.createdAt.toISOString(),
         kind: sourceKind,
+        hasPdf: Boolean(pdfData),
       },
       { status: 201 },
     );

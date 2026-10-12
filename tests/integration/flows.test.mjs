@@ -245,7 +245,7 @@ test('application integrity and account flows against PostgreSQL', async t => {
     assert.equal((await call('/api/auth/register',{method:'POST',body:{...body,whatsapp:'invalid'}})).status,400);
     const registered = await call('/api/auth/register',{method:'POST',body});
     assert.equal(registered.status,201); assert.equal(registered.data.user.accessStatus,'approved'); assert.equal(registered.data.user.emailVerifiedAt,null);
-    assert.equal((await call('/api/subjects',{cookie:registered.cookie})).status,403);
+    assert.equal((await call('/api/subjects',{cookie:registered.cookie})).status,200);
     const id = registered.data.user.id;
     const expired = randomBytes(32).toString('hex');
     const valid = randomBytes(32).toString('hex');
@@ -259,7 +259,7 @@ test('application integrity and account flows against PostgreSQL', async t => {
     assert.equal(late.data.user.accessStatus,'pending');
     await call(endpoint,{method:'POST',cookie:adminCookie,body:{emails:'late@aluno.univesp.br'}});
     assert.equal((await call('/api/auth/me',{cookie:late.cookie})).data.user.accessStatus,'approved');
-    assert.equal((await call('/api/subjects',{cookie:late.cookie})).status,403);
+    assert.equal((await call('/api/subjects',{cookie:late.cookie})).status,200);
     for (let i=0;i<3;i++) assert.equal((await call('/api/auth/resend-verification',{method:'POST',cookie:late.cookie})).status,200);
     assert.equal((await call('/api/auth/resend-verification',{method:'POST',cookie:late.cookie})).status,429);
     assert.equal((await call('/api/admin/users',{method:'PATCH',cookie:adminCookie,body:{id,blocked:true}})).status,200);

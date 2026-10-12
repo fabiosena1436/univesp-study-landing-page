@@ -2,12 +2,12 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { canStudy, normalizeWhatsapp, parseAuthorizedEmails, whatsappApprovalUrl } = require('../../.test-build/lib/access.js');
 
-test('approval and email confirmation are independent gates; administrators remain available', () => {
+test('approval grants access without email confirmation; administrators remain available', () => {
   for (const accessStatus of ['pending', 'rejected', undefined]) {
     assert.equal(canStudy({accessStatus, emailVerifiedAt: new Date()}), false);
     assert.equal(canStudy({accessStatus, emailVerifiedAt: null}), false);
   }
-  assert.equal(canStudy({accessStatus: 'approved', emailVerifiedAt: null}), false);
+  assert.equal(canStudy({accessStatus: 'approved', emailVerifiedAt: null}), true);
   assert.equal(canStudy({accessStatus: 'approved', emailVerifiedAt: new Date()}), true);
   assert.equal(canStudy({isAdmin: true}), true);
 });

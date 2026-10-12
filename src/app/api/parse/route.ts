@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { requireContentManager } from "@/lib/auth";
 import { rateLimit } from "@/lib/rateLimit";
 import { ApiError, handleError } from "@/lib/errors";
 import { importQuestions } from "@/lib/ai";
@@ -9,7 +9,7 @@ export const maxDuration = 120;
 
 export async function POST(req: NextRequest) {
   try {
-    const user = await requireAdmin();
+    const user = await requireContentManager();
     await rateLimit("parse", user.id, 20, 60000);
     const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
     const text = typeof body?.text === "string" ? body.text : "";

@@ -3,7 +3,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { subjects, materials, questions } from "@/db/schema";
 import { audit } from "@/lib/audit";
-import { requireAdmin } from "@/lib/auth";
+import { requireContentManager, requireAdmin } from "@/lib/auth";
 import { ApiError, handleError, HEX_COLOR_RE, isUuid, str } from "@/lib/errors";
 
 type Params = { params: Promise<{ id: string }> };
@@ -21,7 +21,7 @@ async function getOwned(id: string) {
 
 export async function PATCH(req: NextRequest, { params }: Params) {
   try {
-    const user = await requireAdmin();
+    const user = await requireContentManager();
     const { id } = await params;
     if (!isUuid(id)) throw new ApiError(404, "Matéria não encontrada.");
     const subject = await getOwned(id);

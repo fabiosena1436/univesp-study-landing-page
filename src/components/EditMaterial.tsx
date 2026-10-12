@@ -14,7 +14,7 @@ export function EditMaterial({ material, onSaved, disabled }: { material: Materi
     setBusy(true);
     try {
       const updated = await api<MaterialDetail>(`/api/materials/${material.id}`, { method: "PATCH", body: JSON.stringify({ title, content, originalTitle: material.title, originalContent: material.content }) });
-      onSaved(updated); setEditing(false); toast("Material atualizado. As questões publicadas continuam disponíveis para edição no banco.");
+      onSaved({ ...updated, hasPdf: material.hasPdf }); setEditing(false); toast("Material atualizado. As questões publicadas continuam disponíveis para edição no banco.");
     } catch (e) { toast(e instanceof Error ? e.message : "Erro ao editar material.", "err"); }
     finally { setBusy(false); }
   }
@@ -23,6 +23,6 @@ export function EditMaterial({ material, onSaved, disabled }: { material: Materi
     <p className="text-sm text-muted">As mudanças valem para as próximas gerações. Questões já salvas são editadas separadamente no banco.</p>
     <label className="block text-sm">Título<Input aria-label="Título do material salvo" maxLength={90} value={title} disabled={busy} onChange={(e) => setTitle(e.target.value)} /></label>
     <label className="block text-sm">Conteúdo<TextArea aria-label="Conteúdo do material salvo" rows={12} maxLength={400000} value={content} disabled={busy} onChange={(e) => setContent(e.target.value)} /></label>
-    <div className="flex gap-2"><Button disabled={busy || disabled || title.trim().length < 2 || content.trim().length < 400} onClick={() => void save()}>{busy ? "Salvando…" : "Salvar material"}</Button><Button variant="ghost" disabled={busy} onClick={() => setEditing(false)}>Cancelar</Button></div>
+    <div className="flex gap-2"><Button disabled={busy || disabled || title.trim().length < 2 || (!material.hasPdf && content.trim().length < 400)} onClick={() => void save()}>{busy ? "Salvando…" : "Salvar material"}</Button><Button variant="ghost" disabled={busy} onClick={() => setEditing(false)}>Cancelar</Button></div>
   </div>;
 }

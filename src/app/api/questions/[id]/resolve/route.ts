@@ -1,7 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { materials, questions } from "@/db/schema";
-import { requireAdmin } from "@/lib/auth";
+import { requireContentManager } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { completeQuestionAnswers } from "@/lib/ai";
 import { ApiError, handleError } from "@/lib/errors";
@@ -14,7 +14,7 @@ export const maxDuration = 120;
 
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const user = await requireAdmin();
+    const user = await requireContentManager();
     const { id } = await params;
     uuid(id);
     await rateLimit("generation", user.id, 5, 60000);

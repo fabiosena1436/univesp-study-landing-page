@@ -124,7 +124,7 @@ function QuestoesInner() {
               ? "Tente outra matéria ou limpe a busca."
               : "Os administradores ainda não publicaram questões. Entre em contato para saber quando estarão disponíveis."
           }
-          action={user.isAdmin ? (
+          action={(user.isAdmin || user.isAssistant) ? (
             <Link href="/app/importar">
               <Button>Importar questões</Button>
             </Link>
@@ -135,8 +135,8 @@ function QuestoesInner() {
           {list.map((q, i) => (
             <div key={q.id} className="relative group">
               <QuestionCard q={q} index={i + 1} />
-              {user.isAdmin && <EditQuestionText question={q} index={i + 1} onSaved={(updated) => { setList((rows) => rows?.map((row) => row.id === updated.id ? updated : row) ?? null); void refreshSubjects(); toast("Questão atualizada."); }} />}
-              {(!q.correctKey || !q.feedback?.trim()) && (user.isAdmin ? <CompleteQuestionAnswer question={q} index={i + 1} onSaved={(updated) => { setList((rows) => rows?.map((row) => row.id === updated.id ? updated : row) ?? null); void refreshSubjects(); toast("Questão atualizada."); }} /> : !q.correctKey && <p className="mt-2 mb-4 text-sm text-muted">Gabarito pendente. Esta questão ainda não entra na prova.</p>)}
+              {(user.isAdmin || user.isAssistant) && <EditQuestionText question={q} index={i + 1} onSaved={(updated) => { setList((rows) => rows?.map((row) => row.id === updated.id ? updated : row) ?? null); void refreshSubjects(); toast("Questão atualizada."); }} />}
+              {(!q.correctKey || !q.feedback?.trim()) && ((user.isAdmin || user.isAssistant) ? <CompleteQuestionAnswer question={q} index={i + 1} onSaved={(updated) => { setList((rows) => rows?.map((row) => row.id === updated.id ? updated : row) ?? null); void refreshSubjects(); toast("Questão atualizada."); }} /> : !q.correctKey && <p className="mt-2 mb-4 text-sm text-muted">Gabarito pendente. Esta questão ainda não entra na prova.</p>)}
               {subject && (
                 <span className="absolute top-4 right-4 hidden md:inline-flex">
                   <Badge tone="neutral">{subject.name}</Badge>

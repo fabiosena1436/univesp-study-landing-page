@@ -18,7 +18,7 @@ export default function PerfilPage() {
   const [busy, setBusy] = useState(false);
   async function save() {
     setBusy(true);
-    try { const result = await api<{ user: User }>("/api/profile", { method: "PATCH", body: JSON.stringify({ name, course, currentPassword, newPassword }) }); updateUser({ ...result.user, isAdmin: user.isAdmin }); setCurrentPassword(""); setNewPassword(""); toast("Perfil atualizado. Ao trocar a senha, as outras sessões são encerradas."); }
+    try { const result = await api<{ user: User }>("/api/profile", { method: "PATCH", body: JSON.stringify({ name, course, currentPassword, newPassword }) }); updateUser({ ...result.user, isAdmin: user.isAdmin, isAssistant: user.isAssistant }); setCurrentPassword(""); setNewPassword(""); toast("Perfil atualizado. Ao trocar a senha, as outras sessões são encerradas."); }
     catch (e) { toast(e instanceof Error ? e.message : "Não foi possível atualizar.", "err"); }
     finally { setBusy(false); }
   }

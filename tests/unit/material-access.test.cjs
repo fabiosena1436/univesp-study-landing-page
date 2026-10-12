@@ -13,18 +13,19 @@ function loadRoute(path, { signedIn = true, materialArchived = false, subjectArc
   const row = { material: { ...material, archivedAt: materialArchived ? new Date() : null }, subject: { archivedAt: subjectArchived ? new Date() : null } };
   const column = (table, key) => (r) => r[table][key];
   const modules = {
-    'drizzle-orm': {
+    'drizzle-orm': { sql: () => false,
       eq: (col, value) => (r) => col(r) === value,
       isNull: (col) => (r) => col(r) === null,
       and: (...checks) => (r) => checks.every((check) => check(r)),
     },
-    '@/db/schema': { materials: { id: column('material', 'id'), subjectId: column('material', 'subjectId'), archivedAt: column('material', 'archivedAt') }, subjects: { id: () => 'subject', archivedAt: column('subject', 'archivedAt') }, questions: {} },
+    '@/db/schema': { materialFiles: {}, materials: { id: column('material', 'id'), subjectId: column('material', 'subjectId'), archivedAt: column('material', 'archivedAt') }, subjects: { id: () => 'subject', archivedAt: column('subject', 'archivedAt') }, questions: {} },
     '@/db': { db: { select: () => {
       dbCalls++;
       return { from: () => ({ innerJoin: () => ({ where: (predicate) => ({ limit: async () => predicate(row) ? [row] : [] }) }) }) };
     } } },
     '@/lib/auth': {
       requireUser: async () => { if (!signedIn) throw new ApiError(401, 'Entre para continuar.'); return { id: 'student', isAdmin: false }; },
+      requireContentManager: async () => { throw new ApiError(signedIn ? 403 : 401, "Restrito"); },
       requireAdmin: async () => { throw new ApiError(signedIn ? 403 : 401, 'Acesso restrito ao administrador.'); },
     },
     '@/lib/errors': { ApiError, handleError, isUuid },

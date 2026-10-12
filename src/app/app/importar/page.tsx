@@ -59,7 +59,7 @@ export default function ImportarPage() {
 
   const withAnswer = parsed?.filter((q) => q.correctKey).length ?? 0;
 
-  if (!user.isAdmin) {
+  if (!(user.isAdmin || user.isAssistant)) {
     return <div className="card p-6"><h1 className="font-display text-2xl font-semibold">Conteúdo administrado</h1><p className="mt-2 text-ink-soft">Apenas o administrador pode adicionar ou alterar questões e materiais. Você já pode estudar o conteúdo disponível.</p></div>;
   }
 

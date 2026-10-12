@@ -1,4 +1,4 @@
-const MAX_BYTES = 20 * 1024 * 1024; // 20 MB
+const MAX_BYTES = 4 * 1024 * 1024; // 4 MB, abaixo do limite de upload do host
 const ALLOWED_TYPES = ["application/pdf"];
 
 /** extrai o texto de um PDF usando unpdf (grátis, roda no próprio servidor) */
@@ -17,7 +17,7 @@ export async function extractPdfText(
 }
 
 export function pdfValidationError(filename: string, type: string, size: number): string | null {
-  if (size > MAX_BYTES) return "O PDF passa de 20 MB. Divida o arquivo e envie em partes.";
+  if (size > MAX_BYTES) return "O PDF passa de 4 MB. Divida o arquivo e envie em partes.";
   if (size === 0) return "O arquivo está vazio.";
   if (!ALLOWED_TYPES.includes(type) && !filename.toLowerCase().endsWith(".pdf"))
     return "Só aceito arquivo PDF por aqui.";

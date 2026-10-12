@@ -6,7 +6,7 @@ import { db } from "@/db";
 import { users, sessions, admins } from "@/db/schema";
 import { ApiError } from "./errors";
 import type { User } from "./types";
-import { canStudy } from "./access";
+import { canManageContent, canStudy } from "./access";
 
 const COOKIE = "repete_session";
 const SESSION_MS = 30 * 24 * 60 * 60 * 1000; // 30 dias
@@ -26,6 +26,7 @@ export function safeUser(u: {
   course: string | null;
   createdAt: Date | string;
   isAdmin?: boolean;
+  isAssistant?: boolean;
   accessStatus?: "pending" | "approved" | "rejected";
   emailVerifiedAt?: Date | string | null;
   whatsapp?: string | null;
@@ -37,6 +38,7 @@ export function safeUser(u: {
     course: u.course,
     createdAt: u.createdAt instanceof Date ? u.createdAt.toISOString() : u.createdAt,
     ...(u.isAdmin === undefined ? {} : { isAdmin: u.isAdmin }),
+    isAssistant: u.isAssistant ?? false,
     accessStatus: u.accessStatus ?? "pending",
     emailVerifiedAt: u.emailVerifiedAt instanceof Date ? u.emailVerifiedAt.toISOString() : u.emailVerifiedAt ?? null,
     whatsapp: u.whatsapp ?? null,
@@ -103,7 +105,7 @@ export async function requireAdmin(): Promise<User> {
 
 export async function requireUser(): Promise<User> {
   const user = await requireAccount();
-  if (!canStudy(user)) throw new ApiError(403, "Confirme seu e-mail e aguarde a aprovação do administrador para acessar o conteúdo.");
+  if (!canStudy(user)) throw new ApiError(403, "Aguarde a aprovação do administrador para acessar o conteúdo.");
   return user;
 }
 
@@ -114,3 +116,9 @@ export async function requireAccount(): Promise<User> {
 }
 
 export function hashSession(token: string) { return createHash("sha256").update(token).digest("hex"); }
+
+export async function requireContentManager(): Promise<User> {
+  const user = await requireUser();
+  if (!canManageContent(user)) throw new ApiError(403, "Acesso restrito à equipe de conteúdo.");
+  return user;
+}

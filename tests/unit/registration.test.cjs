@@ -17,7 +17,7 @@ function load(path, modules) {
   return exports;
 }
 
-test('email delivery failure preserves a pending account and reports that confirmation must be resent', async () => {
+test('registration creates a pending session without issuing email confirmation', async () => {
   const created = [];
   const sessions = [];
   const modules = {
@@ -44,7 +44,7 @@ test('email delivery failure preserves a pending account and reports that confir
   assert.equal(body.user.id, 'new-user');
   assert.equal(body.user.passwordHash, undefined);
   assert.equal(body.user.accessStatus, 'pending');
-  assert.equal(body.verificationSent, false);
+  assert.equal(body.verificationSent, undefined);
 });
 
 test('pending sessions may view their account but cannot pass the study authorization gate', async () => {

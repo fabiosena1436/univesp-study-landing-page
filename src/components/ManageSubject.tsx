@@ -7,7 +7,7 @@ import { Button, Input } from "./ui";
 import type { Subject } from "@/lib/types";
 
 export function ManageSubject({ subject }: { subject: Subject }) {
-  const { refreshSubjects } = useApp();
+  const { user, refreshSubjects } = useApp();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(subject.name);
   const [color, setColor] = useState(subject.color);
