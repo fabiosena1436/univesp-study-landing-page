@@ -204,7 +204,7 @@ export default function ImportarPage() {
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="Nome da nova matéria (ex.: Ética)"
-              className="flex-1 min-w-52 h-11 px-3.5 rounded-xl border border-line bg-card text-sm focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/10"
+              className="flex-1 min-w-52 h-11 px-3.5 rounded-xl border border-field-border bg-card text-sm focus:border-pen focus:outline-none focus:ring-2 focus:ring-pen/20"
             />
             <div className="flex items-center gap-1.5">
               {SUBJECT_COLORS.map((c) => (

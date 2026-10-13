@@ -87,7 +87,7 @@ export function EditableQuestion({
                       options: q.options.map((x) => (x.key === o.key ? { ...x, text: e.target.value } : x)),
                     })
                   }
-                  className="bg-transparent border-transparent hover:border-line focus:bg-card focus:border-ink"
+                  className="bg-card border-field-border focus:border-pen"
                 />
                 {q.options.length > 2 && (
                   <button

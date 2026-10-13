@@ -65,7 +65,7 @@ export function Input({ className = "", ...props }: InputHTMLAttributes<HTMLInpu
   return (
     <input
       id={props.id ?? fieldId}
-      className={`w-full h-11 px-3.5 rounded-xl border border-line bg-card text-sm text-ink placeholder:text-muted/70 focus:border-pen focus:outline-none focus:ring-2 focus:ring-pen/10 transition ${className}`}
+      className={`w-full h-11 px-3.5 rounded-xl border border-field-border bg-card text-sm text-ink placeholder:text-muted/70 focus:border-pen focus:outline-none focus:ring-2 focus:ring-pen/20 transition ${className}`}
       {...props}
     />
   );
@@ -76,7 +76,7 @@ export function TextArea({ className = "", ...props }: TextareaHTMLAttributes<HT
   return (
     <textarea
       id={props.id ?? fieldId}
-      className={`w-full px-3.5 py-2.5 rounded-xl border border-line bg-card text-sm text-ink placeholder:text-muted/70 focus:border-pen focus:outline-none focus:ring-2 focus:ring-pen/10 transition resize-y leading-relaxed ${className}`}
+      className={`w-full px-3.5 py-2.5 rounded-xl border border-field-border bg-card text-sm text-ink placeholder:text-muted/70 focus:border-pen focus:outline-none focus:ring-2 focus:ring-pen/20 transition resize-y leading-relaxed ${className}`}
       {...props}
     />
   );
@@ -87,7 +87,7 @@ export function Select({ className = "", ...props }: SelectHTMLAttributes<HTMLSe
   return (
     <select
       id={props.id ?? fieldId}
-      className={`w-full h-11 px-3 rounded-xl border border-line bg-card text-sm text-ink focus:border-pen focus:outline-none focus:ring-2 focus:ring-pen/10 transition cursor-pointer ${className}`}
+      className={`w-full h-11 px-3 rounded-xl border border-field-border bg-card text-sm text-ink focus:border-pen focus:outline-none focus:ring-2 focus:ring-pen/20 transition cursor-pointer ${className}`}
       {...props}
     />
   );
