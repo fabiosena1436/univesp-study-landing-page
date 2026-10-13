@@ -19,7 +19,7 @@ const STEPS = [
   {
     icon: ClipboardPaste,
     title: "Acesse o catálogo",
-    desc: "Crie sua conta, confirme seu e-mail e receba autorização para acessar as matérias publicadas.",
+    desc: "Crie sua conta com e-mail institucional e aguarde a autorização para acessar as matérias publicadas.",
   },
   {
     icon: Sparkles,

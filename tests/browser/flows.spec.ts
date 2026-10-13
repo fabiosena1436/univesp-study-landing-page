@@ -41,7 +41,7 @@ test("login permite mostrar/ocultar senha e cadastro institucional mantém a con
   await expect(page).toHaveURL(/aguardando-aprovacao$/);
   await expect(page.getByText("Confirmação do e-mail", { exact: true })).toHaveCount(0);
   await page.getByRole("link", { name: "Minha conta: dados, senha e exclusão" }).click();
-  await expect(page.getByRole("heading", { name: "Minha conta" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Minha conta", exact: true })).toBeVisible();
   const response = await page.request.get("/api/account");
   expect(response.status()).toBe(200);
   expect((await page.request.get("/api/subjects")).status()).toBe(403);
@@ -76,11 +76,12 @@ test("administrador aprova e concede assistente pela interface; assistente não 
 test("PDF de 3 MB é anexado, separado do texto e acessível ao aluno", async ({ page }) => {
   await signIn(page, "admin@aluno.univesp.br");
   const sid = await subject(page);
-  const materialResponse = await page.request.post("/api/materials", { data: { subjectId: sid, title: "Anexo do navegador", text: "Conteúdo de aula disponível para leitura. ".repeat(30) } });
+  const title = `Anexo do navegador ${randomUUID().slice(0, 8)}`;
+  const materialResponse = await page.request.post("/api/materials", { data: { subjectId: sid, title, text: "Conteúdo de aula disponível para leitura. ".repeat(30) } });
   expect(materialResponse.status()).toBe(201);
   const material = await materialResponse.json();
   await page.goto("/app/materiais");
-  await page.locator("div.flex.items-center.gap-4").filter({ hasText: "Anexo do navegador" }).getByRole("button", { name: "Gerar questões", exact: true }).click();
+  await page.locator("div.flex.items-center.gap-4").filter({ hasText: title }).getByRole("button", { name: "Gerar questões", exact: true }).click();
   const { testPdf } = await import("../helpers/pdf.mjs");
   const file = testPdf(3 * 1024 * 1024);
   const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.getByRole("button", { name: "Buscar PDF", exact: true }).last().click()]);
@@ -92,8 +93,8 @@ test("PDF de 3 MB é anexado, separado do texto e acessível ao aluno", async ({
   await page.goto("/app/materiais");
   await expect(page.getByRole("region", { name: "PDFs originais" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Materiais em texto" })).toBeVisible();
-  await page.getByRole("region", { name: "PDFs originais" }).getByRole("button", { name: "Abrir PDF: Anexo do navegador" }).click();
-  await expect(page.locator('iframe[title="PDF: Anexo do navegador"]')).toBeVisible();
+  await page.getByRole("region", { name: "PDFs originais" }).getByRole("button", { name: `Abrir PDF: ${title}` }).click();
+  await expect(page.locator(`iframe[title="PDF: ${title}"]`)).toBeVisible();
   const pdf = await page.request.get(`/api/materials/${material.id}/pdf`);
   expect(pdf.status()).toBe(200);
   expect(await pdf.body()).toEqual(file);

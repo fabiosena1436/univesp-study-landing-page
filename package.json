@@ -20,7 +20,7 @@
     "test:server": "node scripts/test-server.mjs",
     "test:e2e": "node scripts/e2e.mjs",
     "postinstall": "node scripts/harden-dependencies.mjs",
-    "test:browser": "playwright test",
+    "test:browser": "node scripts/test-setup.mjs && playwright test",
     "test:load": "node scripts/load-check.mjs",
     "ops:monitor": "node scripts/monitor.mjs",
     "security:check": "node scripts/security-check.mjs"

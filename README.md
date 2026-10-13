@@ -4,6 +4,8 @@ Aplicação de estudos com catálogo compartilhado de matérias e questões, pub
 
 Para publicar pelo GitHub com Vercel e Neon, siga [o guia de deploy](DEPLOY-VERCEL-NEON.md).
 
+Veja também a [auditoria de arquitetura](AUDITORIA-ARQUITETURA-2026.md) e o [registro da evolução técnica e das verificações](IMPLEMENTACAO-QUALIDADE-2026.md).
+
 Se nunca publicou um projeto, use primeiro [o passo a passo para iniciantes](GUIA-INICIANTE-PUBLICACAO.md), com telas, campos, comandos e conferência de cada etapa.
 
 ## Ambiente local
@@ -65,11 +67,13 @@ Com Gemini, configure `GEMINI_MODELS` com um ou dois códigos separados por vír
 
 Para usar somente a cota gratuita, o projeto da chave precisa estar no nível gratuito, sem vínculo com uma conta de faturamento. O contador de tokens do site não é um bloqueio de cobrança. A pesquisa com Google Search fica desativada por padrão: questões sem gabarito são resolvidas em uma chamada JSON usando o material e o conhecimento do modelo, sem inventar fontes. `GEMINI_GOOGLE_SEARCH=true` habilita a pesquisa e pode exigir o plano pago. Não habilite essa opção em uma configuração exclusivamente gratuita. Ao atingir a cota, o site informa o bloqueio do provedor; não troca de projeto nem ativa faturamento.
 
-A geração tem prazo total de 95 segundos e exige cinco alternativas únicas, gabarito válido e trecho de origem encontrado no material. Materiais grandes são amostrados em trechos distribuídos e recebem aviso de cobertura parcial. Isso verifica a existência do trecho, não garante que o raciocínio da IA esteja correto: o administrador precisa conferir os rascunhos no editor antes de publicar.
+A geração compartilha um prazo de até 105 segundos entre todas as chamadas ao modelo. Reservas de tokens estimados usam cotas persistentes por usuário (24 horas) e por projeto (mês); configure `AI_USER_DAILY_TOKEN_BUDGET` e `AI_MONTHLY_TOKEN_BUDGET`. Esses limites são conservadores e não representam cobrança real do provedor. Questões geradas exigem cinco alternativas únicas, gabarito válido e trecho de origem encontrado no material. Materiais grandes são amostrados em trechos distribuídos e recebem aviso de cobertura parcial. Isso verifica a existência do trecho, não garante que o raciocínio da IA esteja correto: o administrador precisa conferir os rascunhos no editor antes de publicar.
 
 PDFs têm limite de 4 MB e 500 páginas; texto extraído tem limite de 400 mil caracteres. O arquivo original é armazenado em uma tabela separada (`material_files`, bytea) no PostgreSQL e servido por uma rota autenticada, com leitura e download para alunos aprovados. Listagens não carregam o binário. Materiais antigos podem receber um anexo em Materiais; editar o texto não altera o PDF. O limite de 4 MB mantém o envio abaixo do limite do host. O compose é para banco local, não um deploy completo.
 
 O administrador principal pode conceder e revogar a função de assistente em Administração → Usuários cadastrados. Assistentes aprovados e desbloqueados podem adicionar e editar matérias, questões e materiais, anexar PDFs e gerar questões. Exclusões, aprovação de usuários, suporte administrativo, auditoria e permissões exigem o administrador principal, inclusive nas APIs. A migração `0003_assistant_and_pdf.sql` adiciona a função e a tabela de anexos; aplique-a antes de executar a nova versão.
+
+O login oferece um botão para mostrar ou ocultar a senha. Em Minha conta, usuários podem ativar um autenticador TOTP e guardar códigos de recuperação exibidos uma vez. Cadastros novos e trocas de senha exigem no mínimo 15 caracteres; senhas antigas continuam válidas para entrada. Configure uma chave estável `MFA_ENCRYPTION_KEY` antes de habilitar o TOTP e preserve-a separadamente dos backups. Depois que o administrador principal ativar o próprio TOTP, `MFA_REQUIRE_ADMIN=true` pode exigir essa proteção para as funções administrativas. A migração `0004_quality_security.sql` adiciona os campos necessários.
 
 ## Qualidade e testes
 
@@ -78,6 +82,7 @@ npm run lint
 npm run typecheck
 npm test
 npm run build
+npm run security:check
 ```
 
 Testes de integração usam um banco separado e um servidor de produção na porta 3100:
@@ -87,17 +92,20 @@ docker compose -f docker-compose.test.yml -p aprova-quality up -d
 npm run db:test:setup
 npm run build
 npm run test:e2e
+npx playwright install chromium
+npm run test:browser
+npm run test:load
 ```
 
-`db:test:setup` cria um banco novo chamado `aprova_test_<timestamp>`, preenche uma estrutura antiga e testa a atualização. Nunca utiliza o banco da aplicação. `.test-env.json` contém apenas configuração e credenciais descartáveis de teste, fica ignorado pelo Git e não deve ser publicado. O servidor de teste desativa Gemini e Resend, sem enviar e-mails ou consumir APIs externas. Para inspecionar no navegador, use `npm run test:server` após o build. Uma nova execução de `db:test:setup` prepara dados novos; a suíte altera as contas de teste.
+`db:test:setup` cria um banco novo chamado `aprova_test_<timestamp>`, preenche uma estrutura antiga e testa a atualização. Nunca utiliza o banco da aplicação. `.test-env.json` contém apenas configuração e credenciais descartáveis de teste, fica ignorado pelo Git e não deve ser publicado. O servidor de teste desativa Gemini e simula o envio do Resend, sem enviar e-mails ou consumir APIs externas. `test:browser` cria sua própria base isolada, pois a suíte de API altera as contas de teste. A medição de carga escreve `artifacts/load-report.json`; seus tempos locais não são uma promessa de capacidade em produção. Para inspecionar no navegador, use `npm run test:server` após o build.
 
-O CI executa verificações estáticas, testes unitários, migração de banco antigo, build e testes de APIs contra PostgreSQL. Verificação visual no navegador complementa essa suíte.
+O CI executa verificações estáticas, auditoria de dependências, testes unitários, migração de banco antigo, build, testes de APIs e fluxos reais no Chromium contra PostgreSQL isolado. `security:check` rejeita alertas altos novos e documenta a mitigação local da cadeia `braces` no ambiente de desenvolvimento até haver correção publicada.
 
 ## Operação, backup e restauração
 
-`npm run doctor` verifica configuração sem exibir segredos e detecta se o banco foi atualizado. Logs de erros são JSON com ID de referência; não incluem consultas, tokens ou dados pessoais. `/api/health` verifica conexão com o banco. Ações administrativas ficam em `/app/admin`, na seção Auditoria.
+`npm run doctor` verifica configuração sem exibir segredos, checksums e migrações esperadas, além das tabelas e colunas novas. Logs de requisições usam IDs de referência, status e latência; não incluem consultas, tokens nem dados pessoais. `/api/health` verifica conexão e esquema. Configure `MONITOR_URL` com o domínio HTTPS e execute `npm run ops:monitor` em um serviço externo de monitoramento. Ações administrativas ficam em `/app/admin`, na seção Auditoria.
 
-Execute diariamente `npm run db:cleanup`. A rotina remove sessões e tokens expirados, limites vencidos e auditoria com mais de 90 dias. Configure esse comando no agendador da sua hospedagem; o repositório não instala tarefas no computador nem provisiona serviços externos.
+Execute diariamente o backup seguido da limpeza. A rotina remove sessões e tokens expirados, limites vencidos e auditoria com mais de 90 dias. No Windows local, `powershell -File scripts/install-maintenance-task.ps1 -Container repete-postgres` registra a tarefa `Aprova-UNIVESP-Manutencao-Local` às 02:00 no fuso do Windows, sem substituir tarefa existente. Ela chama `scripts/maintenance.ps1`, que só limpa depois de criar o backup. Em hospedagem, configure agendamento e retenção equivalentes; cópias locais não substituem backups fora do computador.
 
 Com os utilitários PostgreSQL (`pg_dump`, `pg_restore`) instalados:
 

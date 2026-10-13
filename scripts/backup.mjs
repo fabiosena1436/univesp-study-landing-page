@@ -28,6 +28,9 @@ if (container) {
     await execute("docker", ["cp", `${container}:${inside}`, temporary]);
     code = 0;
   } catch { code = 1; }
+  finally {
+    try { await execute("docker", ["exec", container, "rm", "--", inside]); } catch {}
+  }
 } else {
 const child = spawn("pg_dump", ["--format=custom", "--no-owner", "--no-acl", "--file", temporary], {
   env: { ...process.env, PGHOST: db.hostname, PGPORT: db.port || "5432", PGUSER: decodeURIComponent(db.username), PGPASSWORD: decodeURIComponent(db.password), PGDATABASE: decodeURIComponent(db.pathname.slice(1)) },

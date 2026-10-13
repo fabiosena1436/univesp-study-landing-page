@@ -3,7 +3,10 @@ import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 const require = createRequire(import.meta.url);
-const result = spawnSync(process.execPath, [process.env.npm_execpath, "audit", "--json", "--cache", "artifacts/npm-cache"], { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 });
+const result = spawnSync(process.execPath, [process.env.npm_execpath, "audit", "--json", "--cache", "artifacts/npm-cache"], {
+  encoding: "utf8", maxBuffer: 10 * 1024 * 1024,
+  env: { ...process.env, NODE_USE_SYSTEM_CA: process.env.NODE_USE_SYSTEM_CA ?? (process.platform === "win32" ? "1" : undefined) },
+});
 if (result.error) throw result.error;
 let audit;
 try { audit = JSON.parse(result.stdout.replace(/^\uFEFF/, "")); } catch { throw new Error("Security registry could not be audited. Do not treat a network failure as a clean audit."); }

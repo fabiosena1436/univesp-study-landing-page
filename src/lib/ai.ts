@@ -112,6 +112,7 @@ async function requestGemini<T>(body: Record<string, unknown>, key: string, sign
       const text = json.candidates?.[0]?.content?.parts?.filter((p) => !p.thought).map((p) => p.text ?? "").join("") ?? "";
       return decode(text, json);
     } catch (error) {
+      if (error instanceof ApiError && error.status === 429) throw error;
       const cause = (error as { cause?: { code?: string } })?.cause?.code;
       lastError = cause === "UNABLE_TO_VERIFY_LEAF_SIGNATURE" || cause === "SELF_SIGNED_CERT_IN_CHAIN"
         ? "Não foi possível validar o certificado da conexão com o Gemini. Configure o certificado confiável no servidor."
@@ -208,7 +209,7 @@ Responda somente JSON: {"overflow":false,"questions":[{"statement":"Enunciado or
         if (options.some((o) => !source.includes(normalizeText(o.text).replace(/\s/g, "")))) throw new ApiError(502, "A IA alterou alternativas da cópia original. Tente analisar novamente.");
         return { tempId: `ai-${index}`, statement: q.statement.trim(), options, correctKey, feedback: q.feedback.trim(), warnings: [] };
       });
-    }).catch((error: unknown) => { throw new ApiError(502, error instanceof Error ? error.message : "Não foi possível organizar o texto com IA. Tente novamente."); });
+    }).catch((error: unknown) => { throw error instanceof ApiError && error.status === 429 ? error : new ApiError(502, error instanceof Error ? error.message : "Não foi possível organizar o texto com IA. Tente novamente."); });
   }
   if (!questions.length) return { engine: usedAi ? "gemini" : "local", questions: [], errors: ["Não encontrei questões completas com alternativas no conteúdo enviado. Inclua o texto das alternativas e das imagens necessárias."] };
   usedAi ||= questions.some((q) => !q.correctKey || !q.feedback.trim());
@@ -263,6 +264,7 @@ export async function completeQuestionAnswers<T extends GeneratedQuestion>(quest
     const byId = new Map(completed.flat().map(({ id, question }) => [id, question]));
     return questions.map((q, id) => byId.get(id) ?? q);
   } catch (error) {
+    if (error instanceof ApiError && error.status === 429) throw error;
     throw new ApiError(502, error instanceof Error ? error.message : "Não foi possível completar as questões. Tente novamente.");
   }
 }

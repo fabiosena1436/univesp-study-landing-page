@@ -2,6 +2,8 @@
 
 Data: 13 de outubro de 2026. Referência inicial do código: `c77dd86`.
 
+Esta é a fotografia anterior às correções. O estado implementado, os testes e as pendências externas estão em [Evolução técnica do Aprova UNIVESP](IMPLEMENTACAO-QUALIDADE-2026.md).
+
 ## Parecer
 
 O projeto tem uma base tecnológica atual e uma arquitetura adequada para um MVP profissional de estudos: Next.js App Router, React, TypeScript estrito, PostgreSQL, Drizzle e implantação na Vercel. A evolução recomendada é manter um monólito modular e melhorar suas fronteiras internas, segurança de dependências, testes de interface e operação.
