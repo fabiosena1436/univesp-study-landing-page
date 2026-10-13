@@ -37,7 +37,7 @@ test('every Gemini attempt records usage, including failed requests and invalid 
   const source = 'O conhecimento científico é falível e pode ser revisado quando surgem evidências.';
   const question = { statement: 'Por que o conhecimento científico pode ser revisado?', options: ['A','B','C','D','E'].map(key => ({ key, text: `Alternativa ${key}` })), correctKey: 'B', feedback: 'Novas evidências permitem revisar o conhecimento.', sourceExcerpt: source };
   const ai = loadFile('src/lib/ai.ts', {
-    './generatedQuestion': {}, './parser': require('../../.test-build/lib/parser'), './validation': require('../../.test-build/lib/validation'), './errors': errors,
+    './aiOperation': require('../../.test-build/lib/aiOperation'), './generatedQuestion': {}, './parser': require('../../.test-build/lib/parser'), './validation': require('../../.test-build/lib/validation'), './errors': errors,
     './aiUsage': { ...usage, geminiModels: () => ['test-model'], recordAiRequest: async (event) => { events.push(event); } },
   }, { fetch: async () => status === 200 ? Response.json({ usageMetadata: { promptTokenCount: 100, candidatesTokenCount: 20, totalTokenCount: 150 }, candidates: [{ content: { parts: [{ text: JSON.stringify({ questions: [question] }) }] } }] }) : Response.json(quota('GenerateRequestsPerMinutePerProject'), { status }) });
   const oldKey = process.env.GEMINI_API_KEY;
@@ -59,7 +59,7 @@ test('usage endpoint authenticates admins before querying telemetry and disables
   let allowed = false, reads = 0;
   const endpoint = loadFile('src/app/api/admin/ai-usage/route.ts', {
     '@/lib/auth': { requireAdmin: async () => { if (!allowed) throw new errors.ApiError(403, 'Restrito'); } },
-    '@/lib/errors': errors,
+    '@/server/services/telemetry': { instrument: (_route, _method, handler) => handler }, '@/lib/mfa': { validateMfa: () => null }, '@/lib/clientRateLimit': { limitClient: async () => {} }, '@/lib/aiOperation': { withAiOperation: (_id, _signal, work) => work() }, '@/lib/pdfValidation': {}, '@/lib/errors': errors,
     '@/lib/aiUsageStore': { readAiUsage: async () => { reads++; return { configured: true, models: ['test-model'] }; } },
   });
   assert.equal((await endpoint.GET()).status, 403); assert.equal(reads, 0);

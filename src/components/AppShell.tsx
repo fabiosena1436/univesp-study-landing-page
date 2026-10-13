@@ -9,6 +9,7 @@ import {
   ReactNode,
 } from "react";
 import Link from "next/link";
+import { MotionConfig } from "motion/react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
@@ -61,6 +62,12 @@ export default function AppShell({ children, initialUser }: { children: ReactNod
   const router = useRouter();
   const pathname = usePathname();
   const toastShell = useToastsShell();
+
+  useEffect(() => {
+    const expire = () => { clearQuizDrafts(); router.replace("/entrar"); router.refresh(); };
+    window.addEventListener("repete:unauthorized", expire);
+    return () => window.removeEventListener("repete:unauthorized", expire);
+  }, [router]);
 
   const refreshSubjects = useCallback(() => {
     api<Subject[]>("/api/subjects")
@@ -116,7 +123,7 @@ export default function AppShell({ children, initialUser }: { children: ReactNod
   );
 
   return (
-    <AppContext.Provider value={{ user, subjects, refreshSubjects, updateUser: setUser }}>
+    <MotionConfig reducedMotion="user"><AppContext.Provider value={{ user, subjects, refreshSubjects, updateUser: setUser }}>
       <div className="min-h-screen app-shell-bg">
         <header className="app-header sticky top-0 z-40 border-b backdrop-blur-xl">
           <div className="max-w-[1480px] mx-auto px-4 md:px-8 h-[72px] flex items-center gap-5">
@@ -220,7 +227,7 @@ export default function AppShell({ children, initialUser }: { children: ReactNod
         </div>
       </div>
       {toastShell}
-    </AppContext.Provider>
+    </AppContext.Provider></MotionConfig>
   );
 }
 

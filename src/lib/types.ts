@@ -6,6 +6,7 @@ export type User = {
   createdAt: string;
   isAdmin?: boolean;
   isAssistant?: boolean;
+  mfaEnabled?: boolean;
   accessStatus?: "pending" | "approved" | "rejected";
   emailVerifiedAt?: string | null;
   whatsapp?: string | null;

@@ -14,7 +14,7 @@
   --color-header: #111827;
   --color-header-soft: #1f2937;
   --color-ink-soft: #536078;
-  --color-muted: #8490a7;
+  --color-muted: #626e83;
   --color-line: #e3e8f1;
   --color-line-strong: #cbd4e3;
   --color-brand: #a78bfa;
@@ -22,9 +22,9 @@
   --color-brand-soft: #f1edff;
   --color-pen: #4f46e5;
   --color-pen-soft: #eef0ff;
-  --color-red: #dc4545;
+  --color-red: #b42332;
   --color-red-soft: #fff0f0;
-  --color-green: #159570;
+  --color-green: #087451;
   --color-green-soft: #e8faf3;
 }
 
@@ -174,4 +174,13 @@ details > summary {
 }
 details > summary::-webkit-details-marker {
   display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

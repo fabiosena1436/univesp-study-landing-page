@@ -1,3 +1,4 @@
+import { instrument } from "@/server/services/telemetry";
 import { NextRequest } from "next/server";
 import { asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
@@ -8,7 +9,7 @@ import { rateLimit } from "@/lib/rateLimit";
 import { requireAdmin, requireUser } from "@/lib/auth";
 import { ApiError, handleError, str } from "@/lib/errors";
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   try {
     const user = await requireUser();
     const admin = user.isAdmin;
@@ -38,7 +39,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   try {
     const user = await requireUser();
     await rateLimit("support", user.id, 10, 60000);
@@ -63,7 +64,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function PATCH(req: NextRequest) {
+async function handlePATCH(req: NextRequest) {
   try {
     const user = await requireAdmin();
     await rateLimit("support", user.id, 10, 60000);
@@ -84,3 +85,9 @@ export async function PATCH(req: NextRequest) {
     return handleError(e);
   }
 }
+
+export const GET = instrument("/api/support", "GET", handleGET);
+
+export const POST = instrument("/api/support", "POST", handlePOST);
+
+export const PATCH = instrument("/api/support", "PATCH", handlePATCH);

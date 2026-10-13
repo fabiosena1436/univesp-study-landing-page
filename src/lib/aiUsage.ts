@@ -1,5 +1,7 @@
+import { currentAiOperation } from "./aiOperation";
+
 export type TokenUsage = { input: number | null; output: number | null; thinking: number | null; total: number | null };
-export type AiRequestEvent = { model: string; status: number; tokens: TokenUsage; message: string | null; retryAfter: number | null };
+export type AiRequestEvent = { actorId?: string; operationId?: string; model: string; status: number; tokens: TokenUsage; message: string | null; retryAfter: number | null };
 export type AiUsagePeriod = { calls: number; failures: number; unreported: number; input: number | null; output: number | null; thinking: number | null; total: number | null };
 export type AiUsageSummary = { configured: boolean; models: string[]; startedAt: string | null; today: AiUsagePeriod; month: AiUsagePeriod; recent: (AiRequestEvent & { createdAt: string })[] };
 
@@ -29,6 +31,6 @@ export function quotaDiagnostic(raw: unknown, retryHeader: string | null = null)
 }
 export async function recordAiRequest(event: AiRequestEvent) {
   if (!process.env.DATABASE_URL) return;
-  try { await (await import("./aiUsageStore")).saveAiRequest(event); }
+  try { await (await import("./aiUsageStore")).saveAiRequest({ ...event, actorId: currentAiOperation()?.actorId, operationId: currentAiOperation()?.id }); }
   catch { console.error(JSON.stringify({ event: "ai.usage.record_failed" })); }
 }

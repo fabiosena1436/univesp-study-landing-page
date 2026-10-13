@@ -1,3 +1,5 @@
+import { instrument } from "@/server/services/telemetry";
+import { withAiOperation } from "@/lib/aiOperation";
 import { NextRequest } from "next/server";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
@@ -14,11 +16,11 @@ type Params = { params: Promise<{ id: string }> };
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
-export async function GET() {
+async function handleGET() {
   return Response.json({ engine: activeEngine() });
 }
 
-export async function POST(req: NextRequest, { params }: Params) {
+async function handlePOST(req: NextRequest, { params }: Params) {
   try {
     const user = await requireContentManager();
     const { id } = await params;
@@ -44,11 +46,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     const material = rows[0];
     if (!material) throw new ApiError(404, "Material não encontrado.");
 
-    const { engine, questions, note } = await generateQuestions(
-      material.content,
-      count,
-      material.title,
-    );
+    const { engine, questions, note } = await withAiOperation(user.id, req.signal, () => generateQuestions(material.content, count, material.title));
 
     return Response.json({
       engine,
@@ -71,3 +69,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     return handleError(e);
   }
 }
+
+export const GET = instrument("/api/materials/[id]/generate", "GET", handleGET);
+
+export const POST = instrument("/api/materials/[id]/generate", "POST", handlePOST);

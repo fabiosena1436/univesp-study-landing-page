@@ -2,10 +2,29 @@ import { sql, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { auditEvents } from "@/db/schema";
 import { geminiModels, type AiRequestEvent, type AiUsagePeriod, type AiUsageSummary } from "./aiUsage";
+import { rateLimit } from "./rateLimit";
+import { currentAiOperation } from "./aiOperation";
+
+export async function reserveAiCall(body: Record<string, unknown>) {
+  const operation = currentAiOperation();
+  if (!operation) return;
+  const output = Number((body.generationConfig as { maxOutputTokens?: number } | undefined)?.maxOutputTokens ?? 16000);
+  // Conservative reservation includes room for thinking tokens; it is a hard
+  // reservation budget, not a bill/estimate of the provider's actual charge.
+  const reserved = Math.ceil(Buffer.byteLength(JSON.stringify(body), "utf8") + output * 2);
+  const budget = (name: string, fallback: number) => {
+    const n = Number(process.env[name] ?? fallback);
+    if (!Number.isSafeInteger(n) || n < 1 || n > 1000000000) throw new Error(`Invalid ${name}`);
+    return n;
+  };
+  const month = new Date().toISOString().slice(0, 7);
+  await rateLimit("ai.tokens.user.24h", operation.actorId, budget("AI_USER_DAILY_TOKEN_BUDGET", 500000), 86400000, false, reserved);
+  await rateLimit(`ai.tokens.month.${month}`, "global", budget("AI_MONTHLY_TOKEN_BUDGET", 5000000), 32 * 86400000, false, reserved);
+}
 
 // Reuse the durable event log, shared by all server instances.
 export async function saveAiRequest(event: AiRequestEvent) {
-  await db.insert(auditEvents).values({ action: "gemini.request", targetId: JSON.stringify(event) });
+  await db.insert(auditEvents).values({ actorId: event.actorId, action: "gemini.request", targetId: JSON.stringify(event) });
 }
 export async function readAiUsage(): Promise<AiUsageSummary> {
   const [summary, recent] = await Promise.all([

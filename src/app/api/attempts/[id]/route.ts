@@ -1,3 +1,4 @@
+import { instrument } from "@/server/services/telemetry";
 import { NextRequest } from "next/server";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db";
@@ -5,7 +6,7 @@ import { attemptAnswers, attempts } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { ApiError, handleError, isUuid } from "@/lib/errors";
 type Params = { params: Promise<{ id: string }> };
-export async function GET(_req: NextRequest, { params }: Params) {
+async function handleGET(_req: NextRequest, { params }: Params) {
   try {
     const user = await requireUser();
     const { id } = await params;
@@ -17,3 +18,5 @@ export async function GET(_req: NextRequest, { params }: Params) {
       createdAt: attempt.createdAt.toISOString(), answers: answers.map((a) => ({ ...a.snapshot, selectedKey: a.selectedKey, isCorrect: a.isCorrect })) });
   } catch (e) { return handleError(e); }
 }
+
+export const GET = instrument("/api/attempts/[id]", "GET", handleGET);

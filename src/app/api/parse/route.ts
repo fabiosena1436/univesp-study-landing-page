@@ -1,3 +1,5 @@
+import { instrument } from "@/server/services/telemetry";
+import { withAiOperation } from "@/lib/aiOperation";
 import { NextRequest } from "next/server";
 import { requireContentManager } from "@/lib/auth";
 import { rateLimit } from "@/lib/rateLimit";
@@ -7,7 +9,7 @@ import { importQuestions } from "@/lib/ai";
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   try {
     const user = await requireContentManager();
     await rateLimit("parse", user.id, 20, 60000);
@@ -17,9 +19,11 @@ export async function POST(req: NextRequest) {
     if (text.length > 300000)
       throw new ApiError(400, "Texto muito grande (máximo 300 mil caracteres). Divida em partes.");
 
-    const result = await importQuestions(text);
+    const result = await withAiOperation(user.id, req.signal, () => importQuestions(text));
     return Response.json(result);
   } catch (e) {
     return handleError(e);
   }
 }
+
+export const POST = instrument("/api/parse", "POST", handlePOST);

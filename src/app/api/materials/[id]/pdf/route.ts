@@ -1,3 +1,4 @@
+import { instrument } from "@/server/services/telemetry";
 import { NextRequest } from "next/server";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
@@ -5,6 +6,7 @@ import { materialFiles, materials, subjects } from "@/db/schema";
 import { requireContentManager, requireUser } from "@/lib/auth";
 import { ApiError, handleError, isUuid } from "@/lib/errors";
 import { extractPdfText, pdfValidationError } from "@/lib/pdf";
+import { PDF_REQUEST_MAX_BYTES } from "@/lib/pdfValidation";
 import { rateLimit } from "@/lib/rateLimit";
 import { audit } from "@/lib/audit";
 
@@ -12,7 +14,7 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(req: NextRequest, { params }: Params) {
+async function handleGET(req: NextRequest, { params }: Params) {
   try {
     await requireUser();
     const { id } = await params;
@@ -33,13 +35,13 @@ export async function GET(req: NextRequest, { params }: Params) {
   } catch (e) { return handleError(e); }
 }
 
-export async function POST(req: NextRequest, { params }: Params) {
+async function handlePOST(req: NextRequest, { params }: Params) {
   try {
     const user = await requireContentManager();
     await rateLimit("materials.attach", user.id, 15, 60000);
     const { id } = await params;
     if (!isUuid(id)) throw new ApiError(404, "Material não encontrado.");
-    if (Number(req.headers.get("content-length")) > 4.5 * 1024 * 1024) throw new ApiError(413, "O envio excede o limite de 4 MB por PDF.");
+    if (Number(req.headers.get("content-length")) > PDF_REQUEST_MAX_BYTES) throw new ApiError(413, "O envio excede o limite de 4 MB por PDF.");
     const form = await req.formData();
     const file = form.get("file");
     if (!(file instanceof File)) throw new ApiError(400, "Anexe um PDF.");
@@ -63,3 +65,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     return Response.json({ ok: true });
   } catch (e) { return handleError(e); }
 }
+
+export const GET = instrument("/api/materials/[id]/pdf", "GET", handleGET);
+
+export const POST = instrument("/api/materials/[id]/pdf", "POST", handlePOST);

@@ -14,7 +14,7 @@ function loginHarness({ correct = true, blocked = false, outage = false, unverif
     'drizzle-orm': { eq: () => null }, '@/db/schema': { users: {} },
     '@/db': { db: { select: () => ({ from: () => ({ where: () => ({ limit: async () => [user] }) }) }), update: () => ({ set: () => ({ where: async () => {} }) }) } },
     '@/lib/auth': { verifyPassword: async () => { counts.verified++; return correct; }, safeUser: u => u, createSession: async () => { if (outage) throw new ApiError(503, 'Serviço indisponível.'); } },
-    '@/lib/errors': { ApiError, handleError, str }, '@/lib/constants': { EMAIL_RE: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ },
+    '@/server/services/telemetry': { instrument: (_route, _method, handler) => handler }, '@/lib/mfa': { validateMfa: () => null }, '@/lib/clientRateLimit': { limitClient: async () => {} }, '@/lib/aiOperation': { withAiOperation: (_id, _signal, work) => work() }, '@/lib/pdfValidation': {}, '@/lib/errors': { ApiError, handleError, str }, '@/lib/constants': { EMAIL_RE: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ },
     '@/lib/rateLimit': {
       rateLimit: async () => {},
       checkLoginFailures: async () => { counts.checks++; if (blocked) throw new ApiError(429, 'Tente novamente em 42 segundos.', 42); },

@@ -9,8 +9,8 @@ export function uuid(value: string, message = "Identificador inválido.") {
 
 export function passwordError(password: string): string | null {
   // bcrypt only considers the first 72 UTF-8 bytes.
-  return password.length < 8 || Buffer.byteLength(password, "utf8") > 72
-    ? "A senha deve ter pelo menos 8 caracteres e no máximo 72 bytes."
+  return password.length < 15 || Buffer.byteLength(password, "utf8") > 72
+    ? "A senha deve ter pelo menos 15 caracteres e no máximo 72 bytes."
     : null;
 }
 

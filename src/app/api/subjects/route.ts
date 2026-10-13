@@ -1,3 +1,4 @@
+import { instrument } from "@/server/services/telemetry";
 import { NextRequest } from "next/server";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -7,7 +8,7 @@ import { requireContentManager, requireUser } from "@/lib/auth";
 import { ApiError, handleError, HEX_COLOR_RE, str } from "@/lib/errors";
 import { SUBJECT_COLORS } from "@/lib/constants";
 
-export async function GET() {
+async function handleGET() {
   try {
     await requireUser();
     const rows = await db
@@ -29,7 +30,7 @@ export async function GET() {
   }
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   try {
     const user = await requireContentManager();
     const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
@@ -52,3 +53,7 @@ export async function POST(req: NextRequest) {
     return handleError(e);
   }
 }
+
+export const GET = instrument("/api/subjects", "GET", handleGET);
+
+export const POST = instrument("/api/subjects", "POST", handlePOST);

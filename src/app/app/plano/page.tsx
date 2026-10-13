@@ -80,7 +80,7 @@ export default function PlanoPage() {
           icon={<CheckCircle2 size={22} />}
           title="Tudo em dia por enquanto"
           desc={plan.totalTracked === 0 ? "Faça uma prova para começar a construir sua fila de revisão." : "Volte amanhã para revisar novamente ou faça uma prova completa."}
-          action={<Link href="/app/prova"><Button>Fazer uma prova</Button></Link>}
+          action={<Link href="/app/prova" className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-pen px-4 text-sm font-semibold text-white transition hover:bg-brand-deep">Fazer uma prova</Link>}
         />
       ) : (
         <div className="card p-5 md:p-7">

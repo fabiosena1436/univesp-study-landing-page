@@ -1,3 +1,5 @@
+import { instrument } from "@/server/services/telemetry";
+import { limitClient } from "@/lib/clientRateLimit";
 import { NextRequest } from "next/server";
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -9,8 +11,9 @@ import { ApiError, handleError, str } from "@/lib/errors";
 import { EMAIL_RE, registrationEmailAllowed } from "@/lib/constants";
 import { normalizeWhatsapp } from "@/lib/access";
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   try {
+    await limitClient(req, "register");
     const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
     const name = str(body?.name, 80);
     const email = str(body?.email, 200).toLowerCase();
@@ -50,3 +53,5 @@ export async function POST(req: NextRequest) {
     return handleError(e);
   }
 }
+
+export const POST = instrument("/api/auth/register", "POST", handlePOST);

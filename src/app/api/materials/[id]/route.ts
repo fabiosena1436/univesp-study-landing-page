@@ -1,3 +1,4 @@
+import { instrument } from "@/server/services/telemetry";
 import { NextRequest } from "next/server";
 import { and, eq, getTableColumns, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -8,7 +9,7 @@ import { ApiError, handleError, isUuid } from "@/lib/errors";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function PATCH(req: NextRequest, { params }: Params) {
+async function handlePATCH(req: NextRequest, { params }: Params) {
   try {
     const user = await requireContentManager();
     const { id } = await params;
@@ -30,7 +31,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   } catch (e) { return handleError(e); }
 }
 
-export async function GET(_req: NextRequest, { params }: Params) {
+async function handleGET(_req: NextRequest, { params }: Params) {
   try {
     await requireUser();
     const { id } = await params;
@@ -59,7 +60,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: Params) {
+async function handleDELETE(_req: NextRequest, { params }: Params) {
   try {
     const user = await requireAdmin();
     const { id } = await params;
@@ -81,3 +82,9 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     return handleError(e);
   }
 }
+
+export const PATCH = instrument("/api/materials/[id]", "PATCH", handlePATCH);
+
+export const GET = instrument("/api/materials/[id]", "GET", handleGET);
+
+export const DELETE = instrument("/api/materials/[id]", "DELETE", handleDELETE);

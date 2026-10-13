@@ -1,3 +1,4 @@
+import { instrument } from "@/server/services/telemetry";
 import { NextRequest } from "next/server";
 import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -7,7 +8,7 @@ import { orderedOptions } from "@/lib/options";
 import { ApiError, handleError, str } from "@/lib/errors";
 import { uuid } from "@/lib/validation";
 import { rateLimit } from "@/lib/rateLimit";
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   try {
     const user = await requireUser();
     await rateLimit("quiz", user.id, 30, 60_000);
@@ -29,3 +30,5 @@ export async function POST(req: NextRequest) {
     return Response.json({ subjectName: sub.name, questions: rows.map((q) => ({ id: q.id, statement: q.statement, options: orderedOptions(q.options), correctKey: q.correctKey, feedback: q.feedback })), emptyMessage });
   } catch (e) { return handleError(e); }
 }
+
+export const POST = instrument("/api/quiz", "POST", handlePOST);

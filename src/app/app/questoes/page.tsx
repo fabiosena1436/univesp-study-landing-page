@@ -125,9 +125,7 @@ function QuestoesInner() {
               : "Os administradores ainda não publicaram questões. Entre em contato para saber quando estarão disponíveis."
           }
           action={(user.isAdmin || user.isAssistant) ? (
-            <Link href="/app/importar">
-              <Button>Importar questões</Button>
-            </Link>
+            <Link href="/app/importar" className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-pen px-4 text-sm font-semibold text-white transition hover:bg-brand-deep">Importar questões</Link>
           ) : undefined}
         />
       ) : (

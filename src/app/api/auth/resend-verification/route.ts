@@ -1,9 +1,10 @@
+import { instrument } from "@/server/services/telemetry";
 import { requireAccount } from "@/lib/auth";
 import { issueVerification } from "@/lib/emailVerification";
 import { ApiError, handleError } from "@/lib/errors";
 import { rateLimit } from "@/lib/rateLimit";
 
-export async function POST() {
+async function handlePOST() {
   try {
     const user = await requireAccount();
     if (user.emailVerifiedAt) return Response.json({ message: "Seu e-mail já está confirmado." });
@@ -14,3 +15,5 @@ export async function POST() {
     return Response.json({ message: "Link enviado. Confira sua caixa de entrada e a pasta de spam." });
   } catch (e) { return handleError(e); }
 }
+
+export const POST = instrument("/api/auth/resend-verification", "POST", handlePOST);

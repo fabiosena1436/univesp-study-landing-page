@@ -1,3 +1,4 @@
+import { instrument } from "@/server/services/telemetry";
 import { NextRequest } from "next/server";
 import { and, asc, eq, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -7,7 +8,7 @@ import { ApiError, handleError, str } from "@/lib/errors";
 import { uuid } from "@/lib/validation";
 import { updateProgress, type Rating } from "@/lib/study";
 import { rateLimit } from "@/lib/rateLimit";
-export async function GET() {
+async function handleGET() {
   try {
     const user = await requireUser();
     const now = new Date();
@@ -25,7 +26,7 @@ export async function GET() {
     return Response.json({ due, ...stats[0] });
   } catch (e) { return handleError(e); }
 }
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   try {
     const user = await requireUser();
     await rateLimit("review", user.id, 100, 60_000);
@@ -42,3 +43,7 @@ export async function POST(req: NextRequest) {
     return Response.json(result);
   } catch (e) { return handleError(e); }
 }
+
+export const GET = instrument("/api/study/review", "GET", handleGET);
+
+export const POST = instrument("/api/study/review", "POST", handlePOST);

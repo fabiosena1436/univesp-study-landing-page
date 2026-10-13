@@ -85,7 +85,7 @@ export default function FlashcardsPage() {
       {loading || cards === null ? (
         <div className="card p-12 grid place-items-center text-muted"><Spinner size={25} /></div>
       ) : !active ? (
-        <EmptyState icon={<CheckCircle2 size={22} />} title="Nenhum cartão nesta sessão" desc="Se você concluiu a sessão, a revisão foi programada. Você também pode selecionar outra matéria e carregar uma nova sessão." action={<Link href="/app/plano"><Button>Ver meu plano</Button></Link>} />
+        <EmptyState icon={<CheckCircle2 size={22} />} title="Nenhum cartão nesta sessão" desc="Se você concluiu a sessão, a revisão foi programada. Você também pode selecionar outra matéria e carregar uma nova sessão." action={<Link href="/app/plano" className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-pen px-4 text-sm font-semibold text-white transition hover:bg-brand-deep">Ver meu plano</Link>} />
       ) : (
         <>
           <div className="flex items-center justify-between text-xs text-muted">

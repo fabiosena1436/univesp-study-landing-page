@@ -20,7 +20,7 @@ npm run db:migrate
 npm run doctor
 ```
 
-Não use `--adopt-legacy` em banco vazio. O comando de migração recusa uma URL Neon com pool porque usa um bloqueio de sessão. Não adicione migrações ao Build Command: previews e builds concorrentes não devem alterar o banco de produção.
+Não use `--adopt-legacy` em banco vazio. O comando de migração recusa uma URL Neon com pool porque usa um bloqueio de sessão. O build configurado executa migrações versionadas somente no ambiente Vercel de produção, com bloqueio para concorrência e verificação de checksums. Previews usam banco separado e precisam de migração própria. Mantenha alterações aditivas compatíveis com a versão anterior; migrações destrutivas precisam de uma etapa separada após a implantação e validação.
 
 Se quiser levar os dados locais, restaure um backup atualizado em um banco Neon vazio pela conexão direta usando `pg_restore --exit-on-error --no-owner --no-acl`, com credenciais em variáveis `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE` e `PGSSLMODE`, sem colocá-las na linha de comando. Depois rode `db:migrate` e `doctor`. O backup atualizado já contém os registros de migração; não inicialize o banco vazio antes de restaurá-lo. O verificador local de backup é restrito ao contêiner de testes e não transfere dados ao Neon.
 

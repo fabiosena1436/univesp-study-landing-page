@@ -1,3 +1,4 @@
+import { instrument } from "@/server/services/telemetry";
 import { NextRequest } from "next/server";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -5,6 +6,7 @@ import { materialFiles, materials, questions, subjects } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { pageParams, uuid } from "@/lib/validation";
 import { requireContentManager, requireUser } from "@/lib/auth";
+import { PDF_REQUEST_MAX_BYTES } from "@/lib/pdfValidation";
 import { rateLimit } from "@/lib/rateLimit";
 import { ApiError, handleError, str } from "@/lib/errors";
 import { cleanExtractedText, extractPdfText, pdfValidationError } from "@/lib/pdf";
@@ -12,7 +14,7 @@ import { cleanExtractedText, extractPdfText, pdfValidationError } from "@/lib/pd
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   try {
     await requireUser();
     const { limit, offset } = pageParams(req.nextUrl.searchParams);
@@ -45,11 +47,11 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   try {
     const user = await requireContentManager();
     await rateLimit("materials.upload", user.id, 15, 60000);
-    if (Number(req.headers.get("content-length")) > 4.5 * 1024 * 1024) throw new ApiError(413, "O envio excede o limite de 4 MB por PDF.");
+    if (Number(req.headers.get("content-length")) > PDF_REQUEST_MAX_BYTES) throw new ApiError(413, "O envio excede o limite de 4 MB por PDF.");
 
     const ct = req.headers.get("content-type") ?? "";
     let subjectId = "";
@@ -151,3 +153,7 @@ export async function POST(req: NextRequest) {
     return handleError(e);
   }
 }
+
+export const GET = instrument("/api/materials", "GET", handleGET);
+
+export const POST = instrument("/api/materials", "POST", handlePOST);

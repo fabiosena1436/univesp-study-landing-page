@@ -29,7 +29,7 @@ test('registration creates a pending session without issuing email confirmation'
       transaction: async callback => callback(modules['@/db'].db),
     } },
     '@/lib/auth': { hashPassword: async () => 'hashed-password', createSession: async id => sessions.push(id), safeUser: ({ passwordHash, ...user }) => user },
-    '@/lib/errors': { ApiError, handleError, str }, '@/lib/constants': { EMAIL_RE, registrationEmailAllowed },
+    '@/server/services/telemetry': { instrument: (_route, _method, handler) => handler }, '@/lib/mfa': { validateMfa: () => null }, '@/lib/clientRateLimit': { limitClient: async () => {} }, '@/lib/aiOperation': { withAiOperation: (_id, _signal, work) => work() }, '@/lib/pdfValidation': {}, '@/lib/errors': { ApiError, handleError, str }, '@/lib/constants': { EMAIL_RE, registrationEmailAllowed },
     '@/lib/validation': { passwordError }, '@/lib/rateLimit': { rateLimit: async () => {} },
     '@/lib/access': require('../../.test-build/lib/access.js'),
     '@/lib/emailVerification': { issueVerification: async () => { throw new Error('Envio indisponível'); } },
@@ -53,7 +53,7 @@ test('registration API rejects personal and lookalike domains before database ac
   const { POST } = load('src/app/api/auth/register/route.ts', {
     'drizzle-orm': {}, '@/db/schema': {}, '@/db': { db: { select: forbidden, transaction: forbidden } },
     '@/lib/auth': { hashPassword: forbidden, createSession: forbidden },
-    '@/lib/errors': { ApiError, handleError, str }, '@/lib/constants': { EMAIL_RE, registrationEmailAllowed },
+    '@/server/services/telemetry': { instrument: (_route, _method, handler) => handler }, '@/lib/mfa': { validateMfa: () => null }, '@/lib/clientRateLimit': { limitClient: async () => {} }, '@/lib/aiOperation': { withAiOperation: (_id, _signal, work) => work() }, '@/lib/pdfValidation': {}, '@/lib/errors': { ApiError, handleError, str }, '@/lib/constants': { EMAIL_RE, registrationEmailAllowed },
     '@/lib/validation': { passwordError }, '@/lib/rateLimit': { rateLimit: forbidden },
     '@/lib/access': require('../../.test-build/lib/access.js'),
   });
@@ -70,9 +70,9 @@ test('pending sessions may view their account but cannot pass the study authoriz
     const user = { id: 'user', name: 'Aluno', email: 'aluno@aluno.univesp.br', course: 'Computação', createdAt: new Date(), emailVerifiedAt: null, isBlocked: scenario === 'blocked' };
     const row = { user, expiresAt: new Date(Date.now() + (scenario === 'expired' ? -60000 : 60000)) };
     const modules = {
-      crypto: require('node:crypto'), 'next/headers': { cookies: async () => ({ get: () => ({ value: 'session-token' }) }) },
+      react: { cache: fn => fn }, crypto: require('node:crypto'), 'next/headers': { cookies: async () => ({ get: () => ({ value: 'session-token' }) }) },
       'drizzle-orm': { eq: () => null }, bcryptjs: {}, '@/db/schema': { users: {}, sessions: {}, admins: {} },
-      '@/lib/errors': { ApiError }, './errors': { ApiError },
+      '@/server/services/telemetry': { instrument: (_route, _method, handler) => handler }, '@/lib/mfa': { validateMfa: () => null }, '@/lib/clientRateLimit': { limitClient: async () => {} }, '@/lib/aiOperation': { withAiOperation: (_id, _signal, work) => work() }, '@/lib/pdfValidation': {}, '@/lib/errors': { ApiError }, './errors': { ApiError },
       './access': require('../../.test-build/lib/access.js'),
       '@/db': { db: {
         select: () => ({ from: () => ({ innerJoin: () => ({ where: () => ({ limit: async () => [row] }) }), where: () => ({ limit: async () => [] }) }) }),
@@ -92,7 +92,7 @@ test('resending confirmation reports provider failures and skips already verifie
   const { POST } = load('src/app/api/auth/resend-verification/route.ts', {
     '@/lib/auth': { requireAccount: async () => ({ id: 'user', emailVerifiedAt: confirmed ? new Date() : null }) },
     '@/lib/emailVerification': { issueVerification: async () => { sent++; throw new Error('Provider rejected'); } },
-    '@/lib/errors': { ApiError, handleError }, '@/lib/rateLimit': { rateLimit: async () => {} },
+    '@/server/services/telemetry': { instrument: (_route, _method, handler) => handler }, '@/lib/mfa': { validateMfa: () => null }, '@/lib/clientRateLimit': { limitClient: async () => {} }, '@/lib/aiOperation': { withAiOperation: (_id, _signal, work) => work() }, '@/lib/pdfValidation': {}, '@/lib/errors': { ApiError, handleError }, '@/lib/rateLimit': { rateLimit: async () => {} },
   });
   assert.equal((await POST()).status, 503); assert.equal(sent, 1);
   confirmed = true;
@@ -111,7 +111,7 @@ test('password recovery still stores a hashed token and sends the reset link', a
     '@/lib/passwordReset': require('../../.test-build/lib/passwordReset.js'),
     '@/lib/email': { sendPasswordResetEmail: async (email, url) => sent.push({ email, url }) },
     '@/lib/accountEmail': { appUrl: () => 'https://example.test' },
-    '@/lib/rateLimit': { rateLimit: async () => {} }, '@/lib/errors': { handleError, str },
+    '@/lib/rateLimit': { rateLimit: async () => {} }, '@/server/services/telemetry': { instrument: (_route, _method, handler) => handler }, '@/lib/mfa': { validateMfa: () => null }, '@/lib/clientRateLimit': { limitClient: async () => {} }, '@/lib/aiOperation': { withAiOperation: (_id, _signal, work) => work() }, '@/lib/pdfValidation': {}, '@/lib/errors': { handleError, str },
   };
   const { POST } = load('src/app/api/auth/forgot-password/route.ts', modules);
   const response = await POST(new Request('http://localhost/api/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email: 'aluno@aluno.univesp.br' }) }));

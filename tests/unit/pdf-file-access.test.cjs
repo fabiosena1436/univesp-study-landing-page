@@ -19,7 +19,7 @@ function load({ approved = true, manager = false, archivedMaterial = false, arch
     'drizzle-orm': { eq: (col, value) => row => col(row) === value, isNull: col => row => col(row) === null, and: (...checks) => row => checks.every(check => check(row)) },
     '@/db/schema': { materials: { id: column('material', 'id'), archivedAt: column('material', 'archivedAt') }, subjects: { archivedAt: column('subject', 'archivedAt') }, materialFiles: {} }, '@/db': { db },
     '@/lib/auth': { requireUser: async () => { if (!approved) throw new ApiError(403, 'Aguarde aprovação'); return { id: 'student' }; }, requireContentManager: async () => { if (!manager) throw new ApiError(403, 'Restrito'); return { id: 'assistant' }; } },
-    '@/lib/errors': { ApiError, handleError, isUuid }, '@/lib/pdf': {}, '@/lib/rateLimit': {}, '@/lib/audit': {},
+    '@/server/services/telemetry': { instrument: (_route, _method, handler) => handler }, '@/lib/mfa': { validateMfa: () => null }, '@/lib/clientRateLimit': { limitClient: async () => {} }, '@/lib/aiOperation': { withAiOperation: (_id, _signal, work) => work() }, '@/lib/pdfValidation': {}, '@/lib/errors': { ApiError, handleError, isUuid }, '@/lib/pdf': {}, '@/lib/rateLimit': {}, '@/lib/audit': {},
   };
   const exports = {};
   const code = ts.transpileModule(fs.readFileSync('src/app/api/materials/[id]/pdf/route.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;

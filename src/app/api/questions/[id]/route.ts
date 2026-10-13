@@ -1,3 +1,4 @@
+import { instrument } from "@/server/services/telemetry";
 import { NextRequest } from "next/server";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
@@ -10,7 +11,7 @@ import { questionFingerprint } from "@/lib/fingerprint";
 import { orderedOptions } from "@/lib/options";
 
 // Edit wording while preserving alternatives and answers, or complete pending answers.
-export async function PATCH(req: NextRequest, { params }: Params) {
+async function handlePATCH(req: NextRequest, { params }: Params) {
   try {
     const user = await requireContentManager();
     const { id } = await params;
@@ -55,7 +56,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function DELETE(_req: NextRequest, { params }: Params) {
+async function handleDELETE(_req: NextRequest, { params }: Params) {
   try {
     const user = await requireAdmin();
     const { id } = await params;
@@ -75,3 +76,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     return handleError(e);
   }
 }
+
+export const PATCH = instrument("/api/questions/[id]", "PATCH", handlePATCH);
+
+export const DELETE = instrument("/api/questions/[id]", "DELETE", handleDELETE);

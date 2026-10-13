@@ -25,6 +25,11 @@ export const users = pgTable("users", {
   accessStatus: text("access_status").$type<"pending" | "approved" | "rejected">().notNull().default("pending"),
   whatsapp: text("whatsapp"),
   isAssistant: boolean("is_assistant").notNull().default(false),
+  mfaSecret: text("mfa_secret"),
+  mfaPendingSecret: text("mfa_pending_secret"),
+  mfaPendingExpiresAt: timestamp("mfa_pending_expires_at"),
+  mfaLastUsedStep: integer("mfa_last_used_step"),
+  mfaRecoveryHashes: jsonb("mfa_recovery_hashes").$type<string[]>().notNull().default([]),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -96,6 +101,7 @@ export const sessions = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     token: text("token").notNull().unique(),
+    mfaVerified: boolean("mfa_verified").notNull().default(false),
     expiresAt: timestamp("expires_at").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },

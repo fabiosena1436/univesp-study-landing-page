@@ -1,3 +1,4 @@
+import { instrument } from "@/server/services/telemetry";
 import { NextRequest } from "next/server";
 import { and, eq, isNull, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -6,7 +7,7 @@ import { requireUser } from "@/lib/auth";
 import { uuid } from "@/lib/validation";
 import { handleError, str } from "@/lib/errors";
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   try {
     await requireUser();
     const subjectId = str(req.nextUrl.searchParams.get("subjectId"), 64);
@@ -43,3 +44,5 @@ export async function GET(req: NextRequest) {
     return handleError(e);
   }
 }
+
+export const GET = instrument("/api/study/flashcards", "GET", handleGET);

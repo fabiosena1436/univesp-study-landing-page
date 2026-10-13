@@ -8,7 +8,12 @@ import {
   SelectHTMLAttributes,
   useEffect,
   useState,
+  createContext,
+  useContext,
+  useId,
 } from "react";
+
+const FieldId = createContext<string | undefined>(undefined);
 
 /* ------------------------------- spinner ------------------------------- */
 
@@ -56,8 +61,10 @@ export function Button({ variant = "primary", size = "md", className = "", ...pr
 /* ------------------------------- inputs -------------------------------- */
 
 export function Input({ className = "", ...props }: InputHTMLAttributes<HTMLInputElement>) {
+  const fieldId = useContext(FieldId);
   return (
     <input
+      id={props.id ?? fieldId}
       className={`w-full h-11 px-3.5 rounded-xl border border-line bg-card text-sm text-ink placeholder:text-muted/70 focus:border-pen focus:outline-none focus:ring-2 focus:ring-pen/10 transition ${className}`}
       {...props}
     />
@@ -65,8 +72,10 @@ export function Input({ className = "", ...props }: InputHTMLAttributes<HTMLInpu
 }
 
 export function TextArea({ className = "", ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  const fieldId = useContext(FieldId);
   return (
     <textarea
+      id={props.id ?? fieldId}
       className={`w-full px-3.5 py-2.5 rounded-xl border border-line bg-card text-sm text-ink placeholder:text-muted/70 focus:border-pen focus:outline-none focus:ring-2 focus:ring-pen/10 transition resize-y leading-relaxed ${className}`}
       {...props}
     />
@@ -74,8 +83,10 @@ export function TextArea({ className = "", ...props }: TextareaHTMLAttributes<HT
 }
 
 export function Select({ className = "", ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
+  const fieldId = useContext(FieldId);
   return (
     <select
+      id={props.id ?? fieldId}
       className={`w-full h-11 px-3 rounded-xl border border-line bg-card text-sm text-ink focus:border-pen focus:outline-none focus:ring-2 focus:ring-pen/10 transition cursor-pointer ${className}`}
       {...props}
     />
@@ -91,12 +102,15 @@ export function Field({
   children: ReactNode;
   hint?: string;
 }) {
+  const id = useId();
   return (
-    <label className="block">
-      <span className="block text-sm font-semibold mb-1.5">{label}</span>
-      {children}
-      {hint && <span className="block text-xs text-muted mt-1">{hint}</span>}
-    </label>
+    <FieldId.Provider value={id}>
+      <div className="block">
+        <label htmlFor={id} className="block text-sm font-semibold mb-1.5">{label}</label>
+        {children}
+        {hint && <p className="block text-xs text-muted mt-1">{hint}</p>}
+      </div>
+    </FieldId.Provider>
   );
 }
 

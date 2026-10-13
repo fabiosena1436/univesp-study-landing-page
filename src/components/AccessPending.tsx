@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import AuthShell from "./AuthShell";
 import { Button } from "./ui";
 import { api, clearQuizDrafts } from "@/lib/api";
@@ -26,6 +27,7 @@ export default function AccessPending({ user }: { user: User }) {
       <div className="rounded-xl border border-line p-4"><p className="font-semibold">Autorização do administrador</p><p className="mt-2">{user.accessStatus === "approved" ? "Acesso autorizado. Clique em consultar acesso para entrar." : user.accessStatus === "rejected" ? "Seu cadastro não foi autorizado. Entre em contato com o responsável se precisar de esclarecimentos." : "Seu cadastro está aguardando aprovação. O administrador poderá avisar pelo WhatsApp informado."}</p></div>
       {message && <p role="status" className="text-sm rounded-xl bg-pen-soft p-3">{message}</p>}
       <div className="flex flex-wrap gap-3"><Button disabled={busy} onClick={() => router.refresh()}>Consultar acesso</Button><Button disabled={busy} variant="ghost" onClick={logout}>Sair</Button></div>
+      <p><Link href="/conta" className="font-semibold text-pen underline">Minha conta: dados, senha e exclusão</Link></p>
       <p className="text-sm text-muted">Contato: <a className="underline" href="mailto:fabiosena1436@gmail.com">fabiosena1436@gmail.com</a></p>
     </div>
   </AuthShell>;

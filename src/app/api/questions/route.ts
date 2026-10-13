@@ -1,3 +1,4 @@
+import { instrument } from "@/server/services/telemetry";
 import { NextRequest } from "next/server";
 import { and, desc, eq, ilike, isNull } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
@@ -8,7 +9,7 @@ import { pageParams, uuid } from "@/lib/validation";
 import { handleError } from "@/lib/errors";
 import { orderedOptions } from "@/lib/options";
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   try {
     await requireContentManager();
     const sp = req.nextUrl.searchParams;
@@ -33,3 +34,5 @@ export async function GET(req: NextRequest) {
     return handleError(e);
   }
 }
+
+export const GET = instrument("/api/questions", "GET", handleGET);

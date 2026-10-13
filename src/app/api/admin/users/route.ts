@@ -1,3 +1,4 @@
+import { instrument } from "@/server/services/telemetry";
 import { NextRequest } from "next/server";
 import { desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -7,7 +8,7 @@ import { pageParams, uuid } from "@/lib/validation";
 import { requireAdmin } from "@/lib/auth";
 import { ApiError, handleError } from "@/lib/errors";
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   try {
     await requireAdmin();
     const { limit, offset } = pageParams(req.nextUrl.searchParams);
@@ -38,7 +39,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function PATCH(req: NextRequest) {
+async function handlePATCH(req: NextRequest) {
   try {
     const admin = await requireAdmin();
     const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
@@ -74,7 +75,7 @@ export async function PATCH(req: NextRequest) {
   }
 }
 
-export async function DELETE(req: NextRequest) {
+async function handleDELETE(req: NextRequest) {
   try {
     const admin = await requireAdmin();
     const id = new URL(req.url).searchParams.get("id") ?? "";
@@ -91,3 +92,9 @@ export async function DELETE(req: NextRequest) {
     return handleError(e);
   }
 }
+
+export const GET = instrument("/api/admin/users", "GET", handleGET);
+
+export const PATCH = instrument("/api/admin/users", "PATCH", handlePATCH);
+
+export const DELETE = instrument("/api/admin/users", "DELETE", handleDELETE);

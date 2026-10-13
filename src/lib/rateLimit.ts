@@ -26,12 +26,13 @@ export async function clearLoginFailures(email: string) {
 }
 
 // A single atomic PostgreSQL statement shares limits across processes/instances.
-export async function rateLimit(scope: string, identity: string, limit: number, windowMs: number, login = false) {
+export async function rateLimit(scope: string, identity: string, limit: number, windowMs: number, login = false, cost = 1) {
+  if (!Number.isSafeInteger(cost) || cost < 1) throw new Error("Invalid rate limit cost");
   const key = keyFor(scope, identity);
   const result = await db.execute(sql`
-    INSERT INTO rate_limits (key, count, reset_at) VALUES (${key}, 1, now() + ${windowMs} * interval '1 millisecond')
+    INSERT INTO rate_limits (key, count, reset_at) VALUES (${key}, ${cost}, now() + ${windowMs} * interval '1 millisecond')
     ON CONFLICT (key) DO UPDATE SET
-      count = CASE WHEN rate_limits.reset_at <= now() THEN 1 ELSE rate_limits.count + 1 END,
+      count = CASE WHEN rate_limits.reset_at <= now() THEN ${cost} ELSE LEAST(${limit + cost}, rate_limits.count + ${cost}) END,
       reset_at = CASE WHEN rate_limits.reset_at <= now() THEN now() + ${windowMs} * interval '1 millisecond' ELSE rate_limits.reset_at END
     RETURNING count, reset_at
   `);

@@ -1,3 +1,5 @@
+import { instrument } from "@/server/services/telemetry";
+import { limitClient } from "@/lib/clientRateLimit";
 import { NextRequest } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
@@ -8,8 +10,9 @@ import { appUrl } from "@/lib/accountEmail";
 import { rateLimit } from "@/lib/rateLimit";
 import { handleError, str } from "@/lib/errors";
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   try {
+    await limitClient(req, "forgot");
     const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
     const email = str(body?.email, 200).toLowerCase();
     await rateLimit("forgot", "global", 100, 60_000);
@@ -31,3 +34,5 @@ export async function POST(req: NextRequest) {
     return handleError(e);
   }
 }
+
+export const POST = instrument("/api/auth/forgot-password", "POST", handlePOST);

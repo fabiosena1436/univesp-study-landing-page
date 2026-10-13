@@ -1,4 +1,6 @@
+import { instrument } from "@/server/services/telemetry";
 import { questionFingerprint } from "@/lib/fingerprint";
+import { withAiOperation } from "@/lib/aiOperation";
 import { NextRequest } from "next/server";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
@@ -13,7 +15,7 @@ import { completeQuestionAnswers } from "@/lib/ai";
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   try {
     const user = await requireContentManager();
     await rateLimit("import", user.id, 30, 60_000);
@@ -35,7 +37,7 @@ export async function POST(req: NextRequest) {
       if (!material) throw new ApiError(400, "O material precisa pertencer à matéria selecionada.");
       context = material.content;
     }
-    const completed = await completeQuestionAnswers(input, context);
+    const completed = await withAiOperation(user.id, req.signal, () => completeQuestionAnswers(input, context));
     const result = await db.transaction(async (tx) => {
       const sub = (await tx.select().from(subjects).where(and(eq(subjects.id, subjectId), isNull(subjects.archivedAt))).limit(1).for("share"))[0];
       if (!sub) throw new ApiError(404, "Matéria não encontrada.");
@@ -64,3 +66,5 @@ export async function POST(req: NextRequest) {
     return Response.json(result, { status: 201 });
   } catch (e) { return handleError(e); }
 }
+
+export const POST = instrument("/api/questions/bulk", "POST", handlePOST);

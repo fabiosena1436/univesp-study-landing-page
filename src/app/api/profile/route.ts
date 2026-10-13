@@ -1,15 +1,16 @@
+import { instrument } from "@/server/services/telemetry";
 import { NextRequest } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users, sessions, passwordResetTokens } from "@/db/schema";
-import { createSession, hashPassword, requireUser, safeUser, verifyPassword } from "@/lib/auth";
+import { createSession, hashPassword, requireAccount, safeUser, verifyPassword } from "@/lib/auth";
 import { passwordError } from "@/lib/validation";
 import { rateLimit } from "@/lib/rateLimit";
 import { ApiError, handleError, str } from "@/lib/errors";
 
-export async function PATCH(req: NextRequest) {
+async function handlePATCH(req: NextRequest) {
   try {
-    const user = await requireUser();
+    const user = await requireAccount();
     await rateLimit("profile", user.id, 10, 60000);
     const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
     const name = str(body?.name, 80);
@@ -34,7 +35,9 @@ export async function PATCH(req: NextRequest) {
       }
       return result;
     });
-    if (newPassword) await createSession(user.id);
+    if (newPassword) await createSession(user.id, Boolean(user.mfaEnabled));
     return Response.json({ user: safeUser(rows[0]) });
   } catch (e) { return handleError(e); }
 }
+
+export const PATCH = instrument("/api/profile", "PATCH", handlePATCH);

@@ -6,11 +6,14 @@ import { useRouter } from "next/navigation";
 import AuthShell from "@/components/AuthShell";
 import { api } from "@/lib/api";
 import { Button, Field, Input } from "@/components/ui";
+import { PasswordInput } from "@/components/PasswordInput";
 
 export default function EntrarPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [otp, setOtp] = useState("");
+  const [mfaRequired, setMfaRequired] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -19,10 +22,11 @@ export default function EntrarPage() {
     setError(null);
     setBusy(true);
     try {
-      await api("/api/auth/login", {
+      const result = await api<{ mfaRequired?: boolean }>("/api/auth/login", {
         method: "POST",
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, otp }),
       });
+      if (result.mfaRequired) { setMfaRequired(true); return; }
       router.replace("/app");
     } catch (err) {
       setError(err instanceof TypeError ? "Não foi possível conectar ao site. Confira sua internet e tente novamente." : err instanceof Error ? err.message : "Não foi possível entrar.");
@@ -43,14 +47,13 @@ export default function EntrarPage() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="voce@exemplo.com"
+            placeholder="voce@aluno.univesp.br"
             required
             autoComplete="email"
           />
         </Field>
         <Field label="Senha">
-          <Input
-            type="password"
+          <PasswordInput
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Sua senha"
@@ -58,6 +61,7 @@ export default function EntrarPage() {
             autoComplete="current-password"
           />
         </Field>
+        {mfaRequired && <Field label="Código do autenticador ou de recuperação"><Input autoComplete="one-time-code" autoFocus required maxLength={30} value={otp} onChange={e => setOtp(e.target.value)} placeholder="Código de 6 dígitos" /><p className="mt-2 text-sm text-muted">Abra seu aplicativo autenticador. Se perdeu o acesso, use um dos códigos de recuperação guardados.</p></Field>}
         {error && (
           <p role="alert" className="text-sm font-semibold text-red bg-red-soft border border-red/20 rounded-xl px-3.5 py-2.5">
             {error}

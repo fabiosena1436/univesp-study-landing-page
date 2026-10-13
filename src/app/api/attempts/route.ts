@@ -1,3 +1,4 @@
+import { instrument } from "@/server/services/telemetry";
 import { NextRequest } from "next/server";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -8,7 +9,7 @@ import { gradeAnswers, pageParams, uuid } from "@/lib/validation";
 import { updateProgress } from "@/lib/study";
 import { rateLimit } from "@/lib/rateLimit";
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   try {
     const user = await requireUser();
     const { limit, offset } = pageParams(req.nextUrl.searchParams, 100);
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest) {
   } catch (e) { return handleError(e); }
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   try {
     const user = await requireUser();
     await rateLimit("attempt", user.id, 30, 60_000);
@@ -58,3 +59,7 @@ export async function POST(req: NextRequest) {
     return Response.json(result, { status: 201 });
   } catch (e) { return handleError(e); }
 }
+
+export const GET = instrument("/api/attempts", "GET", handleGET);
+
+export const POST = instrument("/api/attempts", "POST", handlePOST);

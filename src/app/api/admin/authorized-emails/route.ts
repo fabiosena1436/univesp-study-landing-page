@@ -1,3 +1,4 @@
+import { instrument } from "@/server/services/telemetry";
 import { NextRequest } from "next/server";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -8,7 +9,7 @@ import { audit } from "@/lib/audit";
 import { ApiError, handleError, str } from "@/lib/errors";
 import { pageParams } from "@/lib/validation";
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   try {
     await requireAdmin();
     const { limit, offset } = pageParams(req.nextUrl.searchParams);
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest) {
   } catch (e) { return handleError(e); }
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   try {
     const admin = await requireAdmin();
     const body = await req.json().catch(() => null);
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
   } catch (e) { return handleError(e); }
 }
 
-export async function DELETE(req: NextRequest) {
+async function handleDELETE(req: NextRequest) {
   try {
     const admin = await requireAdmin();
     const email = str(req.nextUrl.searchParams.get("email"), 200).toLowerCase();
@@ -47,3 +48,9 @@ export async function DELETE(req: NextRequest) {
     return Response.json({ ok: true });
   } catch (e) { return handleError(e); }
 }
+
+export const GET = instrument("/api/admin/authorized-emails", "GET", handleGET);
+
+export const POST = instrument("/api/admin/authorized-emails", "POST", handlePOST);
+
+export const DELETE = instrument("/api/admin/authorized-emails", "DELETE", handleDELETE);

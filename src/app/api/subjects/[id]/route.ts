@@ -1,3 +1,4 @@
+import { instrument } from "@/server/services/telemetry";
 import { NextRequest } from "next/server";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
@@ -19,7 +20,7 @@ async function getOwned(id: string) {
   return row;
 }
 
-export async function PATCH(req: NextRequest, { params }: Params) {
+async function handlePATCH(req: NextRequest, { params }: Params) {
   try {
     const user = await requireContentManager();
     const { id } = await params;
@@ -55,7 +56,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: Params) {
+async function handleDELETE(_req: NextRequest, { params }: Params) {
   try {
     const user = await requireAdmin();
     const { id } = await params;
@@ -73,3 +74,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     return handleError(e);
   }
 }
+
+export const PATCH = instrument("/api/subjects/[id]", "PATCH", handlePATCH);
+
+export const DELETE = instrument("/api/subjects/[id]", "DELETE", handleDELETE);

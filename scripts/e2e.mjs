@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 const config = JSON.parse(await readFile(".test-env.json", "utf8"));
 const server = spawn(process.execPath, ["scripts/test-server.mjs"], { stdio: "inherit" });
@@ -11,4 +11,7 @@ try {
   if (!ready) throw new Error("Test server did not become healthy.");
   const test = spawn(process.execPath, ["--test", "tests/integration/flows.test.mjs"], { stdio: "inherit" });
   process.exitCode = await new Promise(resolve => test.on("exit", code => resolve(code ?? 1)));
-} finally { server.kill("SIGTERM"); }
+} finally {
+  if (process.platform === "win32" && server.pid) spawnSync("taskkill", ["/PID", String(server.pid), "/T", "/F"], { stdio: "ignore" });
+  else server.kill("SIGTERM");
+}

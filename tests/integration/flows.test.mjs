@@ -331,6 +331,36 @@ test('application integrity and account flows against PostgreSQL', async t => {
     assert.equal((await fetch(config.baseUrl + path + '/pdf', { headers: { Cookie: studentCookie } })).status, 404);
     assert.ok((await client.query("SELECT action FROM audit_events WHERE target_id=$1 AND action IN ('user.assistant.grant','user.assistant.revoke')", [id])).rows.length === 2);
   });
+  await t.test('pending accounts manage their data and MFA requires a second factor without replay', async () => {
+    const email = randomUUID() + '@aluno.univesp.br';
+    const registration = await call('/api/auth/register', { method: 'POST', body: { name: 'Conta segura', email, course: 'Computação', whatsapp: '11999991234', password: config.password } });
+    assert.equal(registration.status, 201);
+    const oldCookie = registration.cookie;
+    assert.equal((await call('/api/account', { cookie: oldCookie })).status, 200);
+    assert.equal((await call('/api/subjects', { cookie: oldCookie })).status, 403);
+    const setup = await call('/api/account/mfa', { method: 'POST', cookie: oldCookie, body: { action: 'setup', password: config.password } });
+    assert.equal(setup.status, 200, JSON.stringify(setup.data));
+    const { TOTP, Secret } = await import('otpauth');
+    const code = new TOTP({ secret: Secret.fromBase32(setup.data.secret), algorithm: 'SHA1', digits: 6, period: 30 }).generate();
+    const enabled = await call('/api/account/mfa', { method: 'POST', cookie: oldCookie, body: { action: 'enable', password: config.password, code } });
+    assert.equal(enabled.status, 200, JSON.stringify(enabled.data)); assert.equal(enabled.data.recoveryCodes.length, 8);
+    assert.equal((await call('/api/auth/me', { cookie: oldCookie })).status, 401);
+    const self = await call('/api/auth/me', { cookie: enabled.cookie }); assert.equal(self.status, 200); assert.equal(self.data.user.mfaEnabled, true);
+    assert.ok(!JSON.stringify(self.data).includes(setup.data.secret));
+    const challenge = await call('/api/auth/login', { method: 'POST', body: { email, password: config.password } });
+    assert.equal(challenge.status, 200); assert.equal(challenge.data.mfaRequired, true); assert.equal(challenge.cookie, undefined);
+    assert.equal((await call('/api/auth/login', { method: 'POST', body: { email, password: config.password, otp: 'not-a-code' } })).status, 401);
+    assert.equal((await call('/api/auth/login', { method: 'POST', body: { email, password: config.password, otp: code } })).status, 401);
+    const recovered = await call('/api/auth/login', { method: 'POST', body: { email, password: config.password, otp: enabled.data.recoveryCodes[0] } });
+    assert.equal(recovered.status, 200); assert.ok(recovered.cookie);
+    assert.equal((await call('/api/auth/login', { method: 'POST', body: { email, password: config.password, otp: enabled.data.recoveryCodes[0] } })).status, 401);
+    const concurrent = await Promise.all([0, 1].map(() => call('/api/auth/login', { method: 'POST', body: { email, password: config.password, otp: enabled.data.recoveryCodes[1] } })));
+    assert.deepEqual(concurrent.map(response => response.status).sort(), [200, 401]);
+    const disabled = await call('/api/account/mfa', { method: 'POST', cookie: recovered.cookie, body: { action: 'disable', password: config.password, code: enabled.data.recoveryCodes[2] } });
+    assert.equal(disabled.status, 200);
+    assert.equal((await call('/api/account', { cookie: disabled.cookie })).status, 200);
+    assert.equal((await call('/api/account', { method: 'DELETE', cookie: disabled.cookie, body: { password: config.password, confirmation: 'EXCLUIR' } })).status, 200);
+  });
   await t.test('persistent rate limits reject the ninth login without storing email addresses as keys', async () => {
     const email = randomUUID() + '@aluno.univesp.br';
     const results = [];

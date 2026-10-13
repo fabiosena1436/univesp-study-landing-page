@@ -1,14 +1,15 @@
+import { instrument } from "@/server/services/telemetry";
 import { NextRequest } from "next/server";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { admins, attemptAnswers, attempts, sessions, studyProgress, supportMessages, supportTickets, users } from "@/db/schema";
-import { destroySession, requireUser, verifyPassword } from "@/lib/auth";
+import { destroySession, requireAccount, verifyPassword } from "@/lib/auth";
 import { ApiError, handleError } from "@/lib/errors";
 import { rateLimit } from "@/lib/rateLimit";
 
-export async function GET() {
+async function handleGET() {
   try {
-    const user = await requireUser();
+    const user = await requireAccount();
     await rateLimit("export", user.id, 3, 3600000);
     const data = await db.transaction(async (tx) => {
       const history = await tx.select().from(attempts).where(eq(attempts.userId, user.id));
@@ -23,9 +24,9 @@ export async function GET() {
   } catch (e) { return handleError(e); }
 }
 
-export async function DELETE(req: NextRequest) {
+async function handleDELETE(req: NextRequest) {
   try {
-    const user = await requireUser();
+    const user = await requireAccount();
     await rateLimit("account.delete", user.id, 5, 600000);
     const body = await req.json().catch(() => null);
     const password = typeof body?.password === "string" ? body.password : "";
@@ -43,3 +44,7 @@ export async function DELETE(req: NextRequest) {
     return Response.json({ ok: true });
   } catch (e) { return handleError(e); }
 }
+
+export const GET = instrument("/api/account", "GET", handleGET);
+
+export const DELETE = instrument("/api/account", "DELETE", handleDELETE);

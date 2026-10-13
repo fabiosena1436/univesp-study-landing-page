@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createHash, randomBytes } from "crypto";
 import { cookies } from "next/headers";
 import { eq } from "drizzle-orm";
@@ -27,6 +28,7 @@ export function safeUser(u: {
   createdAt: Date | string;
   isAdmin?: boolean;
   isAssistant?: boolean;
+  mfaSecret?: string | null;
   accessStatus?: "pending" | "approved" | "rejected";
   emailVerifiedAt?: Date | string | null;
   whatsapp?: string | null;
@@ -39,16 +41,17 @@ export function safeUser(u: {
     createdAt: u.createdAt instanceof Date ? u.createdAt.toISOString() : u.createdAt,
     ...(u.isAdmin === undefined ? {} : { isAdmin: u.isAdmin }),
     isAssistant: u.isAssistant ?? false,
+    mfaEnabled: Boolean(u.mfaSecret),
     accessStatus: u.accessStatus ?? "pending",
     emailVerifiedAt: u.emailVerifiedAt instanceof Date ? u.emailVerifiedAt.toISOString() : u.emailVerifiedAt ?? null,
     whatsapp: u.whatsapp ?? null,
   };
 }
 
-export async function createSession(userId: string) {
+export async function createSession(userId: string, mfaVerified = false) {
   const token = randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + SESSION_MS);
-  await db.insert(sessions).values({ userId, token: hashSession(token), expiresAt });
+  await db.insert(sessions).values({ userId, token: hashSession(token), expiresAt, mfaVerified });
   const store = await cookies();
   store.set(COOKIE, token, {
     httpOnly: true,
@@ -72,18 +75,19 @@ export async function destroySession() {
   }
 }
 
-export async function getSessionUser(): Promise<User | null> {
+async function readSessionUser(): Promise<User | null> {
   const store = await cookies();
   const token = store.get(COOKIE)?.value;
   if (!token) return null;
   const rows = await db
-    .select({ user: users, expiresAt: sessions.expiresAt })
+    .select({ user: users, expiresAt: sessions.expiresAt, mfaVerified: sessions.mfaVerified })
     .from(sessions)
     .innerJoin(users, eq(sessions.userId, users.id))
     .where(eq(sessions.token, hashSession(token)))
     .limit(1);
   const row = rows[0];
   if (!row) return null;
+  if (row.user.mfaSecret && !row.mfaVerified) return null;
   if (row.expiresAt.getTime() < Date.now()) {
     try {
       await db.delete(sessions).where(eq(sessions.token, hashSession(token)));
@@ -97,9 +101,12 @@ export async function getSessionUser(): Promise<User | null> {
   return safeUser({ ...row.user, isAdmin: Boolean(admin[0]) });
 }
 
+export const getSessionUser = cache(readSessionUser);
+
 export async function requireAdmin(): Promise<User> {
   const user = await requireUser();
   if (!user.isAdmin) throw new ApiError(403, "Acesso restrito ao administrador.");
+  if (process.env.MFA_REQUIRE_ADMIN === "true" && !user.mfaEnabled) throw new ApiError(403, "Ative a autenticação em duas etapas em Minha conta para administrar o serviço.");
   return { ...user, isAdmin: true };
 }
 
@@ -120,5 +127,6 @@ export function hashSession(token: string) { return createHash("sha256").update(
 export async function requireContentManager(): Promise<User> {
   const user = await requireUser();
   if (!canManageContent(user)) throw new ApiError(403, "Acesso restrito à equipe de conteúdo.");
+  if (user.isAdmin && process.env.MFA_REQUIRE_ADMIN === "true" && !user.mfaEnabled) throw new ApiError(403, "Ative a autenticação em duas etapas em Minha conta para administrar o conteúdo.");
   return user;
 }

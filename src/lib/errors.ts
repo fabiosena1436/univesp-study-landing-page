@@ -1,3 +1,5 @@
+import { currentRequestId } from "./requestContext";
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -13,7 +15,7 @@ export function handleError(e: unknown): Response {
   if (e instanceof ApiError) {
     return Response.json({ error: e.message, ...(e.retryAfter ? { retryAfter: e.retryAfter } : {}) }, { status: e.status, ...(e.retryAfter ? { headers: { "Retry-After": String(e.retryAfter) } } : {}) });
   }
-  const requestId = crypto.randomUUID();
+  const requestId = currentRequestId() ?? crypto.randomUUID();
   const error = e as { code?: string; name?: string };
   if (error?.code === "23505") return Response.json({ error: "Este registro já existe." }, { status: 409 });
   if (error?.code === "22P02") return Response.json({ error: "Identificador inválido." }, { status: 400 });

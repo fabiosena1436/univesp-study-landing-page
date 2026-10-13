@@ -1,3 +1,5 @@
+import { instrument } from "@/server/services/telemetry";
+import { limitClient } from "@/lib/clientRateLimit";
 import { NextRequest } from "next/server";
 import { and, eq, isNull, gt } from "drizzle-orm";
 import { db } from "@/db";
@@ -8,8 +10,9 @@ import { passwordError } from "@/lib/validation";
 import { rateLimit } from "@/lib/rateLimit";
 import { ApiError, handleError, str } from "@/lib/errors";
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   try {
+    await limitClient(req, "reset");
     const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
     const token = str(body?.token, 128);
     const password = typeof body?.password === "string" ? body.password : "";
@@ -32,3 +35,5 @@ export async function POST(req: NextRequest) {
     return handleError(e);
   }
 }
+
+export const POST = instrument("/api/auth/reset-password", "POST", handlePOST);

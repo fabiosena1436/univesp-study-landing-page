@@ -29,6 +29,13 @@
       "when": 1791822518777,
       "tag": "0003_assistant_and_pdf",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791910382969,
+      "tag": "0004_quality_security",
+      "breakpoints": true
     }
   ]
 }

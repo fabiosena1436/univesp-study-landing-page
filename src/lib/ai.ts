@@ -1,3 +1,4 @@
+import { aiSignal } from "./aiOperation";
 import type { GeneratedQuestion } from "./generatedQuestion";
 import { normalizeText, parseReviewText, type ParseResult, type ParsedQuestion } from "./parser";
 import { validateOptions } from "./validation";
@@ -84,6 +85,9 @@ async function requestGemini<T>(body: Record<string, unknown>, key: string, sign
   for (const model of models) {
     let recorded = false;
     try {
+      signal.throwIfAborted();
+      if (process.env.DATABASE_URL) await (await import("./aiUsageStore")).reserveAiCall(body);
+      signal.throwIfAborted();
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
         method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key },
         body: JSON.stringify(body),
@@ -191,7 +195,7 @@ Retorne questions vazio se não houver questões completas com alternativas. Nã
 Responda somente JSON: {"overflow":false,"questions":[{"statement":"Enunciado original","options":[{"key":"A","text":"Alternativa original"},{"key":"B","text":"Alternativa original"}],"correctKey":null,"feedback":""}]}. Cada questão deve ter de 2 a 6 alternativas, com letras únicas de A a F. correctKey é a letra correta ou null.` }] },
       contents: [{ parts: [{ text: content }] }],
       generationConfig: { temperature: 0.1, responseMimeType: "application/json", maxOutputTokens: 12000 },
-    }, key, AbortSignal.timeout(105000), (text) => {
+    }, key, aiSignal(), (text) => {
       const data = JSON.parse(text) as { questions?: unknown; overflow?: unknown };
       if (data.overflow === true) throw new ApiError(400, "Importe até 50 questões por vez. Divida a cópia em partes.");
       if (!Array.isArray(data.questions) || data.questions.length > 50) throw new ApiError(502, "A IA não retornou uma organização válida das questões.");
@@ -219,7 +223,7 @@ export async function completeQuestionAnswers<T extends GeneratedQuestion>(quest
   const key = process.env.GEMINI_API_KEY?.trim();
   if (!key) throw new ApiError(503, "Configure GEMINI_API_KEY no servidor para completar gabaritos e justificativas com IA.");
   if (pending.length > 50) throw new ApiError(400, "Complete até 50 questões por vez. Divida o texto em partes.");
-  const signal = AbortSignal.timeout(105000);
+  const signal = aiSignal();
   const searchEnabled = process.env.GEMINI_GOOGLE_SEARCH === "true";
   const solvePrompt = `${SOLVE_PROMPT}\n${searchEnabled
     ? "Se faltar informação, pesquise com Google Search e priorize fontes oficiais e acadêmicas."
@@ -278,7 +282,7 @@ export async function generateQuestions(content: string, count: number, material
   if (!key) throw new ApiError(503, "A IA não está configurada no servidor. Configure GEMINI_API_KEY para criar questões a partir de textos de aula; a extração local não gera questões novas.");
   const { chunks, partial } = selectChunks(content, capped);
   if (!chunks.length) return { engine: "gemini", questions: [], note: "O material está vazio." };
-  const signal = AbortSignal.timeout(95000);
+  const signal = aiSignal();
   const allocations = chunks.map((_, i) => Math.floor(capped / chunks.length) + (i < capped % chunks.length ? 1 : 0));
   const results = await Promise.allSettled(chunks.map((chunk, i) => callGemini(chunk, allocations[i], key, signal)));
   const questions = results.flatMap((r, i) => r.status === "fulfilled" ? r.value.slice(0, allocations[i]) : []);

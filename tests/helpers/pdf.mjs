@@ -1,5 +1,5 @@
 // Small deterministic PDF for upload/extraction tests, without external fixtures.
-export function testPdf() {
+export function testPdf(padding = 0) {
   const text = 'Academic study material with selectable text.';
   const stream = `BT /F1 10 Tf 20 760 Td ${Array(12).fill(`(${text}) Tj 0 -20 Td`).join('\n')} ET`;
   const objects = [
@@ -9,7 +9,7 @@ export function testPdf() {
     '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
     `<< /Length ${Buffer.byteLength(stream)} >>\nstream\n${stream}\nendstream`,
   ];
-  let pdf = '%PDF-1.4\n';
+  let pdf = '%PDF-1.4\n' + (padding ? '%' + ' '.repeat(padding) + '\n' : '');
   const offsets = [0];
   for (let i = 0; i < objects.length; i++) {
     offsets.push(Buffer.byteLength(pdf));

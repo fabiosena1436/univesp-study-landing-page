@@ -44,12 +44,12 @@ export function PerformanceChart({ attempts }: { attempts: AttemptRow[] }) {
               </linearGradient>
             </defs>
             <CartesianGrid vertical={false} stroke="#e3e8f1" strokeDasharray="4 4" />
-            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "#8490a7", fontSize: 11 }} />
+            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "#626e83", fontSize: 11 }} />
             <YAxis
               domain={[0, 100]}
               axisLine={false}
               tickLine={false}
-              tick={{ fill: "#8490a7", fontSize: 11 }}
+              tick={{ fill: "#626e83", fontSize: 11 }}
               tickFormatter={(value) => `${value}%`}
             />
             <Tooltip

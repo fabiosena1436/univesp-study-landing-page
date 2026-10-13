@@ -60,9 +60,7 @@ export default function HistoricoPage() {
           title={page ? "Fim do histórico" : "Nenhuma prova ainda"}
           desc="Quando você fizer a primeira prova, o resultado e cada resposta ficam registrados aqui."
           action={
-            <Link href="/app/prova">
-              <Button>Fazer uma prova</Button>
-            </Link>
+            <Link href="/app/prova" className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-pen px-4 text-sm font-semibold text-white transition hover:bg-brand-deep">Fazer uma prova</Link>
           }
         />
       </div>

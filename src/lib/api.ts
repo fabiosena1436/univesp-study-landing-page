@@ -21,7 +21,7 @@ export async function api<T = unknown>(path: string, init?: RequestInit): Promis
   if (res.status === 401 && typeof window !== "undefined") {
     const p = window.location.pathname;
     if (p === "/app" || p.startsWith("/app/")) {
-      window.location.href = "/entrar";
+      window.dispatchEvent(new CustomEvent("repete:unauthorized"));
       throw new ApiClientError(401, "Sessão expirada. Entre novamente.");
     }
   }
