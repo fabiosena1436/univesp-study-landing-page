@@ -6,7 +6,7 @@ Aplique as migrações versionadas antes de executar a nova versão. A migraçã
 
 Abra **Administração → Aprovação de acesso**.
 
-- Em **E-mails pré-autorizados**, cole até 500 endereços. Um cadastro dessa lista já pode entrar no conteúdo, sem confirmação de e-mail.
+- Em **E-mails pré-autorizados**, cole até 500 endereços institucionais @aluno.univesp.br. Um cadastro dessa lista já pode entrar no conteúdo, sem confirmação de e-mail.
 - Fora da lista, o cadastro aguarda sua aprovação. Confira nome, e-mail, curso e WhatsApp e use **Aprovar** ou **Recusar acesso**.
 - Adicionar um e-mail depois do cadastro aprova a conta pendente. Contas recusadas precisam de aprovação manual; bloqueios continuam valendo.
 - Após aprovar, **Avisar pelo WhatsApp** abre uma conversa com mensagem pronta. Você confere e envia manualmente.
@@ -18,7 +18,7 @@ Assistentes podem adicionar e editar matérias, questões e materiais, gerar que
 
 ## Para o aluno
 
-O cadastro pede e-mail válido, curso, senha e WhatsApp brasileiro com DDD. Não há confirmação de e-mail. Contas pré-autorizadas entram diretamente; as demais veem `/aguardando-aprovacao`. A tela consulta o acesso a cada 15 segundos, além do botão **Consultar acesso**. Aprovação libera o conteúdo, e recusa ou bloqueio impede as APIs de estudo.
+O cadastro aceita somente e-mail institucional com domínio @aluno.univesp.br, sem exceções para e-mails pessoais, e pede curso, senha e WhatsApp brasileiro com DDD. Não há confirmação de e-mail. Contas pré-autorizadas entram diretamente; as demais veem `/aguardando-aprovacao`. A tela consulta o acesso a cada 15 segundos, além do botão **Consultar acesso**. Aprovação libera o conteúdo, e recusa ou bloqueio impede as APIs de estudo.
 
 Em **Materiais**, abra o material e use **Visualizar PDF**, **Abrir PDF em nova aba** ou **Baixar PDF** quando houver anexo. Materiais antigos conservam seu texto; o administrador ou assistente pode anexar o arquivo original posteriormente.
 

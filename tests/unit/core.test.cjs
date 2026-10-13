@@ -7,13 +7,16 @@ const { orderedOptions } = require('../../.test-build/lib/options');
 const options = ['A', 'B', 'C', 'D', 'E'].map(key => ({ key, text: 'Alternativa ' + key }));
 const question = { id: 'q1', subjectId: 's1', correctKey: 'B', options };
 
-test('registration allows institutional addresses and only the explicit personal exception', () => {
+test('registration allows only the exact UNIVESP student domain, without personal exceptions', () => {
   const { registrationEmailAllowed } = require('../../.test-build/lib/constants');
   assert.equal(registrationEmailAllowed('26241463@aluno.univesp.br'), true);
-  assert.equal(registrationEmailAllowed(' FABIOSENA1436@GMAIL.COM '), true);
+  assert.equal(registrationEmailAllowed(' ALUNO@ALUNO.UNIVESP.BR '), true);
+  assert.equal(registrationEmailAllowed(' FABIOSENA1436@GMAIL.COM '), false);
   assert.equal(registrationEmailAllowed('other@gmail.com'), false);
   assert.equal(registrationEmailAllowed('fabiosena1436+teste@gmail.com'), false);
   assert.equal(registrationEmailAllowed('user@aluno.univesp.br.example.com'), false);
+  assert.equal(registrationEmailAllowed('user@univesp.br'), false);
+  assert.equal(registrationEmailAllowed('user@outlook.com'), false);
 });
 
 test('Neon migrations use direct connection and refuse transaction pool endpoints', async () => {

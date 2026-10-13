@@ -6,7 +6,7 @@ import { createSession, hashPassword, safeUser } from "@/lib/auth";
 import { passwordError } from "@/lib/validation";
 import { rateLimit } from "@/lib/rateLimit";
 import { ApiError, handleError, str } from "@/lib/errors";
-import { EMAIL_RE } from "@/lib/constants";
+import { EMAIL_RE, registrationEmailAllowed } from "@/lib/constants";
 import { normalizeWhatsapp } from "@/lib/access";
 
 export async function POST(req: NextRequest) {
@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
 
     if (name.length < 2) throw new ApiError(400, "Informe seu nome (mínimo 2 letras).");
     if (!EMAIL_RE.test(email)) throw new ApiError(400, "Informe um e-mail válido.");
+    if (!registrationEmailAllowed(email)) throw new ApiError(400, "Use seu e-mail institucional da UNIVESP com final @aluno.univesp.br.");
     if (!whatsapp) throw new ApiError(400, "Informe um WhatsApp brasileiro válido com DDD.");
     if (course.length < 2) throw new ApiError(400, "Informe o curso que você faz na UNIVESP.");
     const badPassword = passwordError(password);

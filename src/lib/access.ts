@@ -1,4 +1,4 @@
-import { EMAIL_RE } from "./constants";
+import { EMAIL_RE, registrationEmailAllowed } from "./constants";
 
 export function canStudy(user: { isAdmin?: boolean; accessStatus?: string; emailVerifiedAt?: unknown }) {
   return Boolean(user.isAdmin || user.accessStatus === "approved");
@@ -18,6 +18,8 @@ export function parseAuthorizedEmails(value: unknown) {
   if (!entries.length || entries.length > 500) throw new Error("Informe de 1 a 500 e-mails por vez.");
   const invalid = entries.filter(email => email.length > 200 || !EMAIL_RE.test(email));
   if (invalid.length) throw new Error(`Corrija os e-mails inválidos: ${invalid.slice(0, 5).join(", ")}`);
+  const external = entries.filter(email => !registrationEmailAllowed(email));
+  if (external.length) throw new Error(`Use somente e-mails @aluno.univesp.br. Corrija: ${external.slice(0, 5).join(", ")}`);
   return [...new Set(entries)];
 }
 

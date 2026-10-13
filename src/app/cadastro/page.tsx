@@ -8,6 +8,7 @@ import AuthShell from "@/components/AuthShell";
 import { api } from "@/lib/api";
 import { Button, Field, Input } from "@/components/ui";
 import { canStudy, normalizeWhatsapp } from "@/lib/access";
+import { registrationEmailAllowed } from "@/lib/constants";
 
 export default function CadastroPage() {
   const router = useRouter();
@@ -23,6 +24,10 @@ export default function CadastroPage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!registrationEmailAllowed(email)) {
+      setError("Use seu e-mail institucional da UNIVESP com final @aluno.univesp.br.");
+      return;
+    }
     if (password !== confirm) {
       setError("As senhas não conferem.");
       return;
@@ -63,7 +68,7 @@ export default function CadastroPage() {
             autoComplete="name"
           />
         </Field>
-        <Field label="E-mail">
+        <Field label="E-mail institucional da UNIVESP">
           <Input
             type="email"
             value={email}
@@ -72,7 +77,7 @@ export default function CadastroPage() {
             required
             autoComplete="email"
           />
-          <p className="mt-1.5 text-xs text-muted">Use preferencialmente seu e-mail @aluno.univesp.br.</p>
+          <p className="mt-1.5 text-xs text-muted">Cadastro exclusivo para e-mails com final @aluno.univesp.br.</p>
         </Field>
         <Field label="Curso">
           <Input value={course} onChange={(e) => setCourse(e.target.value)} placeholder="Ex.: Engenharia de Computação" required minLength={2} />

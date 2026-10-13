@@ -47,6 +47,24 @@ test('registration creates a pending session without issuing email confirmation'
   assert.equal(body.verificationSent, undefined);
 });
 
+test('registration API rejects personal and lookalike domains before database access or session creation', async () => {
+  let sideEffects = 0;
+  const forbidden = () => { sideEffects++; throw new Error('Rejected registration must not cause side effects'); };
+  const { POST } = load('src/app/api/auth/register/route.ts', {
+    'drizzle-orm': {}, '@/db/schema': {}, '@/db': { db: { select: forbidden, transaction: forbidden } },
+    '@/lib/auth': { hashPassword: forbidden, createSession: forbidden },
+    '@/lib/errors': { ApiError, handleError, str }, '@/lib/constants': { EMAIL_RE, registrationEmailAllowed },
+    '@/lib/validation': { passwordError }, '@/lib/rateLimit': { rateLimit: forbidden },
+    '@/lib/access': require('../../.test-build/lib/access.js'),
+  });
+  for (const email of ['aluno@gmail.com', 'fabiosena1436@gmail.com', 'aluno@outlook.com', 'aluno@univesp.br', 'aluno@aluno.univesp.br.example.com']) {
+    const response = await POST(new Request('http://localhost/api/auth/register', { method: 'POST', body: JSON.stringify({ name: 'Aluno', email, course: 'Computação', whatsapp: '11999991234', password: 'TestingOnly123!' }) }));
+    assert.equal(response.status, 400, email);
+    assert.match((await response.json()).error, /@aluno\.univesp\.br/);
+  }
+  assert.equal(sideEffects, 0);
+});
+
 test('pending sessions may view their account but cannot pass the study authorization gate', async () => {
   for (const scenario of ['pending', 'blocked', 'expired']) {
     const user = { id: 'user', name: 'Aluno', email: 'aluno@aluno.univesp.br', course: 'Computação', createdAt: new Date(), emailVerifiedAt: null, isBlocked: scenario === 'blocked' };
