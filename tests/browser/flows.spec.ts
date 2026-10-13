@@ -101,6 +101,66 @@ test("PDF de 3 MB é anexado, separado do texto e acessível ao aluno", async ({
   await expect(page.locator("article")).toContainText("Conteúdo de aula disponível para leitura.");
 });
 
+test("materiais filtram por matéria antes da paginação e preservam a seleção ao voltar da leitura", async ({ page }) => {
+  const database = new URL(config.databaseUrl);
+  if (!database.pathname.startsWith("/aprova_test")) throw new Error("Este teste exige um banco isolado.");
+  const client = new pg.Client({ connectionString: config.databaseUrl });
+  await client.connect();
+  const firstId = randomUUID(), secondId = randomUUID(), emptyId = randomUUID();
+  const suffix = randomUUID().slice(0, 8);
+  const firstName = `Álgebra ${suffix}`, secondName = `Biologia ${suffix}`, emptyName = `Química ${suffix}`;
+  try {
+    await client.query("INSERT INTO subjects(id,name) VALUES ($1,$2),($3,$4),($5,$6)", [firstId, firstName, secondId, secondName, emptyId, emptyName]);
+    // A matéria antiga só aparece após a primeira página do catálogo sem filtro.
+    await client.query("INSERT INTO materials(subject_id,title,filename,content,char_count,created_at) SELECT $1,'Revisão de álgebra ' || n,'texto.txt',repeat('Conteúdo de álgebra. ',30),600,now() - interval '1 day' FROM generate_series(1,51) n", [firstId]);
+    await client.query("INSERT INTO materials(subject_id,title,filename,content,char_count) SELECT $1,'Revisão de biologia ' || n,'texto.txt',repeat('Conteúdo de biologia. ',30),600 FROM generate_series(1,51) n", [secondId]);
+    await signIn(page, "student@aluno.univesp.br");
+    await page.goto("/app/materiais");
+    const filter = page.getByLabel("Filtrar por matéria", { exact: true });
+    const texts = page.getByRole("region", { name: "Materiais em texto", exact: true });
+    await expect(texts.getByRole("heading", { name: /^Revisão de álgebra/ })).toHaveCount(0);
+    await filter.selectOption(firstId);
+    await expect(texts.getByRole("heading", { name: /^Revisão de álgebra/ })).toHaveCount(50);
+    await expect(texts.getByRole("heading", { name: /^Revisão de biologia/ })).toHaveCount(0);
+    await page.getByRole("button", { name: "Próxima", exact: true }).click();
+    await expect(page.getByText("Página 2", { exact: true })).toBeVisible();
+    await expect(texts.getByRole("heading", { name: /^Revisão de álgebra/ })).toHaveCount(1);
+    await texts.getByRole("button", { name: /^Ler texto:/ }).click();
+    await expect(page.locator("article")).toContainText("Conteúdo de álgebra.");
+    await page.getByRole("button", { name: "Voltar aos materiais" }).click();
+    await expect(filter).toHaveValue(firstId);
+    await expect(page.getByText("Página 2", { exact: true })).toBeVisible();
+    await filter.selectOption(secondId);
+    await expect(page.getByText("Página 1", { exact: true })).toBeVisible();
+    await expect(texts.getByRole("heading", { name: /^Revisão de biologia/ })).toHaveCount(50);
+    await filter.selectOption(emptyId);
+    await expect(page.getByText("Nenhum material nesta matéria", { exact: true })).toBeVisible();
+    await filter.selectOption("");
+    await expect(texts.getByRole("heading", { name: secondName, exact: false })).toBeVisible();
+    expect((await page.request.get("/api/materials?subjectId=invalid")).status()).toBe(400);
+    const response = await page.request.get(`/api/materials?subjectId=${firstId}&offset=50`);
+    expect(response.status()).toBe(200);
+    const rows = await response.json();
+    expect(rows).toHaveLength(1);
+    expect(rows[0].subjectId).toBe(firstId);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await filter.selectOption(firstId);
+    await expect(texts.getByRole("heading", { name: /^Revisão de álgebra/ })).toHaveCount(50);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    const accessibility = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
+    expect(accessibility.violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => ({ target: n.target, summary: n.failureSummary })) }))).toEqual([]);
+    await signIn(page, "admin@aluno.univesp.br");
+    await page.goto("/app/materiais");
+    await page.getByLabel("Filtrar materiais por matéria").selectOption(firstId);
+    await expect(page.getByText(/^Revisão de álgebra/)).toHaveCount(50);
+    await expect(page.getByText(/^Revisão de biologia/)).toHaveCount(0);
+  } finally {
+    await client.query("DELETE FROM materials WHERE subject_id = ANY($1::uuid[])", [[firstId, secondId, emptyId]]);
+    await client.query("DELETE FROM subjects WHERE id = ANY($1::uuid[])", [[firstId, secondId, emptyId]]);
+    await client.end();
+  }
+});
+
 test("prova é respondida e salva pelo navegador", async ({ page }) => {
   await signIn(page, "admin@aluno.univesp.br");
   const sid = await subject(page);

@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { refreshSubjectsEvent, toast, useApp } from "@/components/AppShell";
 import { api } from "@/lib/api";
@@ -15,6 +15,8 @@ export function useMaterials() {
   const [error, setError] = useState("");
   const [list, setList] = useState<MaterialRow[] | null>(null);
   const [subjectId, setSubjectId] = useState("");
+  const [listSubjectId, setListSubjectId] = useState("");
+  const listRequest = useRef(0);
   const [newSubject, setNewSubject] = useState("");
   const [uploading, setUploading] = useState(false);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -32,19 +34,35 @@ export function useMaterials() {
   const [showContent, setShowContent] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const loadList = useCallback(() => {
-    api<MaterialRow[]>(`/api/materials?limit=50&offset=${page * 50}`)
-      .then((rows) => { setError(""); setList(rows); })
-      .catch((e) => setError(e instanceof Error ? e.message : "Não foi possível carregar os materiais."));
-  }, [page]);
+  const loadList = useCallback((signal?: AbortSignal) => {
+    const request = ++listRequest.current;
+    const params = new URLSearchParams({ limit: "50", offset: String(page * 50) });
+    if (listSubjectId) params.set("subjectId", listSubjectId);
+    api<MaterialRow[]>(`/api/materials?${params}`, { signal })
+      .then((rows) => { if (!signal?.aborted && request === listRequest.current) { setError(""); setList(rows); } })
+      .catch((e) => { if (!signal?.aborted && request === listRequest.current) setError(e instanceof Error ? e.message : "Não foi possível carregar os materiais."); });
+  }, [page, listSubjectId]);
+
+  function filterList(value: string) {
+    setList(null);
+    setError("");
+    setPage(0);
+    setListSubjectId(value);
+  }
 
   useEffect(() => {
     if (!canManage) return;
-    loadList();
+    const controller = new AbortController();
+    loadList(controller.signal);
+    return () => controller.abort();
+  }, [loadList, canManage]);
+
+  useEffect(() => {
+    if (!canManage) return;
     api<{ engine: "gemini" | "local" }>("/api/ai-engine")
       .then((d) => setEngine(d.engine))
       .catch(() => setEngine("local"));
-  }, [loadList, canManage]);
+  }, [canManage]);
 
 
   const targetSubject = subjectId || subjects[0]?.id || "";
@@ -223,5 +241,5 @@ export function useMaterials() {
 
   const withAnswer = generated.filter((q) => q.correctKey).length;
 
-  return { user, subjects, canManage, page, setPage, error, list, setSubjectId, newSubject, setNewSubject, uploading, pdfFile, setPdfFile, attachment, setAttachment, fileRevision, pasteText, setPasteText, pasteTitle, setPasteTitle, active, setActive, engine, genCount, setGenCount, generating, genNote, setGenNote, generated, setGenerated, showContent, setShowContent, saving, loadList, targetSubject, ensureSubject, uploadPdf, attachPdf, uploadText, generate, saveGenerated, removeMaterial, withAnswer };
+  return { user, subjects, canManage, page, setPage, error, list, listSubjectId, filterList, setSubjectId, newSubject, setNewSubject, uploading, pdfFile, setPdfFile, attachment, setAttachment, fileRevision, pasteText, setPasteText, pasteTitle, setPasteTitle, active, setActive, engine, genCount, setGenCount, generating, genNote, setGenNote, generated, setGenerated, showContent, setShowContent, saving, loadList, targetSubject, ensureSubject, uploadPdf, attachPdf, uploadText, generate, saveGenerated, removeMaterial, withAnswer };
 }

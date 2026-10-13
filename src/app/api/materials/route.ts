@@ -18,6 +18,8 @@ async function handleGET(req: NextRequest) {
   try {
     await requireUser();
     const { limit, offset } = pageParams(req.nextUrl.searchParams);
+    const subjectId = req.nextUrl.searchParams.get("subjectId");
+    if (subjectId !== null) uuid(subjectId, "Matéria inválida.");
     const rows = await db
       .select({
         id: materials.id,
@@ -35,7 +37,7 @@ async function handleGET(req: NextRequest) {
       })
       .from(materials)
       .innerJoin(subjects, eq(subjects.id, materials.subjectId))
-      .where(and(isNull(materials.archivedAt), isNull(subjects.archivedAt)))
+      .where(and(isNull(materials.archivedAt), isNull(subjects.archivedAt), subjectId ? eq(materials.subjectId, subjectId) : undefined))
       .orderBy(desc(materials.createdAt), desc(materials.id))
       .limit(limit).offset(offset);
 

@@ -13,7 +13,7 @@ import {
 import { toast } from "@/components/AppShell";
 import { api, formatDate } from "@/lib/api";
 import { EditableQuestion } from "@/components/EditableQuestion";
-import { Badge, Button, EmptyState, Input, Select, Spinner, TextArea } from "@/components/ui";
+import { Badge, Button, EmptyState, Field, Input, Select, Spinner, TextArea } from "@/components/ui";
 import { SAMPLE_TEXT } from "@/lib/sample";
 import { EditMaterial } from "@/components/EditMaterial";
 import { PdfViewer } from "@/components/PdfViewer";
@@ -23,7 +23,7 @@ import type { MaterialDetail } from "@/lib/types";
 
 import { useMaterials } from "@/features/materials/useMaterials";
 export default function MateriaisPage() {
-  const { user, subjects, canManage, page, setPage, error, list, setSubjectId, newSubject, setNewSubject, uploading, pdfFile, setPdfFile, attachment, setAttachment, fileRevision, pasteText, setPasteText, pasteTitle, setPasteTitle, active, setActive, engine, genCount, setGenCount, generating, genNote, setGenNote, generated, setGenerated, showContent, setShowContent, saving, loadList, targetSubject, ensureSubject, uploadPdf, attachPdf, uploadText, generate, saveGenerated, removeMaterial, withAnswer } = useMaterials();
+  const { user, subjects, canManage, page, setPage, error, list, listSubjectId, filterList, setSubjectId, newSubject, setNewSubject, uploading, pdfFile, setPdfFile, attachment, setAttachment, fileRevision, pasteText, setPasteText, pasteTitle, setPasteTitle, active, setActive, engine, genCount, setGenCount, generating, genNote, setGenNote, generated, setGenerated, showContent, setShowContent, saving, loadList, targetSubject, ensureSubject, uploadPdf, attachPdf, uploadText, generate, saveGenerated, removeMaterial, withAnswer } = useMaterials();
   if (!canManage) return <MaterialLibrary />;
   return (
     <div className="space-y-6">
@@ -263,6 +263,14 @@ export default function MateriaisPage() {
       {/* lista de materiais */}
       <section>
         <h2 className="font-display text-xl font-semibold mb-3">Seus materiais</h2>
+        <div className="max-w-md mb-4">
+          <Field label="Filtrar materiais por matéria">
+            <Select value={listSubjectId} onChange={(event) => filterList(event.target.value)}>
+              <option value="">Todas as matérias</option>
+              {subjects.map(subject => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
+            </Select>
+          </Field>
+        </div>
         {error ? <p role="alert" className="text-red">{error}</p> : list === null ? (
           <div className="card p-8 grid place-items-center text-muted">
             <Spinner size={22} />
@@ -270,8 +278,8 @@ export default function MateriaisPage() {
         ) : list.length === 0 ? (
           <EmptyState
             icon={<FileText size={20} />}
-            title="Nenhum material ainda"
-            desc="Cole uma revisão com perguntas e alternativas acima para salvar e analisar."
+            title={listSubjectId ? "Nenhum material nesta matéria" : "Nenhum material ainda"}
+            desc={listSubjectId ? "Selecione outra matéria ou envie um material para esta disciplina." : "Cole uma revisão com perguntas e alternativas acima para salvar e analisar."}
           />
         ) : (
           <div className="card divide-y divide-line">
