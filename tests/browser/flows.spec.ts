@@ -204,6 +204,8 @@ test("painel mostra total acima de 100 e tela funciona no celular sem falhas axe
   await page.getByRole("button", { name: "Abrir assistente de IA" }).click();
   const assistant = page.getByRole("dialog", { name: "Assistente de estudos" });
   await expect(assistant.getByLabel("Matéria para esta conversa")).toBeVisible();
+  const assistantAccessibility = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
+  expect(assistantAccessibility.violations.map(v => v.id)).toEqual([]);
   await assistant.getByRole("button", { name: "Fechar assistente" }).click();
   await page.goto("/app/plano");
   await expect(page.getByRole("button", { name: "Abrir assistente de IA" })).toBeVisible();
