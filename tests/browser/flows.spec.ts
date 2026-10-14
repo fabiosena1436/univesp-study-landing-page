@@ -100,7 +100,7 @@ test("PDF de 3 MB é anexado, separado do texto e acessível ao aluno", async ({
   expect(await pdf.body()).toEqual(file);
   await page.getByRole("button", { name: "Ler a versão em texto" }).click();
   await expect(page.locator("article")).toContainText("Conteúdo de aula disponível para leitura.");
-  await page.getByRole("button", { name: "Abrir assistente de estudos" }).click();
+  await page.getByRole("button", { name: "Abrir assistente de IA" }).click();
   const assistant = page.getByRole("dialog", { name: "Assistente de estudos" });
   await expect(assistant).toBeVisible();
   await expect(assistant.getByRole("button", { name: "Resuma os pontos principais" })).toBeVisible();
@@ -179,7 +179,7 @@ test("prova é respondida e salva pelo navegador", async ({ page }) => {
   await signIn(page, "student@aluno.univesp.br");
   await page.goto(`/app/prova?m=${sid}`);
   await page.getByRole("button", { name: "Começar prova" }).click();
-  await page.getByRole("button", { name: "Abrir assistente de estudos" }).click();
+  await page.getByRole("button", { name: "Abrir assistente de IA" }).click();
   const assistant = page.getByRole("dialog", { name: "Assistente de estudos" });
   await expect(assistant.getByRole("button", { name: "Dê uma dica sem revelar a resposta" })).toBeVisible();
   await assistant.getByRole("button", { name: "Fechar assistente" }).click();
@@ -200,6 +200,14 @@ test("painel mostra total acima de 100 e tela funciona no celular sem falhas axe
     await client.query("INSERT INTO attempts(user_id,subject_id,subject_name,submission_id,total,correct_count) SELECT $1,$2,$3,gen_random_uuid(),1,1 FROM generate_series(1,150)", [user.id, s.id, s.name]);
   } finally { await client.end(); }
   await signIn(page, "student@aluno.univesp.br");
+  await expect(page.getByRole("button", { name: "Abrir assistente de IA" })).toBeVisible();
+  await page.getByRole("button", { name: "Abrir assistente de IA" }).click();
+  const assistant = page.getByRole("dialog", { name: "Assistente de estudos" });
+  await expect(assistant.getByLabel("Matéria para esta conversa")).toBeVisible();
+  await assistant.getByRole("button", { name: "Fechar assistente" }).click();
+  await page.goto("/app/plano");
+  await expect(page.getByRole("button", { name: "Abrir assistente de IA" })).toBeVisible();
+  await page.goto("/app");
   const response = await page.request.get("/api/dashboard");
   const dashboard = await response.json();
   expect(dashboard.totalAttempts).toBeGreaterThan(150);

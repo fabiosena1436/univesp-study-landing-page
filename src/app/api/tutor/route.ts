@@ -7,7 +7,7 @@ import { ApiError, handleError } from "@/lib/errors";
 import { uuid } from "@/lib/validation";
 import { rateLimit } from "@/lib/rateLimit";
 import { aiSignal, withAiOperation } from "@/lib/aiOperation";
-import { geminiModels, recordAiRequest } from "@/lib/aiUsage";
+import { recordAiRequest } from "@/lib/aiUsage";
 import { reserveAiCall } from "@/lib/aiUsageStore";
 import { tutorContext } from "@/server/services/tutorContext";
 
@@ -28,8 +28,8 @@ async function handlePOST(req: NextRequest) {
     const history = body.history as { role: "user" | "assistant"; text: string }[];
     const key = process.env.GEMINI_API_KEY?.trim();
     if (!key) throw new ApiError(503, "O assistente está indisponível. Configure o Gemini no servidor.");
-    const modelName = geminiModels()[0];
-    if (!modelName) throw new ApiError(503, "O assistente não tem um modelo configurado.");
+    const modelName = process.env.AI_TUTOR_MODEL?.trim() || "gemini-3.5-flash-lite";
+    if (!/^[a-zA-Z0-9.\-_]+$/.test(modelName)) throw new ApiError(503, "O assistente não tem um modelo válido configurado.");
     const dailyLimit = Number(process.env.AI_TUTOR_DAILY_MESSAGES ?? 50);
     if (!Number.isSafeInteger(dailyLimit) || dailyLimit < 1 || dailyLimit > 500) throw new Error("Invalid AI_TUTOR_DAILY_MESSAGES");
     await rateLimit("tutor.user.minute", user.id, 8, 60_000);
@@ -48,7 +48,7 @@ async function handlePOST(req: NextRequest) {
         const google = createGoogle({ apiKey: key });
         const result = await generateText({
           model: google(modelName), instructions, messages, maxOutputTokens: 750,
-          ...(modelName.startsWith("gemini-2.5-flash") ? { providerOptions: { google: { thinkingConfig: { thinkingBudget: 0 } } } } : {}),
+          providerOptions: { google: { thinkingConfig: modelName.startsWith("gemini-2.5-flash") ? { thinkingBudget: 0 } : { thinkingLevel: "low" } } },
           temperature: 0.3, abortSignal: aiSignal(), maxRetries: 0,
         });
         const answer = result.text.trim();

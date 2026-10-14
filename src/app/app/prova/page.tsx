@@ -14,7 +14,7 @@ import {
 import { formatDuration } from "@/lib/api";
 import { Badge, Button, ScoreRing, Select, Spinner, ToggleRow } from "@/components/ui";
 import { orderedOptions } from "@/lib/options";
-import { StudyAssistant } from "@/components/StudyAssistant";
+import { useStudyAssistantScope } from "@/components/AppShell";
 
 export default function ProvaPage() {
   return (
@@ -26,6 +26,7 @@ export default function ProvaPage() {
 
 function ProvaInner() {
   const { user, subjects, router, stage, setStage, subjectId, setSubjectId, count, setCount, onlyWrong, setOnlyWrong, source, setSource, loading, emptyMsg, quiz, subjectName, index, selected, setSelected, checked, answers, elapsed, saving, restored, effectiveSubjectId, subject, start, check, next } = useQuizSession();
+  useStudyAssistantScope(restored && stage === "run" && quiz[index] && effectiveSubjectId ? { scope: { subjectId: effectiveSubjectId, questionId: quiz[index].id }, subjectName } : null);
   if (!restored) return <p role="status">Restaurando seu treino…</p>;
 
   /* ------------------------------ SETUP ------------------------------ */
@@ -305,7 +306,6 @@ function ProvaInner() {
             </>
           )}
         </div>
-        <StudyAssistant key={q.id} scope={{ subjectId: effectiveSubjectId, questionId: q.id }} subjectName={subjectName} />
       </div>
     );
   }

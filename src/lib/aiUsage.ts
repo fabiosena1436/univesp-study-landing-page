@@ -11,7 +11,7 @@ export function tokenUsage(raw: unknown): TokenUsage {
   return { input: count(usage.promptTokenCount), output: count(usage.candidatesTokenCount), thinking: count(usage.thoughtsTokenCount), total: count(usage.totalTokenCount) };
 }
 export function geminiModels() {
-  return (process.env.GEMINI_MODELS ?? "gemini-2.5-flash").split(",").map((m) => m.trim()).filter((m) => /^[a-zA-Z0-9.\-_]+$/.test(m)).slice(0, 2);
+  return (process.env.GEMINI_MODELS ?? "gemini-3.6-flash,gemini-3.5-flash-lite").split(",").map((m) => m.trim()).filter((m) => /^[a-zA-Z0-9.\-_]+$/.test(m)).slice(0, 2);
 }
 export function quotaDiagnostic(raw: unknown, retryHeader: string | null = null) {
   const error = raw && typeof raw === "object" ? (raw as { error?: { details?: unknown } }).error : null;

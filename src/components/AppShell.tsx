@@ -28,13 +28,17 @@ import {
 import { api, clearQuizDrafts } from "@/lib/api";
 import type { Subject, User } from "@/lib/types";
 import { Logo } from "./Logo";
+import { StudyAssistant } from "./StudyAssistant";
 import { Spinner } from "./ui";
+
+type AssistantScope = { scope: { subjectId: string; materialId?: string; questionId?: string }; subjectName: string };
 
 type Ctx = {
   user: User;
   subjects: Subject[];
   refreshSubjects: () => void;
   updateUser: (user: User) => void;
+  setAssistantScope: (scope: AssistantScope | null) => void;
 };
 
 const AppContext = createContext<Ctx | null>(null);
@@ -43,6 +47,18 @@ export function useApp(): Ctx {
   const c = useContext(AppContext);
   if (!c) throw new Error("useApp deve ser usado dentro de AppShell");
   return c;
+}
+
+export function useStudyAssistantScope(value: AssistantScope | null) {
+  const { setAssistantScope } = useApp();
+  const subjectId = value?.scope.subjectId;
+  const materialId = value?.scope.materialId;
+  const questionId = value?.scope.questionId;
+  const subjectName = value?.subjectName;
+  useEffect(() => {
+    setAssistantScope(subjectId && subjectName ? { scope: { subjectId, materialId, questionId }, subjectName } : null);
+    return () => setAssistantScope(null);
+  }, [setAssistantScope, subjectId, materialId, questionId, subjectName]);
 }
 
 const NAV = [
@@ -59,6 +75,8 @@ const NAV = [
 export default function AppShell({ children, initialUser }: { children: ReactNode; initialUser: User }) {
   const [user, setUser] = useState<User>(initialUser);
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [assistantScope, setAssistantScope] = useState<AssistantScope | null>(null);
+  const [assistantSubjectId, setAssistantSubjectId] = useState("");
   const router = useRouter();
   const pathname = usePathname();
   const toastShell = useToastsShell();
@@ -102,6 +120,9 @@ export default function AppShell({ children, initialUser }: { children: ReactNod
     .toUpperCase();
 
   const visibleNav = (user.isAdmin || user.isAssistant) ? NAV : NAV.filter((n) => !["/app/importar", "/app/questoes"].includes(n.href));
+  const assistantSubject = subjects.find(subject => subject.id === assistantSubjectId) ?? subjects[0];
+  const currentAssistantScope = assistantScope?.scope ?? (assistantSubject ? { subjectId: assistantSubject.id } : null);
+  const currentAssistantSubjectName = assistantScope?.subjectName ?? assistantSubject?.name ?? "seus estudos";
   const navLinks = (
     <>
       {visibleNav.map((n) => {
@@ -123,7 +144,7 @@ export default function AppShell({ children, initialUser }: { children: ReactNod
   );
 
   return (
-    <MotionConfig reducedMotion="user"><AppContext.Provider value={{ user, subjects, refreshSubjects, updateUser: setUser }}>
+    <MotionConfig reducedMotion="user"><AppContext.Provider value={{ user, subjects, refreshSubjects, updateUser: setUser, setAssistantScope }}>
       <div className="min-h-screen app-shell-bg">
         <header className="app-header sticky top-0 z-40 border-b backdrop-blur-xl">
           <div className="max-w-[1480px] mx-auto px-4 md:px-8 h-[72px] flex items-center gap-5">
@@ -226,6 +247,7 @@ export default function AppShell({ children, initialUser }: { children: ReactNod
           <main className="flex-1 min-w-0 w-full">{children}</main>
         </div>
       </div>
+      <StudyAssistant key={assistantScope ? `${assistantScope.scope.subjectId}:${assistantScope.scope.materialId ?? ""}:${assistantScope.scope.questionId ?? ""}` : "global"} scope={currentAssistantScope} subjectName={currentAssistantSubjectName} subjects={assistantScope ? undefined : subjects} selectedSubjectId={assistantSubject?.id ?? ""} onSubjectChange={setAssistantSubjectId} />
       {toastShell}
     </AppContext.Provider></MotionConfig>
   );

@@ -3,11 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { BookOpenText, FileText } from "lucide-react";
 import { api } from "@/lib/api";
-import { useApp } from "@/components/AppShell";
+import { useApp, useStudyAssistantScope } from "@/components/AppShell";
 import type { MaterialDetail, MaterialRow } from "@/lib/types";
 import { PdfViewer } from "./PdfViewer";
 import { Badge, Button, EmptyState, Field, Select, Spinner } from "@/components/ui";
-import { StudyAssistant } from "./StudyAssistant";
 
 type MaterialFormat = "pdf" | "text";
 
@@ -21,6 +20,11 @@ export function MaterialLibrary() {
   const [active, setActive] = useState<MaterialDetail | null>(null);
   const [error, setError] = useState("");
   const heading = useRef<HTMLHeadingElement>(null);
+  const assistantSubjectId = active?.subjectId ?? (!selectedId ? subjectId : "");
+  useStudyAssistantScope(assistantSubjectId ? {
+    scope: { subjectId: assistantSubjectId, ...(active ? { materialId: active.id } : {}) },
+    subjectName: subjects.find(subject => subject.id === assistantSubjectId)?.name ?? list?.find(material => material.id === active?.id)?.subjectName ?? "esta matéria",
+  } : null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -133,8 +137,6 @@ export function MaterialLibrary() {
           <Button variant="ghost" disabled={list.length < 50} onClick={() => changePage(page + 1)}>Próxima</Button>
         </nav>
       )}
-      {active && <StudyAssistant key={active.id} scope={{ subjectId: active.subjectId, materialId: active.id }} subjectName={subjects.find(subject => subject.id === active.subjectId)?.name ?? list?.find(material => material.id === active.id)?.subjectName ?? "esta matéria"} />}
-      {!selectedId && subjectId && <StudyAssistant key={subjectId} scope={{ subjectId }} subjectName={subjects.find(subject => subject.id === subjectId)?.name ?? "esta matéria"} />}
     </div>
   );
 }
