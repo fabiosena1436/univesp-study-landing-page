@@ -12,7 +12,7 @@ export default defineConfig({
   webServer: {
     command: "node --import ./scripts/test-email-mock.mjs node_modules/next/dist/bin/next start -p 3100",
     env: {
-      DATABASE_URL: config.databaseUrl, APP_URL: config.baseUrl, TZ: "UTC", GEMINI_API_KEY: "",
+      DATABASE_URL: config.databaseUrl, APP_URL: config.baseUrl, TZ: "UTC", GEMINI_API_KEY: "", GROQ_API_KEY: "",
       MFA_ENCRYPTION_KEY: "11".repeat(32), MFA_REQUIRE_ADMIN: "false",
       RESEND_API_KEY: "test-only-fake-key", RESEND_FROM_EMAIL: "Test <test@example.invalid>",
     },

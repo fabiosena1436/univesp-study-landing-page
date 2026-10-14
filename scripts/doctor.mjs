@@ -3,7 +3,7 @@ import pg from "pg";
 import { readFile, readdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
 dotenv.config({ path: ".env.local", quiet: true });
-const configured = Object.fromEntries(["DATABASE_URL", "APP_URL", "RESEND_API_KEY", "RESEND_FROM_EMAIL", "GEMINI_API_KEY"].map(key => [key, Boolean(process.env[key])]));
+const configured = Object.fromEntries(["DATABASE_URL", "APP_URL", "RESEND_API_KEY", "RESEND_FROM_EMAIL", "GEMINI_API_KEY", "GROQ_API_KEY"].map(key => [key, Boolean(process.env[key])]));
 console.log(JSON.stringify({ configured }));
 if (process.env.DATABASE_URL) {
   const url = new URL(process.env.DATABASE_URL);

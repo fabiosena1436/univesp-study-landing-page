@@ -1,6 +1,6 @@
 import { instrument } from "@/server/services/telemetry";
 import { NextRequest } from "next/server";
-import { createGoogle } from "@ai-sdk/google";
+import { createGroq } from "@ai-sdk/groq";
 import { generateText } from "ai";
 import { requireUser } from "@/lib/auth";
 import { ApiError, handleError } from "@/lib/errors";
@@ -26,10 +26,10 @@ async function handlePOST(req: NextRequest) {
     const questionId = rawScope.questionId ? uuid(rawScope.questionId) : undefined;
     if (!Array.isArray(body?.history) || body.history.length > 6 || !body.history.every(item => item && typeof item === "object" && ["user", "assistant"].includes(item.role) && typeof item.text === "string" && item.text.length <= 1000)) throw new ApiError(400, "Histórico da conversa inválido.");
     const history = body.history as { role: "user" | "assistant"; text: string }[];
-    const key = process.env.GEMINI_API_KEY?.trim();
-    if (!key) throw new ApiError(503, "O assistente está indisponível. Configure o Gemini no servidor.");
-    const modelName = process.env.AI_TUTOR_MODEL?.trim() || "gemini-3.5-flash-lite";
-    if (!/^[a-zA-Z0-9.\-_]+$/.test(modelName)) throw new ApiError(503, "O assistente não tem um modelo válido configurado.");
+    const key = process.env.GROQ_API_KEY?.trim();
+    if (!key) throw new ApiError(503, "O assistente está indisponível. Configure o Groq no servidor.");
+    const modelName = process.env.GROQ_TUTOR_MODEL?.trim() || "openai/gpt-oss-120b";
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9.\-_/]*$/.test(modelName)) throw new ApiError(503, "O assistente não tem um modelo válido configurado.");
     const dailyLimit = Number(process.env.AI_TUTOR_DAILY_MESSAGES ?? 50);
     if (!Number.isSafeInteger(dailyLimit) || dailyLimit < 1 || dailyLimit > 500) throw new Error("Invalid AI_TUTOR_DAILY_MESSAGES");
     await rateLimit("tutor.user.minute", user.id, 8, 60_000);
@@ -45,21 +45,22 @@ async function handlePOST(req: NextRequest) {
       ];
       await reserveAiCall({ system_instruction: { parts: [{ text: instructions }] }, contents: messages, generationConfig: { maxOutputTokens: 750 } });
       try {
-        const google = createGoogle({ apiKey: key });
+        const groq = createGroq({ apiKey: key });
         const result = await generateText({
-          model: google(modelName), instructions, messages, maxOutputTokens: 750,
-          providerOptions: { google: { thinkingConfig: modelName.startsWith("gemini-2.5-flash") ? { thinkingBudget: 0 } : { thinkingLevel: "low" } } },
+          model: groq(modelName), instructions, messages, maxOutputTokens: 750,
+          ...(modelName.startsWith("openai/gpt-oss-") ? { providerOptions: { groq: { reasoningEffort: "low" as const } } } : {}),
           temperature: 0.3, abortSignal: aiSignal(), maxRetries: 0,
         });
         const answer = result.text.trim();
         if (!answer) throw new ApiError(502, "O assistente não retornou uma resposta. Tente novamente.");
         const usage = result.usage;
-        await recordAiRequest({ model: modelName, status: 200, tokens: { input: usage.inputTokens ?? null, output: usage.outputTokens ?? null, thinking: usage.outputTokenDetails?.reasoningTokens ?? null, total: usage.totalTokens ?? null }, message: null, retryAfter: null });
+        await recordAiRequest({ provider: "groq", model: modelName, status: 200, tokens: { input: usage.inputTokens ?? null, output: usage.outputTokens ?? null, thinking: usage.outputTokenDetails?.reasoningTokens ?? null, total: usage.totalTokens ?? null }, message: null, retryAfter: null });
         return Response.json({ answer, subjectName: source.subjectName, materialTitle: source.materialTitle, hasReference: source.hasReference }, { headers: { "Cache-Control": "no-store" } });
       } catch (error) {
+        const status = error instanceof ApiError ? error.status : (error as { statusCode?: number })?.statusCode;
+        await recordAiRequest({ provider: "groq", model: modelName, status: typeof status === "number" ? status : 0, tokens: { input: null, output: null, thinking: null, total: null }, message: "O assistente não conseguiu responder.", retryAfter: null });
         if (error instanceof ApiError) throw error;
-        await recordAiRequest({ model: modelName, status: 0, tokens: { input: null, output: null, thinking: null, total: null }, message: "O assistente não conseguiu responder.", retryAfter: null });
-        if ((error as { statusCode?: number })?.statusCode === 429) throw new ApiError(429, "O Gemini atingiu o limite de uso. Tente novamente mais tarde.");
+        if (status === 429) throw new ApiError(429, "O Groq atingiu o limite de uso do assistente. Tente novamente mais tarde.");
         throw new ApiError(502, "O assistente não conseguiu responder agora. Tente novamente.");
       }
     }, 45_000);

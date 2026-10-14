@@ -39,6 +39,8 @@ Configure estas variáveis no ambiente Production:
 | `RESEND_API_KEY` | Chave privada do Resend, necessária para recuperação de senha |
 | `RESEND_FROM_EMAIL` | Remetente autorizado no Resend, necessário para recuperação de senha |
 | `GEMINI_API_KEY` | Chave privada do Gemini, se usar geração |
+| `GROQ_API_KEY` | Chave privada do Groq para o assistente dos alunos |
+| `GROQ_TUTOR_MODEL` | Modelo do assistente; padrão `openai/gpt-oss-120b` |
 | `GEMINI_MODELS` | Modelo disponível na sua conta; padrão do código `gemini-2.5-flash` |
 | `DB_POOL_MAX` | `3` como ponto inicial; ajustar após observar carga |
 | `TZ` | `UTC` |

@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.95",
+    "@ai-sdk/groq": "^4.0.60",
     "@vercel/functions": "^3.9.10",
     "ai": "^7.0.139",
     "bcryptjs": "^3.0.3",
