@@ -39,7 +39,9 @@ export async function tutorContext(scope: TutorScope, question: string) {
       .where(and(eq(materials.id, materialId), eq(materials.subjectId, subject.id), isNull(materials.archivedAt))).limit(1))[0];
     if (!row) throw new ApiError(404, "Material não encontrado nesta matéria.");
     materialTitle = row.title;
-    materialContent = relevantExcerpt(row.content, question);
+    // A generic request such as "dê uma dica" has no useful retrieval terms.
+    // During a quiz, anchor retrieval to the actual question and its reference.
+    materialContent = relevantExcerpt(row.content, [statement, sourceExcerpt, question].filter(Boolean).join(" "));
   } else if (!scope.questionId) {
     const rows = await db.select({ title: materials.title, content: sql<string>`left(${materials.content}, 1800)` })
       .from(materials).where(and(eq(materials.subjectId, subject.id), isNull(materials.archivedAt)))

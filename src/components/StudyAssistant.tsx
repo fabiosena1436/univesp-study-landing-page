@@ -54,7 +54,7 @@ export function StudyAssistant({ scope, subjectName, subjects, selectedSubjectId
   async function ask(text: string) {
     const question = text.trim();
     if (question.length < 3 || busy || !scope) return;
-    const previous = messages.slice(-6);
+    const previous = messages.slice(-6).map(message => ({ ...message, text: message.text.slice(0, 1000) }));
     const controller = new AbortController();
     request.current = controller;
     setMessages([...messages, { role: "user", text: question }]);

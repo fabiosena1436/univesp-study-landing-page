@@ -47,6 +47,9 @@ test('Groq tutor isolates credentials, preserves study instructions and handles 
     assert.equal(options.model, 'openai/gpt-oss-120b');
     assert.equal(options.providerOptions.groq.reasoningEffort, 'low');
     assert.match(options.instructions, /sem indicar a alternativa correta/);
+    assert.match(options.instructions, /foco obrigatório é o enunciado/);
+    assert.match(options.instructions, /Priorize o trecho associado/);
+    assert.match(options.instructions, /pergunta orientadora/);
     assert.equal(options.maxRetries, 0);
     assert.equal(events[0].provider, 'groq');
     assert.equal(events[0].tokens.total, 30);
