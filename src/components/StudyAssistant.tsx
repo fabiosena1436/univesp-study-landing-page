@@ -5,6 +5,7 @@ import { BotMessageSquare, Send, Sparkles, X } from "lucide-react";
 import { api } from "@/lib/api";
 import type { Subject } from "@/lib/types";
 import { Button, Select, Spinner, TextArea } from "@/components/ui";
+import { AssistantAnswer } from "@/components/AssistantAnswer";
 
 type Scope = { subjectId: string; materialId?: string; questionId?: string };
 type Message = { role: "user" | "assistant"; text: string };
@@ -109,7 +110,7 @@ export function StudyAssistant({ scope, subjectName, subjects, selectedSubjectId
           <p className="text-sm text-ink-soft">{scope ? `Pergunte sobre ${scope.questionId ? "o conceito da questão" : scope.materialId ? "este material" : `a matéria ${subjectName}`}.` : "Assim que uma matéria for publicada, você poderá tirar dúvidas aqui."}</p>
           {scope && <div className="space-y-2">{suggestions.map(suggestion => <button key={suggestion} type="button" disabled={busy} onClick={() => void ask(suggestion)} className="block w-full rounded-xl border border-field-border bg-card px-3 py-2 text-left text-sm hover:border-pen hover:bg-pen-soft cursor-pointer">{suggestion}</button>)}</div>}
         </>}
-        {messages.map((message, index) => <div key={index} className={`max-w-[92%] rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-wrap leading-relaxed ${message.role === "user" ? "ml-auto bg-pen text-white" : "mr-auto bg-surface text-ink"}`}>{message.text}</div>)}
+        {messages.map((message, index) => <div key={index} className={`max-w-[92%] min-w-0 rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${message.role === "user" ? "ml-auto whitespace-pre-wrap bg-pen text-white" : "mr-auto bg-surface text-ink"}`}>{message.role === "assistant" ? <AssistantAnswer text={message.text} /> : message.text}</div>)}
         {busy && <div role="status" className="flex items-center gap-2 text-sm text-muted"><Spinner size={16} /> Pensando na sua dúvida…</div>}
         {error && <p role="alert" className="rounded-xl bg-red-soft p-3 text-sm text-red">{error}</p>}
       </div>
