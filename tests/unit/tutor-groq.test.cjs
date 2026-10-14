@@ -57,8 +57,18 @@ test('Groq tutor isolates credentials, preserves study instructions and handles 
     assert.equal(events.at(-1).status, 429);
     failure = { statusCode: 401, message: 'groq-secret' };
     const rejected = await exports.POST(request());
-    assert.equal(rejected.status, 502);
+    assert.equal(rejected.status, 503);
     assert.doesNotMatch(JSON.stringify(await rejected.json()), /secret/);
+    assert.equal(events.at(-1).status, 401);
+    assert.match(events.at(-1).message, /GROQ_API_KEY/);
+    for (const statusCode of [403, 404]) {
+      failure = { statusCode, message: 'groq-secret raw error' };
+      const response = await exports.POST(request());
+      assert.equal(response.status, 503);
+      assert.equal(events.at(-1).status, statusCode);
+      assert.match(events.at(-1).message, /GROQ_TUTOR_MODEL/);
+      assert.doesNotMatch(JSON.stringify(await response.json()), /secret/);
+    }
     failure = undefined;
     empty = true;
     assert.equal((await exports.POST(request())).status, 502);

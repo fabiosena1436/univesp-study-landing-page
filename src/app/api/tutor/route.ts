@@ -58,8 +58,16 @@ async function handlePOST(req: NextRequest) {
         return Response.json({ answer, subjectName: source.subjectName, materialTitle: source.materialTitle, hasReference: source.hasReference }, { headers: { "Cache-Control": "no-store" } });
       } catch (error) {
         const status = error instanceof ApiError ? error.status : (error as { statusCode?: number })?.statusCode;
-        await recordAiRequest({ provider: "groq", model: modelName, status: typeof status === "number" ? status : 0, tokens: { input: null, output: null, thinking: null, total: null }, message: "O assistente não conseguiu responder.", retryAfter: null });
+        const message = status === 401
+          ? "O Groq recusou a chave do servidor. Confira GROQ_API_KEY no ambiente publicado e reimplante após corrigir."
+          : status === 403
+            ? "O Groq recusou o acesso ao modelo. Confira as permissões da conta e GROQ_TUTOR_MODEL."
+            : status === 404
+              ? "O modelo do assistente não foi encontrado no Groq. Confira GROQ_TUTOR_MODEL."
+              : "O assistente não conseguiu responder.";
+        await recordAiRequest({ provider: "groq", model: modelName, status: typeof status === "number" ? status : 0, tokens: { input: null, output: null, thinking: null, total: null }, message, retryAfter: null });
         if (error instanceof ApiError) throw error;
+        if (status === 401 || status === 403 || status === 404) throw new ApiError(503, "O assistente está indisponível por um problema na configuração. Avise o responsável pelo site.");
         if (status === 429) throw new ApiError(429, "O Groq atingiu o limite de uso do assistente. Tente novamente mais tarde.");
         throw new ApiError(502, "O assistente não conseguiu responder agora. Tente novamente.");
       }
