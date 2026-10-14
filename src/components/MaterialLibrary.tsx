@@ -7,6 +7,7 @@ import { useApp } from "@/components/AppShell";
 import type { MaterialDetail, MaterialRow } from "@/lib/types";
 import { PdfViewer } from "./PdfViewer";
 import { Badge, Button, EmptyState, Field, Select, Spinner } from "@/components/ui";
+import { StudyAssistant } from "./StudyAssistant";
 
 type MaterialFormat = "pdf" | "text";
 
@@ -132,6 +133,8 @@ export function MaterialLibrary() {
           <Button variant="ghost" disabled={list.length < 50} onClick={() => changePage(page + 1)}>Próxima</Button>
         </nav>
       )}
+      {active && <StudyAssistant key={active.id} scope={{ subjectId: active.subjectId, materialId: active.id }} subjectName={subjects.find(subject => subject.id === active.subjectId)?.name ?? list?.find(material => material.id === active.id)?.subjectName ?? "esta matéria"} />}
+      {!selectedId && subjectId && <StudyAssistant key={subjectId} scope={{ subjectId }} subjectName={subjects.find(subject => subject.id === subjectId)?.name ?? "esta matéria"} />}
     </div>
   );
 }

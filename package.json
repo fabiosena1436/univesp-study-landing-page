@@ -26,7 +26,9 @@
     "security:check": "node scripts/security-check.mjs"
   },
   "dependencies": {
+    "@ai-sdk/google": "^4.0.95",
     "@vercel/functions": "^3.9.10",
+    "ai": "^7.0.139",
     "bcryptjs": "^3.0.3",
     "dotenv": "17.3.1",
     "drizzle-orm": "0.45.2",

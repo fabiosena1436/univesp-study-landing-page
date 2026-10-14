@@ -100,6 +100,15 @@ test("PDF de 3 MB é anexado, separado do texto e acessível ao aluno", async ({
   expect(await pdf.body()).toEqual(file);
   await page.getByRole("button", { name: "Ler a versão em texto" }).click();
   await expect(page.locator("article")).toContainText("Conteúdo de aula disponível para leitura.");
+  await page.getByRole("button", { name: "Abrir assistente de estudos" }).click();
+  const assistant = page.getByRole("dialog", { name: "Assistente de estudos" });
+  await expect(assistant).toBeVisible();
+  await expect(assistant.getByRole("button", { name: "Resuma os pontos principais" })).toBeVisible();
+  await assistant.getByLabel("Sua pergunta para o assistente").fill("Explique este material");
+  await assistant.getByRole("button", { name: "Enviar pergunta" }).click();
+  await expect(assistant.getByRole("alert")).toContainText("indisponível");
+  await assistant.getByRole("button", { name: "Fechar assistente" }).click();
+  await expect(assistant).not.toBeVisible();
 });
 
 test("materiais filtram por matéria antes da paginação e preservam a seleção ao voltar da leitura", async ({ page }) => {
@@ -170,6 +179,10 @@ test("prova é respondida e salva pelo navegador", async ({ page }) => {
   await signIn(page, "student@aluno.univesp.br");
   await page.goto(`/app/prova?m=${sid}`);
   await page.getByRole("button", { name: "Começar prova" }).click();
+  await page.getByRole("button", { name: "Abrir assistente de estudos" }).click();
+  const assistant = page.getByRole("dialog", { name: "Assistente de estudos" });
+  await expect(assistant.getByRole("button", { name: "Dê uma dica sem revelar a resposta" })).toBeVisible();
+  await assistant.getByRole("button", { name: "Fechar assistente" }).click();
   await page.getByText("Quatro", { exact: true }).click();
   await page.getByRole("button", { name: "Verificar resposta" }).click();
   await page.getByRole("button", { name: "Finalizar prova" }).click();

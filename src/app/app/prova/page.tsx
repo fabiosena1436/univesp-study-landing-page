@@ -14,6 +14,7 @@ import {
 import { formatDuration } from "@/lib/api";
 import { Badge, Button, ScoreRing, Select, Spinner, ToggleRow } from "@/components/ui";
 import { orderedOptions } from "@/lib/options";
+import { StudyAssistant } from "@/components/StudyAssistant";
 
 export default function ProvaPage() {
   return (
@@ -304,6 +305,7 @@ function ProvaInner() {
             </>
           )}
         </div>
+        <StudyAssistant key={q.id} scope={{ subjectId: effectiveSubjectId, questionId: q.id }} subjectName={subjectName} />
       </div>
     );
   }
