@@ -6,13 +6,13 @@ import { api } from "@/lib/api";
 import type { Subject } from "@/lib/types";
 import { Button, Select, Spinner, TextArea } from "@/components/ui";
 import { AssistantAnswer } from "@/components/AssistantAnswer";
+import { tutorPages, type TutorScope } from "@/lib/tutorScope";
 
-type Scope = { subjectId: string; materialId?: string; questionId?: string };
 type Message = { role: "user" | "assistant"; text: string };
 type TutorAnswer = { answer: string; hasReference: boolean; materialTitle: string };
 
 export function StudyAssistant({ scope, subjectName, subjects, selectedSubjectId, onSubjectChange }: {
-  scope: Scope | null;
+  scope: TutorScope | null;
   subjectName: string;
   subjects?: Subject[];
   selectedSubjectId: string;
@@ -45,7 +45,9 @@ export function StudyAssistant({ scope, subjectName, subjects, selectedSubjectId
     onSubjectChange(id);
   }
 
-  const suggestions = scope?.questionId
+  const suggestions = !scope?.subjectId
+    ? ["Como usar esta página?", "Onde encontro os materiais e as provas?", "Como funciona a revisão?"]
+    : scope.questionId
     ? ["Dê uma dica sem revelar a resposta", "Qual conceito preciso revisar?", "Explique o enunciado em outras palavras"]
     : scope?.materialId
       ? ["Resuma os pontos principais", "Explique o conceito mais importante", `O que revisar em ${subjectName}?`]
@@ -95,7 +97,7 @@ export function StudyAssistant({ scope, subjectName, subjects, selectedSubjectId
         <span className="relative grid size-10 shrink-0 place-items-center rounded-xl bg-pen text-white"><BotMessageSquare size={22} aria-hidden="true" /><Sparkles size={11} className="absolute -right-1 -top-1 text-brand-deep" aria-hidden="true" /></span>
         <div className="min-w-0 flex-1">
           <h2 id="assistant-title" className="font-semibold">Assistente de estudos</h2>
-          <p className="truncate text-xs text-ink-soft">{subjectName}{scope?.questionId ? " · Questão atual" : scope?.materialId ? " · Material aberto" : ""}</p>
+          <p className="truncate text-xs text-ink-soft">{scope?.page ? `${tutorPages[scope.page]} · ` : ""}{subjectName}{scope?.questionId ? " · Questão atual" : scope?.materialId ? " · Material aberto" : ""}</p>
         </div>
         <button type="button" aria-label="Fechar assistente" onClick={() => dialog.current?.close()} className="rounded-lg p-2 text-ink-soft hover:bg-card hover:text-ink cursor-pointer"><X size={19} /></button>
       </header>
@@ -107,7 +109,7 @@ export function StudyAssistant({ scope, subjectName, subjects, selectedSubjectId
       </div>}
       <div role="log" aria-label="Conversa com o assistente" className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
         {messages.length === 0 && <>
-          <p className="text-sm text-ink-soft">{scope ? `Pergunte sobre ${scope.questionId ? "o conceito da questão" : scope.materialId ? "este material" : `a matéria ${subjectName}`}.` : "Assim que uma matéria for publicada, você poderá tirar dúvidas aqui."}</p>
+          <p className="text-sm text-ink-soft">{scope?.subjectId ? `Pergunte sobre ${scope.questionId ? "o conceito da questão" : scope.materialId ? "este material" : `a matéria ${subjectName}`}.` : "Pergunte sobre esta página ou sobre como usar a plataforma."}</p>
           {scope && <div className="space-y-2">{suggestions.map(suggestion => <button key={suggestion} type="button" disabled={busy} onClick={() => void ask(suggestion)} className="block w-full rounded-xl border border-field-border bg-card px-3 py-2 text-left text-sm hover:border-pen hover:bg-pen-soft cursor-pointer">{suggestion}</button>)}</div>}
         </>}
         {messages.map((message, index) => <div key={index} className={`max-w-[92%] min-w-0 rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${message.role === "user" ? "ml-auto whitespace-pre-wrap bg-pen text-white" : "mr-auto bg-surface text-ink"}`}>{message.role === "assistant" ? <AssistantAnswer text={message.text} /> : message.text}</div>)}

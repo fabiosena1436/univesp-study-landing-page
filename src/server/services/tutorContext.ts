@@ -2,8 +2,7 @@ import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { materials, questions, subjects } from "@/db/schema";
 import { ApiError } from "@/lib/errors";
-
-export type TutorScope = { subjectId: string; materialId?: string; questionId?: string };
+import { tutorPages, type TutorScope } from "@/lib/tutorScope";
 
 function relevantExcerpt(content: string, question: string, limit = 6500) {
   if (content.length <= limit) return content;
@@ -15,6 +14,12 @@ function relevantExcerpt(content: string, question: string, limit = 6500) {
 }
 
 export async function tutorContext(scope: TutorScope, question: string) {
+  const page = scope.page ?? (scope.questionId ? "/app/prova" : "/app");
+  const pageContext = `Página atual: ${tutorPages[page]} (${page}).`;
+  if (!scope.subjectId) {
+    if (scope.questionId || scope.materialId) throw new ApiError(400, "Selecione a matéria do conteúdo.");
+    return { subjectName: "", materialTitle: "", hasReference: false, context: `${pageContext}\nNenhuma matéria, questão ou material específico está selecionado.`, isQuestion: false };
+  }
   const subject = (await db.select({ id: subjects.id, name: subjects.name }).from(subjects)
     .where(and(eq(subjects.id, scope.subjectId), isNull(subjects.archivedAt))).limit(1))[0];
   if (!subject) throw new ApiError(404, "Matéria não encontrada.");
@@ -51,7 +56,9 @@ export async function tutorContext(scope: TutorScope, question: string) {
 
   const hasReference = Boolean(sourceExcerpt || materialContent.trim());
   const context = [
+    pageContext,
     `Matéria: ${subject.name}`,
+    !scope.questionId && !scope.materialId && "Nenhuma questão ou material específico está selecionado.",
     statement && `Enunciado da questão (sem alternativas ou gabarito): ${statement}`,
     sourceExcerpt && `Trecho associado à questão: ${sourceExcerpt}`,
     materialTitle && `Material: ${materialTitle}`,

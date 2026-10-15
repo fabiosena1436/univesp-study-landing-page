@@ -30,8 +30,9 @@ import type { Subject, User } from "@/lib/types";
 import { Logo } from "./Logo";
 import { StudyAssistant } from "./StudyAssistant";
 import { Spinner } from "./ui";
+import { tutorPageFromPath, type TutorScope } from "@/lib/tutorScope";
 
-type AssistantScope = { scope: { subjectId: string; materialId?: string; questionId?: string }; subjectName: string };
+type AssistantScope = { scope: TutorScope; subjectName: string };
 
 type Ctx = {
   user: User;
@@ -51,14 +52,15 @@ export function useApp(): Ctx {
 
 export function useStudyAssistantScope(value: AssistantScope | null) {
   const { setAssistantScope } = useApp();
+  const page = tutorPageFromPath(usePathname());
   const subjectId = value?.scope.subjectId;
   const materialId = value?.scope.materialId;
   const questionId = value?.scope.questionId;
   const subjectName = value?.subjectName;
   useEffect(() => {
-    setAssistantScope(subjectId && subjectName ? { scope: { subjectId, materialId, questionId }, subjectName } : null);
+    setAssistantScope(subjectId && subjectName ? { scope: { subjectId, materialId, questionId, page }, subjectName } : null);
     return () => setAssistantScope(null);
-  }, [setAssistantScope, subjectId, materialId, questionId, subjectName]);
+  }, [setAssistantScope, subjectId, materialId, questionId, subjectName, page]);
 }
 
 const NAV = [
@@ -121,8 +123,10 @@ export default function AppShell({ children, initialUser }: { children: ReactNod
 
   const visibleNav = (user.isAdmin || user.isAssistant) ? NAV : NAV.filter((n) => !["/app/importar", "/app/questoes"].includes(n.href));
   const assistantSubject = subjects.find(subject => subject.id === assistantSubjectId) ?? subjects[0];
-  const currentAssistantScope = assistantScope?.scope ?? (assistantSubject ? { subjectId: assistantSubject.id } : null);
-  const currentAssistantSubjectName = assistantScope?.subjectName ?? assistantSubject?.name ?? "seus estudos";
+  const assistantPage = tutorPageFromPath(pathname);
+  const pageScope = assistantScope?.scope.page === assistantPage ? assistantScope : null;
+  const currentAssistantScope: TutorScope = pageScope?.scope ?? { subjectId: assistantSubject?.id, page: assistantPage };
+  const currentAssistantSubjectName = pageScope?.subjectName ?? assistantSubject?.name ?? "a plataforma";
   const navLinks = (
     <>
       {visibleNav.map((n) => {
@@ -247,7 +251,7 @@ export default function AppShell({ children, initialUser }: { children: ReactNod
           <main className="flex-1 min-w-0 w-full">{children}</main>
         </div>
       </div>
-      <StudyAssistant key={assistantScope ? `${assistantScope.scope.subjectId}:${assistantScope.scope.materialId ?? ""}:${assistantScope.scope.questionId ?? ""}` : "global"} scope={currentAssistantScope} subjectName={currentAssistantSubjectName} subjects={assistantScope ? undefined : subjects} selectedSubjectId={assistantSubject?.id ?? ""} onSubjectChange={setAssistantSubjectId} />
+      <StudyAssistant key={`${assistantPage}:${currentAssistantScope.subjectId ?? ""}:${currentAssistantScope.materialId ?? ""}:${currentAssistantScope.questionId ?? ""}`} scope={currentAssistantScope} subjectName={currentAssistantSubjectName} subjects={pageScope ? undefined : subjects} selectedSubjectId={assistantSubject?.id ?? ""} onSubjectChange={setAssistantSubjectId} />
       {toastShell}
     </AppContext.Provider></MotionConfig>
   );

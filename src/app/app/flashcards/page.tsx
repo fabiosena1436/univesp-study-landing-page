@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Brain, CheckCircle2, RotateCcw, Sparkles } from "lucide-react";
-import { useApp, toast } from "@/components/AppShell";
+import { useApp, toast, useStudyAssistantScope } from "@/components/AppShell";
 import { api } from "@/lib/api";
 import { Badge, Button, EmptyState, Select, Spinner } from "@/components/ui";
 import type { Flashcard } from "@/lib/types";
@@ -46,6 +46,7 @@ export default function FlashcardsPage() {
   }, []);
 
   const active = cards?.[index];
+  useStudyAssistantScope(!loading && active ? { scope: { subjectId: active.subjectId, questionId: active.id }, subjectName: active.subjectName } : null);
 
   async function rate(rating: "hard" | "good" | "easy") {
     if (!active || ratingLock.current) return;

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { BrainCircuit, CheckCircle2, Clock3, Sparkles } from "lucide-react";
 import { api } from "@/lib/api";
 import { Button, EmptyState, Spinner } from "@/components/ui";
-import { toast } from "@/components/AppShell";
+import { toast, useStudyAssistantScope } from "@/components/AppShell";
 import type { ReviewQuestion, StudyPlan } from "@/lib/types";
 
 export default function PlanoPage() {
@@ -15,6 +15,7 @@ export default function PlanoPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [checked, setChecked] = useState(false);
   const [saving, setSaving] = useState(false);
+  useStudyAssistantScope(active ? { scope: { subjectId: active.subjectId, questionId: active.id }, subjectName: active.subjectName } : null);
 
   useEffect(() => {
     let alive = true;

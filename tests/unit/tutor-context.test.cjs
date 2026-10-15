@@ -16,6 +16,7 @@ test('generic quiz hint retrieves material about the actual question, without al
   const modules = {
     'drizzle-orm': { and: () => null, desc: () => null, eq: () => null, isNull: () => null, sql: () => null },
     '@/db/schema': schema, '@/lib/errors': require('../../.test-build/lib/errors'),
+    '@/lib/tutorScope': require('../../.test-build/lib/tutorScope'),
     '@/db': { db: { select: columns => ({ from: table => {
       if (table === schema.questions) assert.deepEqual(Object.keys(columns).sort(), ['materialId', 'sourceExcerpt', 'statement']);
       const builder = { where: () => builder, limit: async () => [records.get(table)] };
@@ -32,4 +33,14 @@ test('generic quiz hint retrieves material about the actual question, without al
   assert.match(source.context, /avaliação em benchmarks/);
   assert.match(source.context, /declaração de desconhecimento/);
   assert.doesNotMatch(source.context, /correctKey|Resposta correta|Alternativa A/);
+  for (const [page, label] of [['/app/plano', 'Meu plano de estudo'], ['/app/flashcards', 'Flashcards']]) {
+    const active = await exports.tutorContext({ page, subjectId: 'subject', questionId: 'question' }, 'Explique esta pergunta');
+    assert.ok(active.context.includes(`Página atual: ${label}`));
+    assert.ok(active.context.includes(statement));
+    assert.equal(active.isQuestion, true);
+  }
+  const platform = await exports.tutorContext({ page: '/app/plano' }, 'Como uso esta página?');
+  assert.equal(platform.isQuestion, false);
+  assert.match(platform.context, /Meu plano de estudo/);
+  assert.match(platform.context, /Nenhuma matéria, questão/);
 });

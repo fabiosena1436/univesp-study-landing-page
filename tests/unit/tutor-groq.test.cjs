@@ -8,7 +8,7 @@ const errors = require('../../.test-build/lib/errors');
 test('Groq tutor isolates credentials, preserves study instructions and handles failures safely', async () => {
   const names = ['GROQ_API_KEY', 'GROQ_TUTOR_MODEL', 'GEMINI_API_KEY', 'AI_TUTOR_MODEL'];
   const previous = names.map(name => process.env[name]);
-  let allowed = true, failure, empty = false, options, sentKey, calls = 0;
+  let allowed = true, failure, empty = false, options, sentKey, calls = 0, contextScope;
   const events = [];
   const modules = {
     '@/server/services/telemetry': { instrument: (_route, _method, handler) => handler },
@@ -18,16 +18,17 @@ test('Groq tutor isolates credentials, preserves study instructions and handles 
     '@/lib/auth': { requireUser: async () => { if (!allowed) throw new errors.ApiError(403, 'Restrito'); return { id: 'student' }; } },
     '@/lib/errors': errors, '@/lib/validation': { uuid: value => value },
     '@/lib/tutorPlatform': require('../../.test-build/lib/tutorPlatform'),
+    '@/lib/tutorScope': require('../../.test-build/lib/tutorScope'),
     '@/lib/rateLimit': { rateLimit: async () => {} },
     '@/lib/aiOperation': { aiSignal: () => new AbortController().signal, withAiOperation: (_id, _signal, work) => work() },
     '@/lib/aiUsage': { recordAiRequest: async event => events.push(event) },
     '@/lib/aiUsageStore': { reserveAiCall: async () => {} },
-    '@/server/services/tutorContext': { tutorContext: async () => ({ context: 'Enunciado de estudo.', subjectName: 'Ciências', hasReference: true, isQuestion: true }) },
+    '@/server/services/tutorContext': { tutorContext: async scope => { contextScope = scope; return { context: 'Enunciado de estudo.', subjectName: 'Ciências', hasReference: true, isQuestion: Boolean(scope.questionId) }; } },
   };
   const exports = {};
   const code = ts.transpileModule(fs.readFileSync('src/app/api/tutor/route.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
   vm.runInNewContext(code, { exports, require: name => { if (!(name in modules)) throw new Error(name); return modules[name]; }, Response, Request, AbortController, process });
-  const request = () => new Request('http://localhost/api/tutor', { method: 'POST', body: JSON.stringify({ question: 'Como estudar?', scope: { subjectId: 'subject' }, history: [] }) });
+  const request = (scope = { subjectId: 'subject', questionId: 'question', page: '/app/prova' }) => new Request('http://localhost/api/tutor', { method: 'POST', body: JSON.stringify({ question: 'Como estudar?', scope, history: [] }) });
   try {
     delete process.env.GROQ_API_KEY;
     delete process.env.GROQ_TUTOR_MODEL;
@@ -57,6 +58,16 @@ test('Groq tutor isolates credentials, preserves study instructions and handles 
     assert.equal(options.maxRetries, 0);
     assert.equal(events[0].provider, 'groq');
     assert.equal(events[0].tokens.total, 30);
+    for (const page of ['/app/plano', '/app/flashcards']) {
+      assert.equal((await exports.POST(request({ subjectId: 'subject', questionId: 'active-question', page }))).status, 200);
+      assert.equal(contextScope.questionId, 'active-question');
+      assert.equal(contextScope.page, page);
+    }
+    assert.equal((await exports.POST(request({ page: '/app/plano' }))).status, 200);
+    assert.equal(contextScope.subjectId, undefined);
+    assert.equal((await exports.POST(request({ page: 'instruções injetadas' }))).status, 400);
+    assert.equal((await exports.POST(request({ questionId: 'question', page: '/app/plano' }))).status, 400);
+    assert.equal((await exports.POST(request({ subjectId: 'subject', page: '/app/__proto__' }))).status, 400);
     failure = { statusCode: 429, message: 'groq-secret raw error' };
     const limited = await exports.POST(request());
     assert.equal(limited.status, 429);
