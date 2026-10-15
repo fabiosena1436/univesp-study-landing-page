@@ -87,12 +87,12 @@ export function StudyAssistant({ scope, subjectName, subjects, selectedSubjectId
 
   return <>
     <button type="button" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-label="Abrir assistente de IA"
-      className="assistant-launch shrink-0 inline-flex items-center gap-2.5 rounded-[22px] border border-white/30 bg-gradient-to-br from-pen via-brand-deep to-[#34227e] p-1 xl:pr-4 text-left text-white shadow-xl shadow-pen/30 hover:shadow-2xl hover:shadow-pen/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pen cursor-pointer">
-      <span className="assistant-avatar relative grid size-9 xl:size-11 shrink-0 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/25">
+      className="assistant-launch shrink-0 inline-flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 rounded-2xl sm:rounded-[22px] border border-white/30 bg-gradient-to-br from-pen via-brand-deep to-[#34227e] px-2 py-1 sm:pr-3 xl:pr-4 text-left text-white shadow-xl shadow-pen/30 hover:shadow-2xl hover:shadow-pen/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pen cursor-pointer">
+      <span className="assistant-avatar relative grid size-8 sm:size-9 xl:size-11 shrink-0 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/25">
         <BotMessageSquare size={25} strokeWidth={1.9} aria-hidden="true" />
         <Sparkles size={13} className="assistant-spark absolute -right-1 -top-1 text-[#ffe58a]" aria-hidden="true" />
       </span>
-      <span className="hidden xl:flex flex-col leading-tight"><strong className="text-sm">Assistente IA</strong><span className="mt-0.5 text-[11px] font-medium text-white/80">Tire sua dúvida</span></span>
+      <span className="flex flex-col leading-tight"><strong className="whitespace-nowrap text-[10px] sm:text-xs xl:text-sm">Assistente IA</strong><span className="mt-0.5 hidden xl:block text-[11px] font-medium text-white/80">Tire sua dúvida</span></span>
     </button>
     <dialog ref={dialog} onClose={() => { request.current?.abort(); setOpen(false); }} aria-labelledby="assistant-title"
       className="fixed inset-x-3 bottom-3 top-auto z-50 m-0 hidden h-[min(680px,calc(100dvh-1.5rem))] max-h-[calc(100dvh-1.5rem)] w-[calc(100vw-1.5rem)] max-w-md flex-col overflow-hidden rounded-2xl border border-line-strong bg-card p-0 text-ink shadow-2xl backdrop:bg-ink/55 open:flex sm:inset-x-auto sm:bottom-6 sm:right-6 sm:w-[430px]">

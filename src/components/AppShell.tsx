@@ -156,13 +156,13 @@ export default function AppShell({ children, initialUser }: { children: ReactNod
         <header className="app-header sticky top-0 z-40 border-b backdrop-blur-xl">
           <div className="max-w-[1480px] mx-auto px-4 md:px-8 h-16 sm:h-[72px] flex items-center gap-2 sm:gap-5">
             <Logo to="/app" dark compact />
-            <Link href="/app/perfil" className="hidden sm:flex items-center gap-2 text-sm text-white/70 hover:text-white"><UserCircle size={17} /> Perfil</Link>
+            <Link href="/app/perfil" className="hidden lg:flex items-center gap-2 text-sm text-white/70 hover:text-white"><UserCircle size={17} /> Perfil</Link>
             <div className="hidden lg:block h-7 w-px bg-white/20" />
             <p className="hidden lg:block text-sm font-medium text-white/60">Seu espaço de estudos</p>
             <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-3">
               <StudyAssistant key={`${assistantPage}:${currentAssistantScope.subjectId ?? ""}:${currentAssistantScope.materialId ?? ""}:${currentAssistantScope.questionId ?? ""}`} scope={currentAssistantScope} subjectName={currentAssistantSubjectName} subjects={pageScope ? undefined : subjects} selectedSubjectId={assistantSubject?.id ?? ""} onSubjectChange={setAssistantSubjectId} />
               {user.isAdmin && <AdminNotifications key={user.id} userId={user.id} />}
-              <span className="hidden sm:block text-sm text-white/65 max-w-40 truncate">
+              <span className="hidden lg:block text-sm text-white/65 max-w-40 truncate">
                 {user.name}
               </span>
               <span className="hidden sm:grid w-9 h-9 rounded-full bg-brand text-ink border border-white/20 place-items-center text-xs font-bold">
