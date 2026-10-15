@@ -19,7 +19,7 @@ npm run db:migrate
 npm run dev
 ```
 
-Abra http://localhost:3000. O PostgreSQL local usa a porta 55432, restrita a 127.0.0.1. As credenciais do compose são exclusivas para desenvolvimento.
+Abra http://localhost:3000. O PostgreSQL local usa a porta 15432, restrita a 127.0.0.1. As credenciais do compose são exclusivas para desenvolvimento. A porta anterior, 55432, pode estar reservada pelo Windows; nesse caso, atualize também a porta da URL em `.env.local`.
 
 Novos cadastros aceitam somente e-mails @aluno.univesp.br e precisam ter acesso autorizado pelo administrador, sem confirmação de e-mail. A lista de e-mails pré-autorizados permite inclusão em lote no painel administrativo. Quem estiver fora da lista cria uma conta pendente e vê uma tela de espera. O cadastro pede WhatsApp com DDD para aviso manual sobre a aprovação. O Resend envia a recuperação de senha. A migração preserva o acesso das contas existentes. Veja [o guia de aprovação](GUIA-APROVACAO-ACESSO.md). Cadastre 26241463@aluno.univesp.br para a conta administrativa e promova-a pelo comando abaixo.
 
