@@ -215,8 +215,43 @@ test("painel mostra total acima de 100 e tela funciona no celular sem falhas axe
   expect(dashboard.totalAttempts).toBeGreaterThan(150);
   const metric = page.getByText("Provas feitas", { exact: true }).locator("..");
   await expect(metric).toContainText(String(dashboard.totalAttempts));
-  await page.setViewportSize({ width: 390, height: 844 });
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  for (const width of [320, 360, 390, 768]) {
+    await page.setViewportSize({ width, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    const launcher = page.getByRole("button", { name: "Abrir assistente de IA" });
+    await expect(launcher).toBeInViewport();
+    await page.screenshot({ path: `artifacts/mobile-dashboard-${width}.png`, fullPage: true });
+  }
   const accessibility = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
   expect(accessibility.violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => n.target) }))).toEqual([]);
 });
+
+for (const width of [320, 390, 768]) {
+  test(`prova no celular ${width}px mantém envio acessível com assistente no cabeçalho`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 740 });
+    await signIn(page, "admin@aluno.univesp.br");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    const sid = await subject(page);
+    const saved = await page.request.post("/api/questions/bulk", { data: { subjectId: sid, questions: [{ statement: "Qual é o resultado de dois mais dois?", options: [{ key: "A", text: "Três" }, { key: "B", text: "Quatro" }], correctKey: "B", feedback: "Dois mais dois são quatro." }] } });
+    expect(saved.status()).toBe(201);
+    await signIn(page, "student@aluno.univesp.br");
+    await page.goto(`/app/prova?m=${sid}`);
+    await page.getByRole("button", { name: "Começar prova" }).click();
+    const launch = page.getByRole("button", { name: "Abrir assistente de IA" });
+    await launch.click();
+    const dialog = page.getByRole("dialog", { name: "Assistente de estudos" });
+    await expect(dialog).toBeInViewport();
+    await dialog.getByRole("button", { name: "Fechar assistente" }).click();
+    await page.getByText("Quatro", { exact: true }).click();
+    const check = page.getByRole("button", { name: "Verificar resposta" });
+    await check.scrollIntoViewIfNeeded();
+    await expect(check).toBeInViewport();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    const sendBox = await check.boundingBox(), launchBox = await launch.boundingBox();
+    expect(sendBox && launchBox && (sendBox.y >= launchBox.y + launchBox.height || sendBox.y + sendBox.height <= launchBox.y || sendBox.x >= launchBox.x + launchBox.width || sendBox.x + sendBox.width <= launchBox.x)).toBeTruthy();
+    await page.screenshot({ path: `artifacts/mobile-quiz-${width}.png`, fullPage: true });
+    await check.click();
+    await page.getByRole("button", { name: "Finalizar prova" }).click();
+    await expect(page.getByText("Prova salva: 1 acertos.")).toBeVisible();
+  });
+}

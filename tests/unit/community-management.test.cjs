@@ -37,6 +37,7 @@ test('community management enforces ownership and quotas against isolated Postgr
   const quotaNames = ['AI_TUTOR_DAILY_MESSAGES', 'AI_TUTOR_USER_DAILY_TOKENS', 'AI_TUTOR_SHARED_DAILY_TOKENS', 'AI_TUTOR_SHARED_DAILY_MESSAGES'];
   const previous = quotaNames.map(name => process.env[name]);
   try {
+    await pg.exec("SET TIME ZONE 'UTC'");
     for (const name of fs.readdirSync('migrations').filter(name => name.endsWith('.sql')).sort()) await pg.exec(fs.readFileSync('migrations/' + name, 'utf8'));
     for (const [name, user] of [['admin', admin], ['alice', alice], ['bob', bob]]) await db.insert(schema.users).values({ id: user.id, name, email: name + '@example.invalid', passwordHash: 'test-only', accessStatus: 'approved' });
     const support = load('src/app/api/support/route.ts');
@@ -64,6 +65,34 @@ test('community management enforces ownership and quotas against isolated Postgr
       const reply = await (await support.GET(request(null))).json();
       assert.equal(reply.messages.length, 2);
       assert.equal(reply.tickets[0].adminReadAt, null);
+    });
+
+    await t.test('admin notifications count registrations and unread conversations without exposing message text', async () => {
+      const notifications = load('src/app/api/admin/notifications/route.ts');
+      current = bob;
+      assert.equal((await notifications.GET(request(null))).status, 403);
+      current = admin;
+      await db.insert(schema.admins).values({ userId: admin.id });
+      await pg.query("UPDATE users SET created_at='2025-01-01', access_status='pending' WHERE id=$1", [alice.id]);
+      await pg.query("UPDATE users SET created_at='2026-02-01 00:00:00.123456', access_status='approved' WHERE id=$1", [bob.id]);
+      const first = await notifications.GET(request(null));
+      assert.equal(first.headers.get('Cache-Control'), 'no-store');
+      const initial = await first.json();
+      assert.equal(initial.registrations, 1);
+      assert.equal(initial.pending, 1);
+      assert.equal(initial.unread, 1);
+      assert.ok(initial.latestMessageAt);
+      assert.doesNotMatch(JSON.stringify(initial), /example.invalid|revisando|password/);
+      const newer = await (await notifications.GET(request(null, '?since=2026-01-01T00:00:00.000Z'))).json();
+      assert.equal(newer.registrations, 1); // Includes the automatically approved new account.
+      assert.equal(newer.latestRegistrationAt, '2026-02-01T00:00:00.123Z');
+      const seen = await (await notifications.GET(request(null, '?since=' + encodeURIComponent(newer.latestRegistrationAt)))).json();
+      assert.equal(seen.registrations, 0);
+      assert.equal((await notifications.GET(request(null, '?since=invalid'))).status, 400);
+      const inbox = await (await support.GET(request(null))).json();
+      await support.PATCH(request({ ticketId: inbox.tickets[0].id, read: true }));
+      assert.equal((await (await notifications.GET(request(null))).json()).unread, 0);
+      await pg.query("UPDATE users SET access_status='approved' WHERE id=$1", [alice.id]);
     });
 
     await t.test('general and targeted announcements keep audience boundaries and read receipts', async () => {

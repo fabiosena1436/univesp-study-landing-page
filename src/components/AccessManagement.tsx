@@ -20,6 +20,11 @@ export default function AccessManagement({ onChanged }: { onChanged?: () => void
   const [notice, setNotice] = useState("");
   const [approvedNow, setApprovedNow] = useState<Account | null>(null);
   useEffect(() => {
+    const refresh = () => { setStatus("pending"); setPage(0); setLoading(true); setRevision(value => value + 1); };
+    window.addEventListener("repete:open-registrations", refresh);
+    return () => window.removeEventListener("repete:open-registrations", refresh);
+  }, []);
+  useEffect(() => {
     let alive = true;
     Promise.all([api<Account[]>(`/api/admin/access?status=${status}&limit=50&offset=${page * 50}`), api<Allowed[]>(`/api/admin/authorized-emails?limit=50&offset=${emailPage * 50}`)])
       .then(([accounts, allowed]) => { if (alive) { setAccounts(accounts); setAllowed(allowed); setError(""); } })
@@ -35,7 +40,7 @@ export default function AccessManagement({ onChanged }: { onChanged?: () => void
     finally { setBusy(false); }
   }
   function whatsapp(account: Account) { return whatsappApprovalUrl(account.whatsapp, account.name, window.location.origin); }
-  return <section className="card p-5 space-y-6">
+  return <section id="cadastros" className="card p-5 space-y-6 scroll-mt-40">
     <h2 className="font-semibold text-xl">Aprovação de acesso</h2>
     <p className="text-sm text-muted">A aprovação libera o conteúdo para o aluno. Contas bloqueadas continuam sem acesso.</p>
     <div className="flex flex-wrap gap-3 items-center"><label htmlFor="access-status">Cadastros</label><Select id="access-status" value={status} onChange={e => { setStatus(e.target.value); setPage(0); setLoading(true); }}><option value="pending">Aguardando aprovação</option><option value="approved">Autorizados</option><option value="rejected">Recusados</option></Select><Button disabled={busy} variant="ghost" onClick={() => setRevision(r => r + 1)}>Atualizar</Button></div>

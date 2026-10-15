@@ -52,7 +52,7 @@ test('scope registration identifies the current page and clears the previous act
     react: { createContext: () => ({}), useContext: () => ({ setAssistantScope: value => scopes.push(value) }), useEffect: effect => { cleanup = effect(); } },
     'react/jsx-runtime': require('react/jsx-runtime'),
     'next/navigation': { usePathname: () => currentPage },
-    'next/link': {}, 'motion/react': {}, 'lucide-react': {}, '@/lib/api': {}, './Logo': {}, './StudyAssistant': {}, './ui': {}, './CommunityInbox': {}, './ActivityTracker': {},
+      'next/link': {}, 'motion/react': {}, 'lucide-react': {}, '@/lib/api': {}, './Logo': {}, './StudyAssistant': {}, './ui': {}, './CommunityInbox': {}, './ActivityTracker': {}, './AdminNotifications': {},
     '@/lib/tutorScope': require('../../.test-build/lib/tutorScope'),
   };
   const code = ts.transpileModule(fs.readFileSync('src/components/AppShell.tsx', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 } }).outputText;

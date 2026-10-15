@@ -154,8 +154,8 @@ function ProvaInner() {
     return (
       <div className="max-w-3xl mx-auto space-y-5">
         {/* barra superior */}
-        <div className="card px-5 py-3.5 flex items-center gap-4 anim-fade-up">
-          <div className="min-w-0 flex-1">
+        <div className="card px-4 sm:px-5 py-3.5 flex flex-wrap items-center gap-3 anim-fade-up">
+          <div className="min-w-0 basis-full sm:basis-auto flex-1">
             <div className="flex items-center justify-between text-xs font-semibold text-muted mb-1.5">
               <span className="truncate text-ink">{subjectName}</span>
               <span className="tabular-nums">
@@ -177,8 +177,8 @@ function ProvaInner() {
         </div>
 
         {/* questão */}
-        <div className="card p-6 anim-pop" key={q.id}>
-          <p className="whitespace-pre-line leading-relaxed text-[15px]">{q.statement}</p>
+        <div className="card p-4 sm:p-6 anim-pop" key={q.id}>
+          <p className="whitespace-pre-line break-words leading-relaxed text-[15px]">{q.statement}</p>
 
           <div className="mt-5 space-y-2.5">
             {orderedOptions(q.options).map((o) => {
@@ -211,7 +211,7 @@ function ProvaInner() {
                   >
                     {o.key}
                   </span>
-                  <span className="whitespace-pre-line leading-relaxed pt-1 flex-1">{o.text}</span>
+                  <span className="min-w-0 whitespace-pre-line break-words leading-relaxed pt-1 flex-1">{o.text}</span>
                   {checked && o.key === q.correctKey && (
                     <CheckCircle2 size={19} className="text-green shrink-0 mt-1" />
                   )}
@@ -273,7 +273,7 @@ function ProvaInner() {
         </div>
 
         {/* ações */}
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col-reverse items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
           {!checked ? (
             <>
               <Button variant="ghost" onClick={next} title="Pular e contar como erro">

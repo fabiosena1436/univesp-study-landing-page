@@ -108,11 +108,11 @@ export default function DashboardPage({ initialAttempts, totalAttempts }: { init
       {attempts.length > 0 && <PerformanceChart attempts={attempts} />}
 
       {/* ações rápidas */}
-      <div className={`grid ${(user.isAdmin || user.isAssistant) ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-3`}>
+      <div className={`grid grid-cols-1 ${(user.isAdmin || user.isAssistant) ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-3`}>
         {(user.isAdmin || user.isAssistant) && (
           <Link
             href="/app/importar"
-            className="card p-5 flex items-center gap-4 hover:border-line-strong transition-colors group"
+            className="card min-w-0 p-4 sm:p-5 flex items-center gap-3 sm:gap-4 hover:border-line-strong transition-colors group"
           >
             <span className="w-11 h-11 rounded-xl bg-brand border border-ink/10 grid place-items-center shrink-0">
               <ClipboardPaste size={20} />
@@ -126,7 +126,7 @@ export default function DashboardPage({ initialAttempts, totalAttempts }: { init
         )}
         <Link
           href="/app/plano"
-          className="card p-5 flex items-center gap-4 hover:border-line-strong transition-colors group"
+          className="card min-w-0 p-4 sm:p-5 flex items-center gap-3 sm:gap-4 hover:border-line-strong transition-colors group"
         >
           <span className="w-11 h-11 rounded-xl bg-pen-soft text-pen grid place-items-center shrink-0">
             <BrainCircuit size={20} />
@@ -139,7 +139,7 @@ export default function DashboardPage({ initialAttempts, totalAttempts }: { init
         </Link>
         <Link
           href="/app/prova"
-          className="card p-5 flex items-center gap-4 hover:border-line-strong transition-colors group"
+          className="card min-w-0 p-4 sm:p-5 flex items-center gap-3 sm:gap-4 hover:border-line-strong transition-colors group"
         >
           <span className="w-11 h-11 rounded-xl bg-pen-soft text-pen grid place-items-center shrink-0">
             <FileText size={20} />
@@ -154,7 +154,7 @@ export default function DashboardPage({ initialAttempts, totalAttempts }: { init
 
       {/* matérias */}
       <section>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <h2 className="font-display text-xl font-semibold">Suas matérias</h2>
           {(user.isAdmin || user.isAssistant) && <Link href="/app/questoes" className="text-sm font-semibold text-pen hover:underline inline-flex items-center gap-1">
             <LibraryBig size={14} /> Ver banco completo
@@ -171,16 +171,16 @@ export default function DashboardPage({ initialAttempts, totalAttempts }: { init
             </p>
           </div>
         ) : (
-          <div className="grid md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {subjects.map((s) => {
               const last = lastBySubject.get(s.id);
               const pct = last ? Math.round((last.correctCount / Math.max(1, last.total)) * 100) : null;
               return (
-                <div key={s.id} className="card p-5 anim-fade-up">
+                <div key={s.id} className="card min-w-0 p-4 sm:p-5 anim-fade-up">
                   <div className="flex items-center gap-2.5">
-                    <span className="w-3 h-3 rounded-full border border-ink/10" style={{ background: s.color }} />
-                    <h3 className="font-semibold truncate">{s.name}</h3>
-                    <span className="ml-auto text-xs font-semibold text-muted tabular-nums">
+                    <span className="w-3 h-3 shrink-0 rounded-full border border-ink/10" style={{ background: s.color }} />
+                    <h3 className="min-w-0 flex-1 break-words font-semibold">{s.name}</h3>
+                    <span className="ml-auto shrink-0 text-xs font-semibold text-muted tabular-nums">
                       {s.questionCount} quest.{s.questionCount === 1 ? "" : "ões"}
                     </span>
                   </div>
@@ -219,7 +219,7 @@ export default function DashboardPage({ initialAttempts, totalAttempts }: { init
         {(user.isAdmin || user.isAssistant) && <div className="card p-5 mt-3">
           <p className="text-sm font-semibold mb-3">Adicionar matéria</p>
           <div className="flex flex-wrap items-end gap-3">
-            <div className="flex-1 min-w-48">
+            <div className="w-full min-w-0 sm:w-auto sm:flex-1 sm:min-w-48">
               <Input
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
@@ -227,7 +227,7 @@ export default function DashboardPage({ initialAttempts, totalAttempts }: { init
                 onKeyDown={(e) => e.key === "Enter" && createSubject()}
               />
             </div>
-            <div className="flex items-center gap-1.5 pb-2">
+            <div className="flex flex-wrap items-center gap-1.5 pb-2">
               {SUBJECT_COLORS.map((c) => (
                 <button
                   key={c}
@@ -249,7 +249,7 @@ export default function DashboardPage({ initialAttempts, totalAttempts }: { init
 
       {/* provas recentes */}
       <section>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <h2 className="font-display text-xl font-semibold">Provas recentes</h2>
           <Link href="/app/historico" className="text-sm font-semibold text-pen hover:underline inline-flex items-center gap-1">
             <HistoryIcon size={14} /> Ver todas

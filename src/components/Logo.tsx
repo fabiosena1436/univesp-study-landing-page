@@ -15,12 +15,12 @@ export function LogoMark({ size = 30 }: { size?: number }) {
   );
 }
 
-export function Logo({ to = "/", dark = false }: { to?: string; dark?: boolean }) {
+export function Logo({ to = "/", dark = false, compact = false }: { to?: string; dark?: boolean; compact?: boolean }) {
   return (
-    <Link href={to} className="flex items-center gap-2 group">
+    <Link href={to} className="flex min-w-0 items-center gap-2 group">
       <LogoMark />
       <span
-        className={`font-display text-xl font-bold tracking-tight group-hover:opacity-80 transition-opacity ${
+        className={`font-display ${compact ? "text-sm leading-tight sm:text-xl" : "text-xl"} font-bold tracking-tight group-hover:opacity-80 transition-opacity ${
           dark ? "text-paper" : "text-ink"
         }`}
       >

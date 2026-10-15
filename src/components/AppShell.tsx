@@ -33,6 +33,7 @@ import { Spinner } from "./ui";
 import { tutorPageFromPath, type TutorScope } from "@/lib/tutorScope";
 import { CommunityInbox } from "./CommunityInbox";
 import { ActivityTracker } from "./ActivityTracker";
+import { AdminNotifications } from "./AdminNotifications";
 
 type AssistantScope = { scope: TutorScope; subjectName: string };
 
@@ -153,16 +154,18 @@ export default function AppShell({ children, initialUser }: { children: ReactNod
     <MotionConfig reducedMotion="user"><AppContext.Provider value={{ user, subjects, refreshSubjects, updateUser: setUser, setAssistantScope }}>
       <div className="min-h-screen app-shell-bg">
         <header className="app-header sticky top-0 z-40 border-b backdrop-blur-xl">
-          <div className="max-w-[1480px] mx-auto px-4 md:px-8 h-[72px] flex items-center gap-5">
-            <Logo to="/app" dark />
+          <div className="max-w-[1480px] mx-auto px-4 md:px-8 h-16 sm:h-[72px] flex items-center gap-2 sm:gap-5">
+            <Logo to="/app" dark compact />
             <Link href="/app/perfil" className="hidden sm:flex items-center gap-2 text-sm text-white/70 hover:text-white"><UserCircle size={17} /> Perfil</Link>
             <div className="hidden lg:block h-7 w-px bg-white/20" />
             <p className="hidden lg:block text-sm font-medium text-white/60">Seu espaço de estudos</p>
-            <div className="ml-auto flex items-center gap-3">
+            <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-3">
+              <StudyAssistant key={`${assistantPage}:${currentAssistantScope.subjectId ?? ""}:${currentAssistantScope.materialId ?? ""}:${currentAssistantScope.questionId ?? ""}`} scope={currentAssistantScope} subjectName={currentAssistantSubjectName} subjects={pageScope ? undefined : subjects} selectedSubjectId={assistantSubject?.id ?? ""} onSubjectChange={setAssistantSubjectId} />
+              {user.isAdmin && <AdminNotifications key={user.id} userId={user.id} />}
               <span className="hidden sm:block text-sm text-white/65 max-w-40 truncate">
                 {user.name}
               </span>
-              <span className="w-9 h-9 rounded-full bg-brand text-ink border border-white/20 grid place-items-center text-xs font-bold">
+              <span className="hidden sm:grid w-9 h-9 rounded-full bg-brand text-ink border border-white/20 place-items-center text-xs font-bold">
                 {initial || "R"}
               </span>
               <button
@@ -170,7 +173,7 @@ export default function AppShell({ children, initialUser }: { children: ReactNod
                   api("/api/auth/logout", { method: "POST" }).then(() => { clearQuizDrafts(); router.replace("/entrar"); router.refresh(); }).catch(() => toast("Não foi possível sair. Tente novamente.", "err"))
               }
                 title="Sair"
-                className="p-2 rounded-lg text-white/65 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                className="p-3 rounded-lg text-white/65 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
               >
                 <LogOut size={17} />
               </button>
@@ -194,22 +197,22 @@ export default function AppShell({ children, initialUser }: { children: ReactNod
                 </Link>
               );
             })}
-          </nav>
           {user.isAdmin && (
-            <Link href="/app/admin" className={`mt-3 nav-link flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold ${pathname.startsWith("/app/admin") ? "nav-link-active" : ""}`}>
+            <Link href="/app/admin" className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${pathname.startsWith("/app/admin") ? "mobile-nav-link-active" : "bg-header-soft border-white/10 text-white/70"}`}>
               <ShieldCheck size={17} /> Administração
             </Link>
           )}
           {!user.isAdmin && (
-            <Link href="/app/contato" className="mt-3 nav-link flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold">
+            <Link href="/app/contato" className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border border-white/10 text-white/70">
               <MessageSquare size={17} /> Falar com admin
             </Link>
           )}
+          </nav>
         </header>
 
         <div className="max-w-[1480px] mx-auto px-4 md:px-8 py-8 flex gap-8 items-start">
           <aside className="app-sidebar hidden lg:block w-60 shrink-0 sticky top-24">
-            <nav className="space-y-1">{navLinks}</nav>
+            <nav className="space-y-1">{navLinks}<Link href={user.isAdmin ? "/app/admin" : "/app/contato"} className={`nav-link flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold ${pathname === (user.isAdmin ? "/app/admin" : "/app/contato") ? "nav-link-active" : ""}`}>{user.isAdmin ? <ShieldCheck size={17} /> : <MessageSquare size={17} />}{user.isAdmin ? "Administração" : "Falar com admin"}</Link></nav>
             <div className="mt-8 border-t border-line pt-6">
             <p className="text-[11px] font-bold uppercase tracking-widest text-muted px-3 pb-3">
               Suas matérias
@@ -253,7 +256,7 @@ export default function AppShell({ children, initialUser }: { children: ReactNod
           <main className="flex-1 min-w-0 w-full"><CommunityInbox admin={Boolean(user.isAdmin)} />{children}</main>
         </div>
       </div>
-      <StudyAssistant key={`${assistantPage}:${currentAssistantScope.subjectId ?? ""}:${currentAssistantScope.materialId ?? ""}:${currentAssistantScope.questionId ?? ""}`} scope={currentAssistantScope} subjectName={currentAssistantSubjectName} subjects={pageScope ? undefined : subjects} selectedSubjectId={assistantSubject?.id ?? ""} onSubjectChange={setAssistantSubjectId} />
+
       {toastShell}
       <ActivityTracker />
     </AppContext.Provider></MotionConfig>

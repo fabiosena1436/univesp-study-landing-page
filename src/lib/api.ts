@@ -27,6 +27,9 @@ export async function api<T = unknown>(path: string, init?: RequestInit): Promis
   }
   const body = (await res.json().catch(() => ({}))) as { error?: string };
   if (!res.ok) throw new ApiClientError(res.status, body.error || "Algo deu errado.");
+  if (typeof window !== "undefined" && init?.method && init.method.toUpperCase() !== "GET" && (path.startsWith("/api/support") || path.startsWith("/api/admin/access") || path.startsWith("/api/admin/authorized-emails") || path.startsWith("/api/admin/users"))) {
+    window.dispatchEvent(new Event("repete:notifications"));
+  }
   return body as T;
 }
 

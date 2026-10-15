@@ -24,8 +24,8 @@ export function PerformanceChart({ attempts }: { attempts: AttemptRow[] }) {
   if (data.length === 0) return null;
 
   return (
-    <div className="card p-5 md:p-6">
-      <div className="flex items-start justify-between gap-4 mb-5">
+    <div className="card min-w-0 p-4 sm:p-5 md:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-muted">Seu ritmo</p>
           <h2 className="font-display text-xl font-semibold mt-1">Evolução nas provas</h2>

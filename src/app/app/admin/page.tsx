@@ -27,6 +27,14 @@ export default function AdminPage() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [userSearch, setUserSearch] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [notificationRevision, setNotificationRevision] = useState(0);
+  useEffect(() => {
+    const refreshMessages = () => { setTicketPage(0); setNotificationRevision(value => value + 1); };
+    const refreshRegistrations = () => { setUserPage(0); setUserSearch(""); setSearchTerm(""); setNotificationRevision(value => value + 1); };
+    window.addEventListener("repete:open-messages", refreshMessages);
+    window.addEventListener("repete:open-registrations", refreshRegistrations);
+    return () => { window.removeEventListener("repete:open-messages", refreshMessages); window.removeEventListener("repete:open-registrations", refreshRegistrations); };
+  }, []);
   useEffect(() => { const timer = window.setTimeout(() => { setSearchTerm(userSearch.trim()); setUserPage(0); }, 300); return () => window.clearTimeout(timer); }, [userSearch]);
   useEffect(() => {
     if (!user.isAdmin) return;
@@ -40,7 +48,7 @@ export default function AdminPage() {
       setUsers(users); setTickets(support.tickets); setMessages(support.messages); setEvents(events); setError("");
     }).catch((e) => { if (alive) setError(e instanceof Error ? e.message : "Não foi possível carregar a administração."); });
     return () => { alive = false; };
-  }, [user.isAdmin, userPage, ticketPage, eventPage, searchTerm]);
+  }, [user.isAdmin, userPage, ticketPage, eventPage, searchTerm, notificationRevision]);
   async function mutate(action: () => Promise<void>) {
     if (busy) return;
     setBusy(true);
@@ -57,7 +65,7 @@ export default function AdminPage() {
     <AiUsagePanel />
     <AdminAnnouncements users={users ?? []} />
     <section className="card p-5 space-y-3"><h2 className="font-semibold text-xl">Gerenciar conteúdo</h2><p className="text-sm text-muted">Edite ou exclua matérias, materiais e questões. A exclusão retira o conteúdo do banco e preserva as provas concluídas.</p><div className="flex flex-wrap gap-3"><Link className="text-pen font-semibold underline" href="/app">Matérias: nome, cor e exclusão</Link><Link className="text-pen font-semibold underline" href="/app/materiais">Materiais: título, conteúdo e exclusão</Link><Link className="text-pen font-semibold underline" href="/app/questoes">Questões: alternativas, gabarito e exclusão</Link></div></section>
-    <section className="card p-5"><h2 className="font-semibold text-xl">Usuários cadastrados</h2><p className="text-sm text-muted">Assistentes podem adicionar e editar provas, questões e materiais. Exclusões, aprovação de usuários e permissões ficam com o administrador principal. Aprove e desbloqueie a conta antes de torná-la assistente.</p>
+    <section id="usuarios" className="card p-5 scroll-mt-40"><h2 className="font-semibold text-xl">Usuários cadastrados</h2><p className="text-sm text-muted">Assistentes podem adicionar e editar provas, questões e materiais. Exclusões, aprovação de usuários e permissões ficam com o administrador principal. Aprove e desbloqueie a conta antes de torná-la assistente.</p>
       <Pagination page={userPage} next={users?.length === 50} setPage={setUserPage} />
       <Input aria-label="Buscar usuário por nome ou e-mail" placeholder="Buscar por nome ou e-mail" value={userSearch} onChange={e => setUserSearch(e.target.value)} />
       {!users ? <Spinner /> : users.map((item) => <div key={item.id} className="py-4 border-b border-line flex flex-wrap gap-3 items-center"><div className="flex-1 min-w-52"><p className="font-semibold">{item.name} {item.isAdmin && <Badge>Admin</Badge>} {item.isAssistant && <Badge>Assistente</Badge>} {item.isBlocked && <Badge tone="red">Bloqueado</Badge>}</p><p className="text-sm break-all">{item.email}</p><p className="text-xs text-muted">{item.attempts} provas · {item.answered} respostas · {item.correct} acertos</p></div>
@@ -66,7 +74,7 @@ export default function AdminPage() {
       </div>)}
     </section>
     {selectedUserId && <AdminUserDetail key={selectedUserId} userId={selectedUserId} onClose={() => setSelectedUserId(null)} />}
-    <section className="card p-5 space-y-4"><h2 className="font-semibold text-xl">Atendimentos</h2><Pagination page={ticketPage} next={tickets.length === 50} setPage={setTicketPage} />
+    <section id="atendimentos" className="card p-5 space-y-4 scroll-mt-40"><h2 className="font-semibold text-xl">Atendimentos</h2><Pagination page={ticketPage} next={tickets.length === 50} setPage={setTicketPage} />
       {!tickets.length && <p>Nenhum atendimento nesta página.</p>}
       {tickets.map((ticket) => <div key={ticket.id} className="rounded-xl border border-line p-4 space-y-3"><p className="font-semibold">{ticket.subject} <Badge>{ticket.status}</Badge></p><p className="text-xs break-all">{ticket.userName} · {ticket.userEmail}</p>
         {messages.filter((m) => m.ticketId === ticket.id).map((m) => <div key={m.id} className="rounded-lg bg-surface p-3"><p className="text-xs font-semibold">{m.senderId === ticket.userId ? ticket.userName : "Administração"}</p><p className="text-sm whitespace-pre-wrap break-words">{m.body}</p></div>)}
