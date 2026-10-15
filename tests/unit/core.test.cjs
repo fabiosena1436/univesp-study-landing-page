@@ -46,6 +46,8 @@ test('rejects duplicate letters, empty alternatives, invalid answer', () => {
   assert.throws(() => validateOptions(options, 'F'));
 });
 test('password policy respects UTF-8 bcrypt byte limit', () => {
+  assert.equal(passwordError('abc123'), null);
+  assert.ok(passwordError('abc12'));
   assert.equal(passwordError('a'.repeat(72)), null);
   assert.ok(passwordError('a'.repeat(73)));
   assert.ok(passwordError('😀'.repeat(19)));

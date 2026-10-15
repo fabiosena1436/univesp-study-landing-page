@@ -48,7 +48,7 @@ export function AccountSettings({ initialUser, onUpdated }: { initialUser: User;
     <form onSubmit={(e) => { e.preventDefault(); void save(); }} className="card p-6 space-y-4">
       <Field label="Nome"><Input required minLength={2} maxLength={80} autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} /></Field>
       <Field label="E-mail da conta"><Input value={user.email} disabled /></Field><Field label="Curso"><Input required minLength={2} maxLength={120} value={course} onChange={(e) => setCourse(e.target.value)} /></Field>
-      <div className="border-t border-line pt-4 space-y-4"><h2 className="font-semibold">Alterar senha</h2><Field label="Senha atual"><Input autoComplete="current-password" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} /></Field><Field label="Nova senha" hint="Mínimo de 15 caracteres e máximo de 72 bytes. Deixe vazio para manter a atual."><Input autoComplete="new-password" type="password" minLength={15} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} /></Field></div>
+      <div className="border-t border-line pt-4 space-y-4"><h2 className="font-semibold">Alterar senha</h2><Field label="Senha atual"><Input autoComplete="current-password" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} /></Field><Field label="Nova senha" hint="Mínimo de 6 caracteres e máximo de 72 bytes. Deixe vazio para manter a atual."><Input autoComplete="new-password" type="password" minLength={6} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} /></Field></div>
       <Button type="submit" disabled={busy}>{busy ? "Salvando…" : "Salvar alterações"}</Button>
     </form>
     <MfaSettings />

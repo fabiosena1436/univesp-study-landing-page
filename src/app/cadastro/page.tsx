@@ -82,7 +82,7 @@ export default function CadastroPage() {
         <Field label="Curso">
           <Input value={course} onChange={(e) => setCourse(e.target.value)} placeholder="Ex.: Engenharia de Computação" required minLength={2} />
         </Field>
-        <Field label="Senha" hint="Mínimo de 15 caracteres.">
+        <Field label="Senha" hint="Mínimo de 6 caracteres.">
           {/* A autorização de acesso é verificada no servidor. */}
           <Input
             type="password"
@@ -90,7 +90,7 @@ export default function CadastroPage() {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Crie uma senha"
             required
-            minLength={15}
+            minLength={6}
             autoComplete="new-password"
           />
         </Field>
@@ -101,7 +101,7 @@ export default function CadastroPage() {
             onChange={(e) => setConfirm(e.target.value)}
             placeholder="Repetir a senha"
             required
-            minLength={15}
+            minLength={6}
             autoComplete="new-password"
           />
         </Field>
