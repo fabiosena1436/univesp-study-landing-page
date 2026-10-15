@@ -23,6 +23,7 @@ test('Groq tutor isolates credentials, preserves study instructions and handles 
     '@/lib/aiOperation': { aiSignal: () => new AbortController().signal, withAiOperation: (_id, _signal, work) => work() },
     '@/lib/aiUsage': { recordAiRequest: async event => events.push(event) },
     '@/lib/aiUsageStore': { reserveAiCall: async () => {} },
+    '@/server/services/tutorQuota': { reserveTutorQuota: async () => ({}), settleTutorQuota: async () => {} },
     '@/server/services/tutorContext': { tutorContext: async scope => { contextScope = scope; return { context: 'Enunciado de estudo.', subjectName: 'Ciências', hasReference: true, isQuestion: Boolean(scope.questionId) }; } },
   };
   const exports = {};

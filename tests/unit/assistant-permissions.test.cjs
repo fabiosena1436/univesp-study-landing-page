@@ -43,7 +43,7 @@ test('assistant cannot delete content or manage accounts, approvals, audit, or A
   const routes = [
     ['subjects/[id]', 'DELETE'], ['questions/[id]', 'DELETE'], ['materials/[id]', 'DELETE'],
     ['admin/users', 'PATCH'], ['admin/users', 'DELETE'], ['admin/access', 'PATCH'],
-    ['admin/authorized-emails', 'POST'], ['admin/audit', 'GET'], ['admin/ai-usage', 'GET'], ['support', 'PATCH'],
+    ['admin/authorized-emails', 'POST'], ['admin/audit', 'GET'], ['admin/ai-usage', 'GET'],
   ];
   for (const [path, method] of routes) {
     let dbTouched = false;

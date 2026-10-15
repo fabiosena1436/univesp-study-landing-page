@@ -1,6 +1,6 @@
 import { instrument } from "@/server/services/telemetry";
 import { NextRequest } from "next/server";
-import { desc, eq, sql } from "drizzle-orm";
+import { desc, eq, sql, or, ilike } from "drizzle-orm";
 import { db } from "@/db";
 import { admins, attemptAnswers, attempts, users, sessions } from "@/db/schema";
 import { audit } from "@/lib/audit";
@@ -12,6 +12,7 @@ async function handleGET(req: NextRequest) {
   try {
     await requireAdmin();
     const { limit, offset } = pageParams(req.nextUrl.searchParams);
+    const search = (req.nextUrl.searchParams.get("search") ?? "").trim().slice(0, 200);
     const rows = await db
       .select({
         id: users.id,
@@ -29,6 +30,7 @@ async function handleGET(req: NextRequest) {
       .from(users)
       .leftJoin(attempts, eq(attempts.userId, users.id))
       .leftJoin(attemptAnswers, eq(attemptAnswers.attemptId, attempts.id))
+      .where(search ? or(ilike(users.name, `%${search}%`), ilike(users.email, `%${search}%`)) : undefined)
       .groupBy(users.id)
       .orderBy(desc(users.createdAt), desc(users.id)).limit(limit).offset(offset);
     const adminRows = await db.select({ userId: admins.userId }).from(admins);
@@ -83,6 +85,7 @@ async function handleDELETE(req: NextRequest) {
     uuid(id);
     await db.transaction(async (tx) => {
       if ((await tx.select().from(admins).where(eq(admins.userId, id)).limit(1))[0]) throw new ApiError(403, "Contas administrativas são gerenciadas pelo responsável pelo serviço.");
+      await tx.execute(sql`DELETE FROM tutor_quotas WHERE key=${id}`);
       const removed = await tx.delete(users).where(eq(users.id, id)).returning({ id: users.id });
       if (!removed.length) throw new ApiError(404, "Usuário não encontrado.");
       await audit(admin.id, "user.delete", id, tx);

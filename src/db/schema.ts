@@ -11,6 +11,7 @@ import {
   uniqueIndex,
   check,
   customType,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -21,6 +22,9 @@ export const users = pgTable("users", {
   passwordHash: text("password_hash").notNull(),
   isBlocked: boolean("is_blocked").notNull().default(false),
   lastLoginAt: timestamp("last_login_at"),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+  activityStartedAt: timestamp("activity_started_at", { withTimezone: true }),
+  activeSeconds: integer("active_seconds").notNull().default(0),
   emailVerifiedAt: timestamp("email_verified_at"),
   accessStatus: text("access_status").$type<"pending" | "approved" | "rejected">().notNull().default("pending"),
   whatsapp: text("whatsapp"),
@@ -71,6 +75,8 @@ export const supportTickets = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     subject: text("subject").notNull(),
     status: text("status").notNull().default("open"),
+    userReadAt: timestamp("user_read_at", { withTimezone: true }),
+    adminReadAt: timestamp("admin_read_at", { withTimezone: true }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -265,6 +271,29 @@ export const auditEvents = pgTable("audit_events", {
 }, (t) => [index("idx_audit_created").on(t.createdAt)]);
 
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => "bytea" });
+
+export const announcements = pgTable("announcements", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  authorId: uuid("author_id").references(() => users.id, { onDelete: "set null" }),
+  recipientId: uuid("recipient_id").references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [index("idx_announcements_recipient").on(t.recipientId, t.createdAt)]);
+
+export const announcementReads = pgTable("announcement_reads", {
+  announcementId: uuid("announcement_id").notNull().references(() => announcements.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  readAt: timestamp("read_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.announcementId, t.userId] })]);
+
+export const tutorQuotas = pgTable("tutor_quotas", {
+  key: text("key").notNull(),
+  period: text("period").notNull(),
+  requests: integer("requests").notNull().default(0),
+  tokens: integer("tokens").notNull().default(0),
+}, t => [primaryKey({ columns: [t.key, t.period] }), check("tutor_quota_nonnegative", sql`${t.requests} >= 0 and ${t.tokens} >= 0`)]);
 
 export const materialFiles = pgTable("material_files", {
   materialId: uuid("material_id").primaryKey().references(() => materials.id, { onDelete: "cascade" }),

@@ -71,7 +71,11 @@ Com Gemini, configure `GEMINI_MODELS` com um ou dois códigos separados por vír
 
 Alunos aprovados podem abrir o **Assistente IA** em todas as páginas internas. O assistente identifica a página atual. Em Meu plano, Flashcards e na prova, acompanha automaticamente a questão ou cartão ativo; na leitura, acompanha o material aberto. Ao mudar de página, questão, cartão ou material, a conversa reinicia para evitar contexto antigo. Fora dessas atividades, é possível selecionar a matéria no chat e pedir orientação sobre a plataforma mesmo sem matéria selecionada. O servidor consulta o enunciado e as referências pelo identificador; o cliente não envia o gabarito. O botão apresenta um robô animado e respeita a preferência por movimento reduzido. O assistente usa o AI SDK com o Groq configurado no servidor, mostra sugestões conforme a matéria e responde com base em trechos de texto do material e no enunciado da questão, quando disponíveis. Na prova, recebe apenas enunciado e trechos de referência; alternativas e gabarito não são enviados. As respostas podem conter erros, e o assistente não substitui a revisão do conteúdo. O chat não é salvo; a pergunta, as últimas seis mensagens e o contexto de estudo são enviados ao Groq para produzir cada resposta. PDFs sem texto copiado ou extraído não fornecem conteúdo ao assistente. Sem `GROQ_API_KEY`, o chat informa que está indisponível.
 
-O chat limita cada aluno a oito perguntas por minuto e, por padrão, 50 por 24 horas (`AI_TUTOR_DAILY_MESSAGES`, de 1 a 500). Também aplica o orçamento de tokens existente e um limite global de 100 perguntas por minuto. Cada resposta tem prazo de 45 segundos e limite de 750 tokens de saída.
+O chat limita cada aluno a oito perguntas por minuto e, por padrão, **20 consultas e 20 mil tokens por dia** (`AI_TUTOR_DAILY_MESSAGES` e `AI_TUTOR_USER_DAILY_TOKENS`). A comunidade compartilha uma reserva diária de **180 mil tokens e 900 tentativas** (`AI_TUTOR_SHARED_DAILY_TOKENS` e `AI_TUTOR_SHARED_DAILY_MESSAGES`). O período vira à meia-noite UTC (21h do dia anterior em Brasília), indicado no chat. Vale o primeiro limite atingido. Esses valores são configuráveis e não garantem 20 respostas: contexto, histórico e resposta consomem tokens; o provedor pode bloquear antes por limites de minuto ou consumo externo ao site. Também continuam ativos o orçamento mensal e o limite global de 100 perguntas por minuto. Cada resposta tem prazo de 45 segundos e limite de 750 tokens de saída.
+
+As reservas são atômicas no PostgreSQL. Reservam bytes do pedido mais margem de saída, depois acertam o consumo com os tokens informados pelo provedor. Rejeições conhecidas não descontam tokens nem consultas pessoais; a tentativa compartilhada permanece contada. Sem consumo informado, a reserva conservadora é mantida. O saldo não equivale a faturamento ou ao saldo da conta Groq.
+
+Exemplo de planejamento: com 180 mil tokens compartilhados e média de 2 mil tokens por resposta, caberiam aproximadamente 90 respostas por dia no site. Reservas conservadoras e limites do provedor podem reduzir esse total. Ajuste os orçamentos aos limites reais da organização no Groq.
 
 Os comandos `npm run dev`, `npm run build` e `npm run start` iniciam o Node com a cadeia de certificados confiáveis do sistema. Isso permite validar a conexão TLS com o Gemini em ambientes Windows que usam um certificado de rede instalado no sistema.
 
@@ -86,6 +90,18 @@ O administrador principal pode conceder e revogar a função de assistente em Ad
 O login oferece um botão para mostrar ou ocultar a senha. Em Minha conta, usuários podem ativar um autenticador TOTP e guardar códigos de recuperação exibidos uma vez. Cadastros novos e trocas de senha exigem no mínimo 15 caracteres; senhas antigas continuam válidas para entrada. Configure uma chave estável `MFA_ENCRYPTION_KEY` antes de habilitar o TOTP e preserve-a separadamente dos backups. Depois que o administrador principal ativar o próprio TOTP, `MFA_REQUIRE_ADMIN=true` pode exigir essa proteção para as funções administrativas. A migração `0004_quality_security.sql` adiciona os campos necessários.
 
 ## Qualidade e testes
+
+### Recados e acompanhamento de usuários
+
+Aplique `npm run db:migrate` antes de publicar esta versão: a migração `0005_user_management.sql` adiciona recados, leituras, cotas e acompanhamento sem apagar dados existentes. As quatro variáveis de cota constam em `.env.example`; os padrões estão descritos acima.
+
+Em Administração, publique recados gerais ou individuais e arquive/reative os publicados. A seleção individual acompanha a página filtrada de usuários; busque por nome ou e-mail para encontrar o destinatário. Nas páginas internas, Recados e mensagens mostra os 50 avisos mais recentes e o total de conversas não lidas. Atualiza ao entrar, ao voltar à janela e a cada minuto enquanto visível.
+
+Em Usuários cadastrados → Ver acompanhamento, consulte cadastro e contatos, último login, atividade recente, tempo ativo estimado, provas, acertos por matéria, revisões e últimas dez provas. O tempo começa a ser medido após a instalação, com aba visível e interação recente; não recupera o passado nem comprova atenção. O administrador pode iniciar uma conversa; o aluno responde em Falar com admin. As mensagens são internas, sem disparo automático de e-mail ou WhatsApp. Recados individuais e conversas são protegidos por destinatário; assistentes não recebem acesso administrativo.
+
+A exportação da conta inclui os novos dados pessoais. A exclusão remove cotas individuais e leituras; `npm run db:cleanup` remove contadores de cota com mais de 30 dias. Os testes usam PostgreSQL embutido descartável (PGlite), aplicam todas as migrações e verificam destinatários, respostas, concorrência de cota e atividade sem acessar contas reais nem consumir APIs de IA.
+
+### Comandos de verificação
 
 ```powershell
 npm run lint

@@ -10,6 +10,7 @@
     "plugins": []
   },
   "include": [
+    "src/lib/tutorQuotaPolicy.ts",
     "src/lib/tutorScope.ts",
     "src/lib/tutorPlatform.ts",
     "src/lib/validation.ts",

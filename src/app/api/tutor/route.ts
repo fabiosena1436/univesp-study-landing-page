@@ -12,6 +12,7 @@ import { reserveAiCall } from "@/lib/aiUsageStore";
 import { tutorContext } from "@/server/services/tutorContext";
 import { tutorPlatformInstructions } from "@/lib/tutorPlatform";
 import { isTutorPage } from "@/lib/tutorScope";
+import { reserveTutorQuota, settleTutorQuota } from "@/server/services/tutorQuota";
 
 export const maxDuration = 60;
 
@@ -32,10 +33,7 @@ async function handlePOST(req: NextRequest) {
     if (!key) throw new ApiError(503, "O assistente está indisponível. Configure o Groq no servidor.");
     const modelName = process.env.GROQ_TUTOR_MODEL?.trim() || "openai/gpt-oss-120b";
     if (!/^[a-zA-Z0-9][a-zA-Z0-9.\-_/]*$/.test(modelName)) throw new ApiError(503, "O assistente não tem um modelo válido configurado.");
-    const dailyLimit = Number(process.env.AI_TUTOR_DAILY_MESSAGES ?? 50);
-    if (!Number.isSafeInteger(dailyLimit) || dailyLimit < 1 || dailyLimit > 500) throw new Error("Invalid AI_TUTOR_DAILY_MESSAGES");
     await rateLimit("tutor.user.minute", user.id, 8, 60_000);
-    await rateLimit("tutor.user.day", user.id, dailyLimit, 86_400_000);
     await rateLimit("tutor.global.minute", "all", 100, 60_000);
     const source = await tutorContext({ subjectId, materialId, questionId, page: isTutorPage(rawScope.page) ? rawScope.page : undefined }, question);
     const modeInstructions = source.isQuestion
@@ -52,6 +50,7 @@ Se a referência não sustentar uma explicação específica, diga isso e faça 
         { role: "user" as const, content: question },
       ];
       await reserveAiCall({ system_instruction: { parts: [{ text: instructions }] }, contents: messages, generationConfig: { maxOutputTokens: 750 } });
+      const reservation = await reserveTutorQuota(user.id, { instructions, messages });
       try {
         const groq = createGroq({ apiKey: key });
         const result = await generateText({
@@ -62,10 +61,12 @@ Se a referência não sustentar uma explicação específica, diga isso e faça 
         const answer = result.text.trim();
         if (!answer) throw new ApiError(502, "O assistente não retornou uma resposta. Tente novamente.");
         const usage = result.usage;
+        await settleTutorQuota(reservation, usage.totalTokens, true);
         await recordAiRequest({ provider: "groq", model: modelName, status: 200, tokens: { input: usage.inputTokens ?? null, output: usage.outputTokens ?? null, thinking: usage.outputTokenDetails?.reasoningTokens ?? null, total: usage.totalTokens ?? null }, message: null, retryAfter: null });
         return Response.json({ answer, subjectName: source.subjectName, materialTitle: source.materialTitle, hasReference: source.hasReference }, { headers: { "Cache-Control": "no-store" } });
       } catch (error) {
         const status = error instanceof ApiError ? error.status : (error as { statusCode?: number })?.statusCode;
+        await settleTutorQuota(reservation, typeof status === "number" && [400, 401, 403, 404, 429].includes(status) ? 0 : undefined, false);
         const message = status === 401
           ? "O Groq recusou a chave do servidor. Confira GROQ_API_KEY no ambiente publicado e reimplante após corrigir."
           : status === 403

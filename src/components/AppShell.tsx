@@ -31,6 +31,8 @@ import { Logo } from "./Logo";
 import { StudyAssistant } from "./StudyAssistant";
 import { Spinner } from "./ui";
 import { tutorPageFromPath, type TutorScope } from "@/lib/tutorScope";
+import { CommunityInbox } from "./CommunityInbox";
+import { ActivityTracker } from "./ActivityTracker";
 
 type AssistantScope = { scope: TutorScope; subjectName: string };
 
@@ -248,11 +250,12 @@ export default function AppShell({ children, initialUser }: { children: ReactNod
             )}
             </div>
           </aside>
-          <main className="flex-1 min-w-0 w-full">{children}</main>
+          <main className="flex-1 min-w-0 w-full"><CommunityInbox admin={Boolean(user.isAdmin)} />{children}</main>
         </div>
       </div>
       <StudyAssistant key={`${assistantPage}:${currentAssistantScope.subjectId ?? ""}:${currentAssistantScope.materialId ?? ""}:${currentAssistantScope.questionId ?? ""}`} scope={currentAssistantScope} subjectName={currentAssistantSubjectName} subjects={pageScope ? undefined : subjects} selectedSubjectId={assistantSubject?.id ?? ""} onSubjectChange={setAssistantSubjectId} />
       {toastShell}
+      <ActivityTracker />
     </AppContext.Provider></MotionConfig>
   );
 }

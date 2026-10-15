@@ -1,0 +1,140 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const ts = require('typescript');
+const { randomUUID, webcrypto } = require('node:crypto');
+
+test('community management enforces ownership and quotas against isolated PostgreSQL', async t => {
+  const { PGlite } = await import('@electric-sql/pglite');
+  const { drizzle } = await import('drizzle-orm/pglite');
+  const pg = new PGlite();
+  const db = drizzle(pg);
+  const schema = require('../../.test-build/db/schema');
+  const errors = require('../../.test-build/lib/errors');
+  const policy = require('../../.test-build/lib/tutorQuotaPolicy');
+  const admin = { id: randomUUID(), isAdmin: true }, alice = { id: randomUUID(), isAdmin: false }, bob = { id: randomUUID(), isAdmin: false };
+  let current = admin;
+  const modules = {
+    '@/db': { db }, '@/db/schema': schema, 'next/server': {},
+    '@/lib/auth': {
+      requireUser: async () => { if (!current) throw new errors.ApiError(401, 'Entre'); return current; },
+      requireAdmin: async () => { if (!current?.isAdmin) throw new errors.ApiError(403, 'Restrito'); return current; },
+    },
+    '@/lib/errors': errors, '@/lib/validation': require('../../.test-build/lib/validation'),
+    '@/lib/rateLimit': { rateLimit: async () => {} },
+    '@/lib/audit': { audit: async (actorId, action, targetId, tx = db) => { await tx.insert(schema.auditEvents).values({ actorId, action, targetId }); } },
+    '@/server/services/telemetry': { instrument: (_route, _method, handler) => handler },
+    '@/lib/tutorQuotaPolicy': policy,
+  };
+  function load(path) {
+    const exports = {};
+    const code = ts.transpileModule(fs.readFileSync(path, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+    vm.runInNewContext(code, { exports, require: name => name in modules ? modules[name] : require(name), Response, Request, Buffer, process, crypto: webcrypto, console });
+    return exports;
+  }
+  const request = (body, query = '') => ({ json: async () => body, nextUrl: new URL('http://localhost/api/test' + query) });
+  const quotaNames = ['AI_TUTOR_DAILY_MESSAGES', 'AI_TUTOR_USER_DAILY_TOKENS', 'AI_TUTOR_SHARED_DAILY_TOKENS', 'AI_TUTOR_SHARED_DAILY_MESSAGES'];
+  const previous = quotaNames.map(name => process.env[name]);
+  try {
+    for (const name of fs.readdirSync('migrations').filter(name => name.endsWith('.sql')).sort()) await pg.exec(fs.readFileSync('migrations/' + name, 'utf8'));
+    for (const [name, user] of [['admin', admin], ['alice', alice], ['bob', bob]]) await db.insert(schema.users).values({ id: user.id, name, email: name + '@example.invalid', passwordHash: 'test-only', accessStatus: 'approved' });
+    const support = load('src/app/api/support/route.ts');
+    const notices = load('src/app/api/announcements/route.ts');
+    const quota = load('src/server/services/tutorQuota.ts');
+
+    await t.test('admin starts a private conversation, its owner replies, others cannot read or reply', async () => {
+      current = admin;
+      const sent = await support.POST(request({ userId: alice.id, subject: 'Acompanhamento', message: 'Como estão seus estudos?' }));
+      assert.equal(sent.status, 201);
+      const { id: ticketId } = await sent.json();
+      current = bob;
+      assert.equal((await (await support.GET(request(null))).json()).tickets.length, 0);
+      assert.equal((await support.PATCH(request({ ticketId, message: 'Invasão de conversa' }))).status, 404);
+      assert.equal((await support.POST(request({ userId: alice.id, subject: 'Forjado', message: 'Conteúdo forjado' }))).status, 403);
+      current = alice;
+      const inbox = await (await support.GET(request(null))).json();
+      assert.equal((await (await support.GET(request(null, '?summary=1'))).json()).unread, 1);
+      assert.equal(inbox.tickets[0].userReadAt, null);
+      assert.equal(inbox.messages[0].senderId, admin.id);
+      assert.equal((await support.PATCH(request({ ticketId, read: true }))).status, 200);
+      assert.equal((await (await support.GET(request(null, '?summary=1'))).json()).unread, 0);
+      assert.equal((await support.PATCH(request({ ticketId, message: 'Estou revisando matemática.' }))).status, 200);
+      current = admin;
+      const reply = await (await support.GET(request(null))).json();
+      assert.equal(reply.messages.length, 2);
+      assert.equal(reply.tickets[0].adminReadAt, null);
+    });
+
+    await t.test('general and targeted announcements keep audience boundaries and read receipts', async () => {
+      current = admin;
+      const everyone = await notices.POST(request({ title: 'Novos materiais', body: 'Confira os materiais publicados.' }));
+      const direct = await notices.POST(request({ title: 'Recado individual', body: 'Continue sua revisão.', recipientId: alice.id }));
+      assert.equal(everyone.status, 201); assert.equal(direct.status, 201);
+      const { id } = await direct.json();
+      current = bob;
+      assert.equal((await (await notices.GET(request(null))).json()).length, 1);
+      assert.equal((await notices.PATCH(request({ id, read: true }))).status, 404);
+      assert.equal((await notices.GET(request(null, '?manage=1'))).status, 403);
+      assert.equal((await notices.POST(request({ title: 'Não permitido', body: 'Outro recado.' }))).status, 403);
+      current = alice;
+      assert.equal((await (await notices.GET(request(null))).json()).length, 2);
+      assert.equal((await notices.PATCH(request({ id, read: true }))).status, 200);
+      assert.equal((await notices.PATCH(request({ id, read: true }))).status, 200);
+      assert.equal((await db.select().from(schema.announcementReads)).length, 1);
+      current = admin;
+      assert.equal((await notices.PATCH(request({ id, active: false }))).status, 200);
+      current = alice;
+      assert.equal((await (await notices.GET(request(null))).json()).length, 1);
+    });
+
+    await t.test('daily limits reserve atomically, settle actual tokens and refund a rejected provider call', async () => {
+      process.env.AI_TUTOR_DAILY_MESSAGES = '1';
+      process.env.AI_TUTOR_USER_DAILY_TOKENS = '10000';
+      process.env.AI_TUTOR_SHARED_DAILY_TOKENS = '20000';
+      process.env.AI_TUTOR_SHARED_DAILY_MESSAGES = '10';
+      const outcomes = await Promise.allSettled([quota.reserveTutorQuota(alice.id, 'Pergunta'), quota.reserveTutorQuota(alice.id, 'Pergunta')]);
+      assert.equal(outcomes.filter(r => r.status === 'fulfilled').length, 1);
+      assert.equal(outcomes.find(r => r.status === 'rejected').reason.status, 429);
+      const reservation = outcomes.find(r => r.status === 'fulfilled').value;
+      await quota.settleTutorQuota(reservation, 100, true);
+      const after = await quota.readTutorQuota(alice.id);
+      assert.equal(after.messagesRemaining, 0); assert.equal(after.tokensUsed, 100);
+      assert.equal(after.tokensRemaining, 9900);
+      const failed = await quota.reserveTutorQuota(bob.id, 'Pergunta');
+      await quota.settleTutorQuota(failed, 0, false);
+      assert.equal((await quota.readTutorQuota(bob.id)).messagesRemaining, 1);
+      assert.equal((await quota.readTutorQuota(bob.id)).tokensUsed, 0);
+      process.env.AI_TUTOR_SHARED_DAILY_TOKENS = '120';
+      await assert.rejects(quota.reserveTutorQuota(bob.id, 'Nova pergunta'), e => e.status === 429 && /comunidade/.test(e.message));
+    });
+
+    await t.test('admin-only details expose study metrics, not password hashes; activity does not count idle gaps', async () => {
+      const detail = load('src/app/api/admin/users/[id]/route.ts');
+      current = bob;
+      assert.equal((await detail.GET(new Request('http://localhost'), { params: Promise.resolve({ id: alice.id }) })).status, 403);
+      current = admin;
+      const response = await detail.GET(new Request('http://localhost'), { params: Promise.resolve({ id: alice.id }) });
+      assert.equal(response.status, 200);
+      const record = await response.json();
+      assert.equal(record.summary.attempts, 0);
+      assert.equal(record.user.activeSeconds, 0);
+      assert.equal(record.user.activityStartedAt, null);
+      assert.doesNotMatch(JSON.stringify(record), /passwordHash|password_hash|test-only/);
+      const pulse = load('src/app/api/activity/route.ts');
+      current = alice;
+      assert.equal((await pulse.POST()).status, 200);
+      assert.equal((await db.select().from(schema.users)).find(u => u.id === alice.id).activeSeconds, 0);
+      await pg.query("UPDATE users SET last_seen_at=now()-interval '60 seconds' WHERE id=$1", [alice.id]);
+      await pulse.POST();
+      assert.ok((await db.select().from(schema.users)).find(u => u.id === alice.id).activeSeconds >= 59);
+      await pg.query("UPDATE users SET last_seen_at=now()-interval '1 hour' WHERE id=$1", [alice.id]);
+      const before = (await db.select().from(schema.users)).find(u => u.id === alice.id).activeSeconds;
+      await pulse.POST();
+      assert.equal((await db.select().from(schema.users)).find(u => u.id === alice.id).activeSeconds, before);
+    });
+  } finally {
+    quotaNames.forEach((name, i) => { if (previous[i] === undefined) delete process.env[name]; else process.env[name] = previous[i]; });
+    await pg.close();
+  }
+});
