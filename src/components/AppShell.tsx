@@ -153,7 +153,7 @@ export default function AppShell({ children, initialUser }: { children: ReactNod
   return (
     <MotionConfig reducedMotion="user"><AppContext.Provider value={{ user, subjects, refreshSubjects, updateUser: setUser, setAssistantScope }}>
       <div className="min-h-screen app-shell-bg">
-        <header className="app-header sticky top-0 z-40 border-b backdrop-blur-xl">
+        <header className="app-header sticky top-0 z-40 border-b">
           <div className="max-w-[1480px] mx-auto px-4 md:px-8 h-16 sm:h-[72px] flex items-center gap-2 sm:gap-5">
             <Logo to="/app" dark compact />
             <Link href="/app/perfil" className="hidden lg:flex items-center gap-2 text-sm text-white/70 hover:text-white"><UserCircle size={17} /> Perfil</Link>
@@ -253,7 +253,7 @@ export default function AppShell({ children, initialUser }: { children: ReactNod
             )}
             </div>
           </aside>
-          <main className="flex-1 min-w-0 w-full"><CommunityInbox admin={Boolean(user.isAdmin)} />{children}</main>
+          <main className="flex-1 min-w-0 w-full pb-24"><CommunityInbox admin={Boolean(user.isAdmin)} />{children}</main>
         </div>
       </div>
 

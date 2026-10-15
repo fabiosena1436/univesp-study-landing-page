@@ -8,6 +8,7 @@ import { Button, Select, Spinner, TextArea } from "@/components/ui";
 import { AssistantAnswer } from "@/components/AssistantAnswer";
 import { tutorPages, type TutorScope } from "@/lib/tutorScope";
 import { TutorQuotaMeter } from "@/components/TutorQuotaMeter";
+import { useAssistantPosition } from "./useAssistantPosition";
 
 type Message = { role: "user" | "assistant"; text: string };
 type TutorAnswer = { answer: string; hasReference: boolean; materialTitle: string };
@@ -27,6 +28,8 @@ export function StudyAssistant({ scope, subjectName, subjects, selectedSubjectId
   const [quotaRevision, setQuotaRevision] = useState(0);
   const dialog = useRef<HTMLDialogElement>(null);
   const request = useRef<AbortController | null>(null);
+  const mobileQuiz = scope?.page === "/app/prova" && Boolean(scope.questionId);
+  const { launcher: launcherRef, position, reset, allowClick, handlers } = useAssistantPosition(mobileQuiz, () => setOpen(true));
 
   useEffect(() => {
     const element = dialog.current;
@@ -86,14 +89,16 @@ export function StudyAssistant({ scope, subjectName, subjects, selectedSubjectId
   }
 
   return <>
-    <button type="button" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-label="Abrir assistente de IA"
-      className="assistant-launch shrink-0 inline-flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 rounded-2xl sm:rounded-[22px] border border-white/30 bg-gradient-to-br from-pen via-brand-deep to-[#34227e] px-2 py-1 sm:pr-3 xl:pr-4 text-left text-white shadow-xl shadow-pen/30 hover:shadow-2xl hover:shadow-pen/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pen cursor-pointer">
-      <span className="assistant-avatar relative grid size-8 sm:size-9 xl:size-11 shrink-0 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/25">
+    <button ref={launcherRef} type="button" {...handlers} style={position ? { left: position.x, top: position.y, right: "auto", bottom: "auto" } : undefined}
+      onClick={() => { if (allowClick()) setOpen(true); }} aria-haspopup="dialog" aria-label="Abrir assistente de IA" aria-describedby="assistant-position-help" title="Assistente IA — arraste para mover"
+      className={`assistant-launch touch-none select-none z-40 shrink-0 inline-flex items-center rounded-[22px] border border-white/30 bg-gradient-to-br from-pen via-brand-deep to-[#34227e] text-left text-white shadow-xl shadow-pen/30 hover:shadow-2xl hover:shadow-pen/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pen cursor-grab active:cursor-grabbing ${mobileQuiz ? "static flex-col gap-0.5 px-2 py-1 sm:fixed sm:bottom-5 sm:right-7 sm:flex-row sm:gap-2.5 sm:p-1.5 sm:pr-4" : "fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] right-4 sm:right-7 flex-row gap-2.5 p-1.5 pr-4"}`}>
+      <span className={`assistant-avatar relative grid ${mobileQuiz ? "size-8 sm:size-11" : "size-11"} shrink-0 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/25`}>
         <BotMessageSquare size={25} strokeWidth={1.9} aria-hidden="true" />
         <Sparkles size={13} className="assistant-spark absolute -right-1 -top-1 text-[#ffe58a]" aria-hidden="true" />
       </span>
-      <span className="flex flex-col leading-tight"><strong className="whitespace-nowrap text-[10px] sm:text-xs xl:text-sm">Assistente IA</strong><span className="mt-0.5 hidden xl:block text-[11px] font-medium text-white/80">Tire sua dúvida</span></span>
+      <span className="flex flex-col leading-tight"><strong className={`whitespace-nowrap ${mobileQuiz ? "text-[10px] sm:text-sm" : "text-sm"}`}>Assistente IA</strong><span className={`mt-0.5 ${mobileQuiz ? "hidden sm:block" : "block"} text-[11px] font-medium text-white/80`}>Tire sua dúvida</span></span>
     </button>
+    <span id="assistant-position-help" className="sr-only">Arraste para mover o assistente. No teclado, segure Alt e use as setas. Durante a prova no celular, ele permanece no cabeçalho.</span>
     <dialog ref={dialog} onClose={() => { request.current?.abort(); setOpen(false); }} aria-labelledby="assistant-title"
       className="fixed inset-x-3 bottom-3 top-auto z-50 m-0 hidden h-[min(680px,calc(100dvh-1.5rem))] max-h-[calc(100dvh-1.5rem)] w-[calc(100vw-1.5rem)] max-w-md flex-col overflow-hidden rounded-2xl border border-line-strong bg-card p-0 text-ink shadow-2xl backdrop:bg-ink/55 open:flex sm:inset-x-auto sm:bottom-6 sm:right-6 sm:w-[430px]">
       <header className="flex shrink-0 items-center gap-3 border-b border-line bg-brand-soft/60 px-4 py-3">
@@ -120,6 +125,7 @@ export function StudyAssistant({ scope, subjectName, subjects, selectedSubjectId
         {error && <p role="alert" className="rounded-xl bg-red-soft p-3 text-sm text-red">{error}</p>}
       </div>
       <form onSubmit={submit} className="max-h-[45%] shrink-0 overflow-y-auto border-t border-line bg-card p-3">
+        {position && <button type="button" className="mb-2 text-xs font-semibold text-pen underline" onClick={reset}>Restaurar posição do assistente</button>}
         {open && <details className="mb-2 text-xs text-muted"><summary className="cursor-pointer py-1 font-semibold">Consultar limite diário de IA</summary><TutorQuotaMeter revision={quotaRevision} /></details>}
         <div className="flex items-end gap-2">
           <TextArea aria-label="Sua pergunta para o assistente" rows={2} maxLength={1000} disabled={!scope} value={input} onChange={event => setInput(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void ask(input); } }} placeholder={scope ? "Escreva sua dúvida…" : "Aguarde uma matéria ser publicada"} className="min-h-11 max-h-28" />

@@ -227,7 +227,7 @@ test("painel mostra total acima de 100 e tela funciona no celular sem falhas axe
 });
 
 for (const width of [320, 390, 768]) {
-  test(`prova no celular ${width}px mantém envio acessível com assistente no cabeçalho`, async ({ page }) => {
+  test(`prova no celular ${width}px posiciona assistente conforme a atividade`, async ({ page }) => {
     await page.setViewportSize({ width, height: 740 });
     await signIn(page, "admin@aluno.univesp.br");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -236,8 +236,13 @@ for (const width of [320, 390, 768]) {
     expect(saved.status()).toBe(201);
     await signIn(page, "student@aluno.univesp.br");
     await page.goto(`/app/prova?m=${sid}`);
-    await page.getByRole("button", { name: "Começar prova" }).click();
     const launch = page.getByRole("button", { name: "Abrir assistente de IA" });
+    await expect(launch).toHaveCSS("position", "fixed");
+    await expect.poll(async () => (await launch.boundingBox())?.y ?? 0).toBeGreaterThan(370);
+    await page.getByRole("button", { name: "Começar prova" }).click();
+    await expect(launch).toHaveCSS("position", width < 640 ? "static" : "fixed");
+    if (width < 640) await expect.poll(async () => (await launch.boundingBox())?.y ?? 1000).toBeLessThan(80);
+    else await expect.poll(async () => (await launch.boundingBox())?.y ?? 0).toBeGreaterThan(370);
     await launch.click();
     const dialog = page.getByRole("dialog", { name: "Assistente de estudos" });
     await expect(dialog).toBeInViewport();
@@ -248,10 +253,49 @@ for (const width of [320, 390, 768]) {
     await expect(check).toBeInViewport();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     const sendBox = await check.boundingBox(), launchBox = await launch.boundingBox();
-    expect(sendBox && launchBox && (sendBox.y >= launchBox.y + launchBox.height || sendBox.y + sendBox.height <= launchBox.y || sendBox.x >= launchBox.x + launchBox.width || sendBox.x + sendBox.width <= launchBox.x)).toBeTruthy();
+    if (width < 640) expect(sendBox && launchBox && (sendBox.y >= launchBox.y + launchBox.height || sendBox.y + sendBox.height <= launchBox.y || sendBox.x >= launchBox.x + launchBox.width || sendBox.x + sendBox.width <= launchBox.x)).toBeTruthy();
     await page.screenshot({ path: `artifacts/mobile-quiz-${width}.png`, fullPage: true });
     await check.click();
     await page.getByRole("button", { name: "Finalizar prova" }).click();
     await expect(page.getByText("Prova salva: 1 acertos.")).toBeVisible();
+    await expect(launch).toHaveCSS("position", "fixed");
   });
 }
+
+test.describe("posição personalizada do assistente", () => {
+  test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
+  test("mouse, toque e teclado movem sem abrir o chat; posição pode ser restaurada", async ({ page, context }) => {
+    await signIn(page, "student@aluno.univesp.br");
+    const launch = page.getByRole("button", { name: "Abrir assistente de IA" });
+    await expect(launch).toBeVisible();
+    const before = (await launch.boundingBox())!;
+    await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(35, 330, { steps: 12 });
+    await page.mouse.up();
+    const dialog = page.getByRole("dialog", { name: "Assistente de estudos" });
+    await expect(dialog).not.toBeVisible();
+    await expect.poll(async () => (await launch.boundingBox())?.y ?? 1000).toBeLessThan(400);
+    await page.reload();
+    await expect.poll(async () => (await launch.boundingBox())?.y ?? 1000).toBeLessThan(400);
+    const saved = (await launch.boundingBox())!;
+    await launch.focus();
+    await page.keyboard.press("Alt+ArrowRight");
+    await expect.poll(async () => (await launch.boundingBox())?.x ?? 0).toBeGreaterThan(saved.x + 10);
+    const moved = (await launch.boundingBox())!;
+    const touch = await context.newCDPSession(page);
+    await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: moved.x + moved.width / 2, y: moved.y + moved.height / 2 }] });
+    await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: 500, y: 5 }] });
+    await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await expect(dialog).not.toBeVisible();
+    const clamped = (await launch.boundingBox())!;
+    expect(clamped.x).toBeGreaterThanOrEqual(0);
+    expect(clamped.x + clamped.width).toBeLessThanOrEqual(390);
+    expect(clamped.y).toBeGreaterThanOrEqual(0);
+    await launch.tap();
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("button", { name: "Restaurar posição do assistente" }).click();
+    await dialog.getByRole("button", { name: "Fechar assistente" }).click();
+    await expect.poll(async () => (await launch.boundingBox())?.y ?? 0).toBeGreaterThan(700);
+  });
+});
