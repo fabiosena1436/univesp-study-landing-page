@@ -49,7 +49,7 @@ export function StudyAssistant({ scope, subjectName, subjects, selectedSubjectId
     ? ["Dê uma dica sem revelar a resposta", "Qual conceito preciso revisar?", "Explique o enunciado em outras palavras"]
     : scope?.materialId
       ? ["Resuma os pontos principais", "Explique o conceito mais importante", `O que revisar em ${subjectName}?`]
-      : [`Por onde começo a estudar ${subjectName}?`, "Quais são os conceitos essenciais?", "Crie uma pergunta para eu praticar"];
+      : [`Como começar a estudar ${subjectName} aqui na plataforma?`, "Quais são os conceitos essenciais?", "Onde encontro os materiais e as provas?"];
 
   async function ask(text: string) {
     const question = text.trim();

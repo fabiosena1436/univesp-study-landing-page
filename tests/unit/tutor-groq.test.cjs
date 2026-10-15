@@ -17,6 +17,7 @@ test('Groq tutor isolates credentials, preserves study instructions and handles 
     ai: { generateText: async value => { calls++; options = value; if (failure) throw failure; return { text: empty ? ' ' : 'Explicação de estudo.', usage: { inputTokens: 20, outputTokens: 10, totalTokens: 30 } }; } },
     '@/lib/auth': { requireUser: async () => { if (!allowed) throw new errors.ApiError(403, 'Restrito'); return { id: 'student' }; } },
     '@/lib/errors': errors, '@/lib/validation': { uuid: value => value },
+    '@/lib/tutorPlatform': require('../../.test-build/lib/tutorPlatform'),
     '@/lib/rateLimit': { rateLimit: async () => {} },
     '@/lib/aiOperation': { aiSignal: () => new AbortController().signal, withAiOperation: (_id, _signal, work) => work() },
     '@/lib/aiUsage': { recordAiRequest: async event => events.push(event) },
@@ -50,6 +51,9 @@ test('Groq tutor isolates credentials, preserves study instructions and handles 
     assert.match(options.instructions, /foco obrigatório é o enunciado/);
     assert.match(options.instructions, /Priorize o trecho associado/);
     assert.match(options.instructions, /pergunta orientadora/);
+    assert.match(options.instructions, /distinga a intenção/);
+    assert.match(options.instructions, /\[Materiais \(PDF\)\]\(\/app\/materiais\)/);
+    assert.doesNotMatch(options.instructions, /\]\(\/app\/admin\)/);
     assert.equal(options.maxRetries, 0);
     assert.equal(events[0].provider, 'groq');
     assert.equal(events[0].tokens.total, 30);

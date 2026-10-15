@@ -65,7 +65,30 @@ export default function AdminPage() {
         </form>
       </div>)}
     </section>
-    <section className="card p-5 space-y-3"><h2 className="font-semibold text-xl">Auditoria</h2><Pagination page={eventPage} next={events.length === 50} setPage={setEventPage} /><p className="text-sm text-muted">Ações registradas no servidor; novas ações aparecem ao atualizar a página.</p>{events.map((event) => <p key={event.id} className="text-sm break-all">{formatDate(event.createdAt)} · {event.action} · {event.targetId}</p>)}</section>
+    <details className="card group/audit p-5">
+      <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-2 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-pen">
+        <h2 className="font-semibold text-xl">Auditoria</h2>
+        <span className="text-sm font-semibold text-pen group-open/audit:hidden">Expandir ações registradas</span>
+        <span className="hidden text-sm font-semibold text-pen group-open/audit:inline">Ocultar ações registradas</span>
+      </summary>
+      <div className="mt-4 space-y-3">
+        <p className="text-sm text-muted">Ações registradas no servidor; novas ações aparecem ao atualizar a página.</p>
+        <Pagination page={eventPage} next={events.length === 50} setPage={setEventPage} />
+        {!events.length && <p className="text-sm text-muted">Nenhuma ação nesta página.</p>}
+        {events.map((event) => <details key={event.id} className="group/event rounded-xl border border-line p-3">
+          <summary className="cursor-pointer rounded text-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-pen">
+            <span>{formatDate(event.createdAt)} · <strong className="break-all font-semibold">{event.action}</strong></span>
+            <span className="ml-2 text-xs text-pen group-open/event:hidden">Ver detalhes</span>
+            <span className="ml-2 hidden text-xs text-pen group-open/event:inline">Ocultar detalhes</span>
+          </summary>
+          <pre className="mt-3 max-h-64 overflow-y-auto whitespace-pre-wrap break-all rounded-lg bg-surface p-3 text-xs leading-relaxed">{formatAuditDetails(event.targetId)}</pre>
+        </details>)}
+      </div>
+    </details>
   </div>;
+}
+function formatAuditDetails(value: string) {
+  try { return JSON.stringify(JSON.parse(value), null, 2); }
+  catch { return value; }
 }
 function Pagination({ page, next, setPage }: { page: number; next: boolean; setPage: (page: number) => void }) { return <div className="my-4 flex gap-3 items-center"><Button variant="ghost" disabled={page === 0} onClick={() => setPage(page - 1)}>Anterior</Button><span>Página {page + 1}</span><Button variant="ghost" disabled={!next} onClick={() => setPage(page + 1)}>Próxima</Button></div>; }
