@@ -14,7 +14,7 @@ export const UNIVESP_STUDENT_EMAIL_RE = /^[^\s@]+@aluno\.univesp\.br$/i;
 
 export function registrationEmailAllowed(email: string): boolean {
   const normalized = email.trim().toLowerCase();
-  return UNIVESP_STUDENT_EMAIL_RE.test(normalized);
+  return UNIVESP_STUDENT_EMAIL_RE.test(normalized) || normalized === "25228073@cursos.univesp.br";
 }
 
 export const BRAND = "Aprova UNIVESP";

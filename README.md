@@ -21,7 +21,7 @@ npm run dev
 
 Abra http://localhost:3000. O PostgreSQL local usa a porta 15432, restrita a 127.0.0.1. As credenciais do compose são exclusivas para desenvolvimento. A porta anterior, 55432, pode estar reservada pelo Windows; nesse caso, atualize também a porta da URL em `.env.local`.
 
-Novos cadastros aceitam somente e-mails @aluno.univesp.br e precisam ter acesso autorizado pelo administrador, sem confirmação de e-mail. A lista de e-mails pré-autorizados permite inclusão em lote no painel administrativo. Quem estiver fora da lista cria uma conta pendente e vê uma tela de espera. O cadastro pede WhatsApp com DDD para aviso manual sobre a aprovação. O Resend envia a recuperação de senha. A migração preserva o acesso das contas existentes. Veja [o guia de aprovação](GUIA-APROVACAO-ACESSO.md). Cadastre 26241463@aluno.univesp.br para a conta administrativa e promova-a pelo comando abaixo.
+Novos cadastros aceitam e-mails @aluno.univesp.br e a exceção específica 25228073@cursos.univesp.br e precisam ter acesso autorizado pelo administrador, sem confirmação de e-mail. A lista de e-mails pré-autorizados permite inclusão em lote no painel administrativo. Quem estiver fora da lista cria uma conta pendente e vê uma tela de espera. O cadastro pede WhatsApp com DDD para aviso manual sobre a aprovação. O Resend envia a recuperação de senha. A migração preserva o acesso das contas existentes. Veja [o guia de aprovação](GUIA-APROVACAO-ACESSO.md). Cadastre 26241463@aluno.univesp.br para a conta administrativa e promova-a pelo comando abaixo.
 
 Em produção, `APP_URL` deve ser HTTPS. Configure `TZ=UTC` no processo Node e dimensione `DB_POOL_MAX` conforme o limite de conexões do banco. Não use as credenciais de desenvolvimento em produção.
 
@@ -45,7 +45,7 @@ Cadastre a conta institucional que será administradora. Para este projeto, use 
 npm run db:admin -- 26241463@aluno.univesp.br
 ```
 
-O comando exige uma conta existente e não bloqueada e registra a promoção na auditoria. A aplicação impede exclusão da última conta administrativa. Novos cadastros aceitam exclusivamente o domínio @aluno.univesp.br, sem exceções para e-mails pessoais. O cadastro não concede acesso administrativo automaticamente.
+O comando exige uma conta existente e não bloqueada e registra a promoção na auditoria. A aplicação impede exclusão da última conta administrativa. Novos cadastros aceitam o domínio @aluno.univesp.br e o endereço específico 25228073@cursos.univesp.br, autorizado pelo responsável. Outros endereços @cursos.univesp.br e e-mails pessoais continuam bloqueados. O cadastro não concede acesso administrativo automaticamente.
 
 ## Comportamento e integridade
 

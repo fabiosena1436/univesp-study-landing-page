@@ -24,6 +24,7 @@ test('Brazilian WhatsApp contacts normalize for wa.me and reject injection and b
 
 test('bulk authorization validates the whole list and handles normalization, duplicates and limits', () => {
   assert.deepEqual(parseAuthorizedEmails(' ALUNO@ALUNO.UNIVESP.BR\naluno@aluno.univesp.br, outra@aluno.univesp.br; terceira@aluno.univesp.br'), ['aluno@aluno.univesp.br', 'outra@aluno.univesp.br', 'terceira@aluno.univesp.br']);
+  assert.deepEqual(parseAuthorizedEmails('25228073@cursos.univesp.br'), ['25228073@cursos.univesp.br']);
   for (const email of ['outro@gmail.com', 'fabiosena1436@gmail.com', 'aluno@aluno.univesp.br.example.com']) {
     assert.throws(() => parseAuthorizedEmails(`valid@aluno.univesp.br ${email}`), /@aluno\.univesp\.br/);
   }

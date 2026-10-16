@@ -7,10 +7,14 @@ const { orderedOptions } = require('../../.test-build/lib/options');
 const options = ['A', 'B', 'C', 'D', 'E'].map(key => ({ key, text: 'Alternativa ' + key }));
 const question = { id: 'q1', subjectId: 's1', correctKey: 'B', options };
 
-test('registration allows only the exact UNIVESP student domain, without personal exceptions', () => {
+test('registration allows the UNIVESP student domain and the explicitly authorized course email', () => {
   const { registrationEmailAllowed } = require('../../.test-build/lib/constants');
   assert.equal(registrationEmailAllowed('26241463@aluno.univesp.br'), true);
   assert.equal(registrationEmailAllowed(' ALUNO@ALUNO.UNIVESP.BR '), true);
+  assert.equal(registrationEmailAllowed(' 25228073@CURSOS.UNIVESP.BR '), true);
+  assert.equal(registrationEmailAllowed('25228074@cursos.univesp.br'), false);
+  assert.equal(registrationEmailAllowed('25228073+teste@cursos.univesp.br'), false);
+  assert.equal(registrationEmailAllowed('25228073@cursos.univesp.br.example.com'), false);
   assert.equal(registrationEmailAllowed(' FABIOSENA1436@GMAIL.COM '), false);
   assert.equal(registrationEmailAllowed('other@gmail.com'), false);
   assert.equal(registrationEmailAllowed('fabiosena1436+teste@gmail.com'), false);

@@ -77,7 +77,7 @@ export default function CadastroPage() {
             required
             autoComplete="email"
           />
-          <p className="mt-1.5 text-xs text-muted">Cadastro exclusivo para e-mails com final @aluno.univesp.br.</p>
+          <p className="mt-1.5 text-xs text-muted">Cadastro para e-mails @aluno.univesp.br e exceções autorizadas pela administração.</p>
         </Field>
         <Field label="Curso">
           <Input value={course} onChange={(e) => setCourse(e.target.value)} placeholder="Ex.: Engenharia de Computação" required minLength={2} />
