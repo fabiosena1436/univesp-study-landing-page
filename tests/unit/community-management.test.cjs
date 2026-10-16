@@ -5,14 +5,13 @@ const vm = require('node:vm');
 const ts = require('typescript');
 const { randomUUID, webcrypto } = require('node:crypto');
 
-test('community management enforces ownership and quotas against isolated PostgreSQL', async t => {
+test('community management enforces ownership against isolated PostgreSQL', async t => {
   const { PGlite } = await import('@electric-sql/pglite');
   const { drizzle } = await import('drizzle-orm/pglite');
   const pg = new PGlite();
   const db = drizzle(pg);
   const schema = require('../../.test-build/db/schema');
   const errors = require('../../.test-build/lib/errors');
-  const policy = require('../../.test-build/lib/tutorQuotaPolicy');
   const admin = { id: randomUUID(), isAdmin: true }, alice = { id: randomUUID(), isAdmin: false }, bob = { id: randomUUID(), isAdmin: false };
   let current = admin;
   const modules = {
@@ -25,7 +24,6 @@ test('community management enforces ownership and quotas against isolated Postgr
     '@/lib/rateLimit': { rateLimit: async () => {} },
     '@/lib/audit': { audit: async (actorId, action, targetId, tx = db) => { await tx.insert(schema.auditEvents).values({ actorId, action, targetId }); } },
     '@/server/services/telemetry': { instrument: (_route, _method, handler) => handler },
-    '@/lib/tutorQuotaPolicy': policy,
   };
   function load(path) {
     const exports = {};
@@ -34,15 +32,12 @@ test('community management enforces ownership and quotas against isolated Postgr
     return exports;
   }
   const request = (body, query = '') => ({ json: async () => body, nextUrl: new URL('http://localhost/api/test' + query) });
-  const quotaNames = ['AI_TUTOR_DAILY_MESSAGES', 'AI_TUTOR_USER_DAILY_TOKENS', 'AI_TUTOR_SHARED_DAILY_TOKENS', 'AI_TUTOR_SHARED_DAILY_MESSAGES'];
-  const previous = quotaNames.map(name => process.env[name]);
   try {
     await pg.exec("SET TIME ZONE 'UTC'");
     for (const name of fs.readdirSync('migrations').filter(name => name.endsWith('.sql')).sort()) await pg.exec(fs.readFileSync('migrations/' + name, 'utf8'));
     for (const [name, user] of [['admin', admin], ['alice', alice], ['bob', bob]]) await db.insert(schema.users).values({ id: user.id, name, email: name + '@example.invalid', passwordHash: 'test-only', accessStatus: 'approved' });
     const support = load('src/app/api/support/route.ts');
     const notices = load('src/app/api/announcements/route.ts');
-    const quota = load('src/server/services/tutorQuota.ts');
 
     await t.test('admin starts a private conversation, its owner replies, others cannot read or reply', async () => {
       current = admin;
@@ -117,27 +112,6 @@ test('community management enforces ownership and quotas against isolated Postgr
       assert.equal((await (await notices.GET(request(null))).json()).length, 1);
     });
 
-    await t.test('daily limits reserve atomically, settle actual tokens and refund a rejected provider call', async () => {
-      process.env.AI_TUTOR_DAILY_MESSAGES = '1';
-      process.env.AI_TUTOR_USER_DAILY_TOKENS = '10000';
-      process.env.AI_TUTOR_SHARED_DAILY_TOKENS = '20000';
-      process.env.AI_TUTOR_SHARED_DAILY_MESSAGES = '10';
-      const outcomes = await Promise.allSettled([quota.reserveTutorQuota(alice.id, 'Pergunta'), quota.reserveTutorQuota(alice.id, 'Pergunta')]);
-      assert.equal(outcomes.filter(r => r.status === 'fulfilled').length, 1);
-      assert.equal(outcomes.find(r => r.status === 'rejected').reason.status, 429);
-      const reservation = outcomes.find(r => r.status === 'fulfilled').value;
-      await quota.settleTutorQuota(reservation, 100, true);
-      const after = await quota.readTutorQuota(alice.id);
-      assert.equal(after.messagesRemaining, 0); assert.equal(after.tokensUsed, 100);
-      assert.equal(after.tokensRemaining, 9900);
-      const failed = await quota.reserveTutorQuota(bob.id, 'Pergunta');
-      await quota.settleTutorQuota(failed, 0, false);
-      assert.equal((await quota.readTutorQuota(bob.id)).messagesRemaining, 1);
-      assert.equal((await quota.readTutorQuota(bob.id)).tokensUsed, 0);
-      process.env.AI_TUTOR_SHARED_DAILY_TOKENS = '120';
-      await assert.rejects(quota.reserveTutorQuota(bob.id, 'Nova pergunta'), e => e.status === 429 && /comunidade/.test(e.message));
-    });
-
     await t.test('admin-only details expose study metrics, not password hashes; activity does not count idle gaps', async () => {
       const detail = load('src/app/api/admin/users/[id]/route.ts');
       current = bob;
@@ -163,7 +137,6 @@ test('community management enforces ownership and quotas against isolated Postgr
       assert.equal((await db.select().from(schema.users)).find(u => u.id === alice.id).activeSeconds, before);
     });
   } finally {
-    quotaNames.forEach((name, i) => { if (previous[i] === undefined) delete process.env[name]; else process.env[name] = previous[i]; });
     await pg.close();
   }
 });

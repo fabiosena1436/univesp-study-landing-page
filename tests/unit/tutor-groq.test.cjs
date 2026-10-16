@@ -6,7 +6,7 @@ const ts = require('typescript');
 const errors = require('../../.test-build/lib/errors');
 
 test('Groq tutor isolates credentials, preserves study instructions and handles failures safely', async () => {
-  const names = ['GROQ_API_KEY', 'GROQ_TUTOR_MODEL', 'GEMINI_API_KEY', 'AI_TUTOR_MODEL'];
+  const names = ['GROQ_API_KEY', 'GROQ_TUTOR_MODEL', 'GEMINI_API_KEY', 'AI_TUTOR_MODEL', 'AI_TUTOR_DAILY_MESSAGES', 'AI_TUTOR_USER_DAILY_TOKENS', 'AI_TUTOR_SHARED_DAILY_TOKENS', 'AI_TUTOR_SHARED_DAILY_MESSAGES', 'AI_USER_DAILY_TOKEN_BUDGET', 'AI_MONTHLY_TOKEN_BUDGET'];
   const previous = names.map(name => process.env[name]);
   let allowed = true, failure, empty = false, options, sentKey, calls = 0, contextScope;
   const events = [];
@@ -22,8 +22,9 @@ test('Groq tutor isolates credentials, preserves study instructions and handles 
     '@/lib/rateLimit': { rateLimit: async () => {} },
     '@/lib/aiOperation': { aiSignal: () => new AbortController().signal, withAiOperation: (_id, _signal, work) => work() },
     '@/lib/aiUsage': { recordAiRequest: async event => events.push(event) },
-    '@/lib/aiUsageStore': { reserveAiCall: async () => {} },
-    '@/server/services/tutorQuota': { reserveTutorQuota: async () => ({}), settleTutorQuota: async () => {} },
+    // Retired quotas must never block the tutor, even if old environment values remain.
+    '@/lib/aiUsageStore': { reserveAiCall: async () => { throw new Error('Tutor must not reserve a token budget'); } },
+    '@/server/services/tutorQuota': { reserveTutorQuota: async () => { throw new Error('Tutor quotas were removed'); }, settleTutorQuota: async () => { throw new Error('Tutor quotas were removed'); } },
     '@/server/services/tutorContext': { tutorContext: async scope => { contextScope = scope; return { context: 'Enunciado de estudo.', subjectName: 'Ciências', hasReference: true, isQuestion: Boolean(scope.questionId) }; } },
   };
   const exports = {};
@@ -31,6 +32,7 @@ test('Groq tutor isolates credentials, preserves study instructions and handles 
   vm.runInNewContext(code, { exports, require: name => { if (!(name in modules)) throw new Error(name); return modules[name]; }, Response, Request, AbortController, process });
   const request = (scope = { subjectId: 'subject', questionId: 'question', page: '/app/prova' }) => new Request('http://localhost/api/tutor', { method: 'POST', body: JSON.stringify({ question: 'Como estudar?', scope, history: [] }) });
   try {
+    for (const name of names.slice(4)) process.env[name] = '1';
     delete process.env.GROQ_API_KEY;
     delete process.env.GROQ_TUTOR_MODEL;
     process.env.GEMINI_API_KEY = 'gemini-secret';
@@ -72,7 +74,7 @@ test('Groq tutor isolates credentials, preserves study instructions and handles 
     failure = { statusCode: 429, message: 'groq-secret raw error' };
     const limited = await exports.POST(request());
     assert.equal(limited.status, 429);
-    assert.match((await limited.json()).error, /Groq/);
+    assert.match((await limited.json()).error, /limite de uso gratuito/);
     assert.equal(events.at(-1).status, 429);
     failure = { statusCode: 401, message: 'groq-secret' };
     const rejected = await exports.POST(request());

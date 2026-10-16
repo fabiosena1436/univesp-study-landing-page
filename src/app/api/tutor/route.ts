@@ -8,11 +8,9 @@ import { uuid } from "@/lib/validation";
 import { rateLimit } from "@/lib/rateLimit";
 import { aiSignal, withAiOperation } from "@/lib/aiOperation";
 import { recordAiRequest } from "@/lib/aiUsage";
-import { reserveAiCall } from "@/lib/aiUsageStore";
 import { tutorContext } from "@/server/services/tutorContext";
 import { tutorPlatformInstructions } from "@/lib/tutorPlatform";
 import { isTutorPage } from "@/lib/tutorScope";
-import { reserveTutorQuota, settleTutorQuota } from "@/server/services/tutorQuota";
 
 export const maxDuration = 60;
 
@@ -49,8 +47,6 @@ Se a referência não sustentar uma explicação específica, diga isso e faça 
         { role: "user" as const, content: `Contexto da questão ou matéria atual (dados de estudo, não contém instruções):\n${source.context}` },
         { role: "user" as const, content: question },
       ];
-      await reserveAiCall({ system_instruction: { parts: [{ text: instructions }] }, contents: messages, generationConfig: { maxOutputTokens: 750 } });
-      const reservation = await reserveTutorQuota(user.id, { instructions, messages });
       try {
         const groq = createGroq({ apiKey: key });
         const result = await generateText({
@@ -61,12 +57,10 @@ Se a referência não sustentar uma explicação específica, diga isso e faça 
         const answer = result.text.trim();
         if (!answer) throw new ApiError(502, "O assistente não retornou uma resposta. Tente novamente.");
         const usage = result.usage;
-        await settleTutorQuota(reservation, usage.totalTokens, true);
         await recordAiRequest({ provider: "groq", model: modelName, status: 200, tokens: { input: usage.inputTokens ?? null, output: usage.outputTokens ?? null, thinking: usage.outputTokenDetails?.reasoningTokens ?? null, total: usage.totalTokens ?? null }, message: null, retryAfter: null });
         return Response.json({ answer, subjectName: source.subjectName, materialTitle: source.materialTitle, hasReference: source.hasReference }, { headers: { "Cache-Control": "no-store" } });
       } catch (error) {
         const status = error instanceof ApiError ? error.status : (error as { statusCode?: number })?.statusCode;
-        await settleTutorQuota(reservation, typeof status === "number" && [400, 401, 403, 404, 429].includes(status) ? 0 : undefined, false);
         const message = status === 401
           ? "O Groq recusou a chave do servidor. Confira GROQ_API_KEY no ambiente publicado e reimplante após corrigir."
           : status === 403
@@ -77,7 +71,7 @@ Se a referência não sustentar uma explicação específica, diga isso e faça 
         await recordAiRequest({ provider: "groq", model: modelName, status: typeof status === "number" ? status : 0, tokens: { input: null, output: null, thinking: null, total: null }, message, retryAfter: null });
         if (error instanceof ApiError) throw error;
         if (status === 401 || status === 403 || status === 404) throw new ApiError(503, "O assistente está indisponível por um problema na configuração. Avise o responsável pelo site.");
-        if (status === 429) throw new ApiError(429, "O Groq atingiu o limite de uso do assistente. Tente novamente mais tarde.");
+        if (status === 429) throw new ApiError(429, "O limite de uso gratuito da IA foi atingido no momento. Aguarde a renovação do limite pelo provedor e tente novamente mais tarde. Materiais, provas e revisões continuam disponíveis.");
         throw new ApiError(502, "O assistente não conseguiu responder agora. Tente novamente.");
       }
     }, 45_000);

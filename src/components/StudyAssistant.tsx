@@ -7,7 +7,6 @@ import type { Subject } from "@/lib/types";
 import { Button, Select, Spinner, TextArea } from "@/components/ui";
 import { AssistantAnswer } from "@/components/AssistantAnswer";
 import { tutorPages, type TutorScope } from "@/lib/tutorScope";
-import { TutorQuotaMeter } from "@/components/TutorQuotaMeter";
 import { useAssistantPosition } from "./useAssistantPosition";
 
 type Message = { role: "user" | "assistant"; text: string };
@@ -25,7 +24,6 @@ export function StudyAssistant({ scope, subjectName, subjects, selectedSubjectId
   const [messages, setMessages] = useState<Message[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [quotaRevision, setQuotaRevision] = useState(0);
   const dialog = useRef<HTMLDialogElement>(null);
   const request = useRef<AbortController | null>(null);
   const mobileQuiz = scope?.page === "/app/prova" && Boolean(scope.questionId);
@@ -77,7 +75,6 @@ export function StudyAssistant({ scope, subjectName, subjects, selectedSubjectId
     } catch (cause) {
       if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Não foi possível responder agora.");
     } finally {
-      setQuotaRevision(value => value + 1);
       if (request.current === controller) request.current = null;
       setBusy(false);
     }
@@ -126,7 +123,6 @@ export function StudyAssistant({ scope, subjectName, subjects, selectedSubjectId
       </div>
       <form onSubmit={submit} className="max-h-[45%] shrink-0 overflow-y-auto border-t border-line bg-card p-3">
         {position && <button type="button" className="mb-2 text-xs font-semibold text-pen underline" onClick={reset}>Restaurar posição do assistente</button>}
-        {open && <details className="mb-2 text-xs text-muted"><summary className="cursor-pointer py-1 font-semibold">Consultar limite diário de IA</summary><TutorQuotaMeter revision={quotaRevision} /></details>}
         <div className="flex items-end gap-2">
           <TextArea aria-label="Sua pergunta para o assistente" rows={2} maxLength={1000} disabled={!scope} value={input} onChange={event => setInput(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void ask(input); } }} placeholder={scope ? "Escreva sua dúvida…" : "Aguarde uma matéria ser publicada"} className="min-h-11 max-h-28" />
           <Button type="submit" aria-label="Enviar pergunta" disabled={!scope || busy || input.trim().length < 3} className="shrink-0 px-3"><Send size={18} /></Button>
