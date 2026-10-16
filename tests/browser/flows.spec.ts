@@ -299,3 +299,42 @@ test.describe("posição personalizada do assistente", () => {
     await expect.poll(async () => (await launch.boundingBox())?.y ?? 0).toBeGreaterThan(700);
   });
 });
+
+test("administração mostra consumo Gemini e Groq separados também no celular", async ({ page }) => {
+  const database = new URL(config.databaseUrl);
+  if (!database.pathname.startsWith('/aprova_test')) throw new Error('Este teste exige um banco isolado.');
+  const client = new pg.Client({ connectionString: config.databaseUrl });
+  const ids = [randomUUID(), randomUUID()];
+  await client.connect();
+  try {
+    for (const [index, provider] of ['gemini', 'groq'].entries()) {
+      const event = { provider, model: `ui-${provider}-usage`, status: 200, tokens: { input: 10, output: 5, thinking: 0, total: 15 }, message: null, retryAfter: null };
+      await client.query('INSERT INTO audit_events(id,action,target_id) VALUES($1,$2,$3)', [ids[index], `${provider}.request`, JSON.stringify(event)]);
+    }
+    await signIn(page, 'admin@aluno.univesp.br');
+    await page.goto('/app/admin');
+    const gemini = page.getByRole('region', { name: 'Gemini · Geração de questões', exact: true });
+    const groq = page.getByRole('region', { name: 'Groq · Assistente de estudos', exact: true });
+    await expect(gemini).toBeVisible(); await expect(groq).toBeVisible();
+    await expect(gemini).toContainText('Chave Gemini não configurada');
+    await expect(groq).toContainText('Chave Groq não configurada');
+    const response = await page.request.get('/api/admin/ai-usage');
+    expect(response.status()).toBe(200);
+    const usage = await response.json();
+    for (const [provider, region] of [['gemini', gemini], ['groq', groq]] as const) {
+      const period = usage.providers.find((item: { provider: string }) => item.provider === provider).today;
+      await expect(region.locator('tbody tr').first().locator('td').last()).toHaveText(period.total.toLocaleString('pt-BR'));
+    }
+    await groq.getByText('Últimas chamadas Groq', { exact: true }).click();
+    await expect(groq).toContainText('ui-groq-usage');
+    await expect(groq).not.toContainText('ui-gemini-usage');
+    await groq.getByText('Últimas chamadas Groq', { exact: true }).click();
+    await page.setViewportSize({ width: 320, height: 740 });
+    await groq.scrollIntoViewIfNeeded();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: 'artifacts/mobile-ai-providers.png', fullPage: true });
+  } finally {
+    await client.query('DELETE FROM audit_events WHERE id=ANY($1::uuid[])', [ids]);
+    await client.end();
+  }
+});
