@@ -112,6 +112,46 @@ test('community management enforces ownership against isolated PostgreSQL', asyn
       assert.equal((await (await notices.GET(request(null))).json()).length, 1);
     });
 
+    await t.test('AI usage separates Groq from legacy Gemini logs, including zero usage and independent recent calls', async () => {
+      const names = ['GEMINI_API_KEY', 'GROQ_API_KEY', 'GEMINI_MODELS', 'GROQ_TUTOR_MODEL'];
+      const saved = names.map(name => process.env[name]);
+      try {
+        process.env.GEMINI_API_KEY = 'test-only-key';
+        delete process.env.GROQ_API_KEY;
+        process.env.GEMINI_MODELS = 'gemini-test';
+        process.env.GROQ_TUTOR_MODEL = 'groq-test';
+        modules['./aiUsage'] = require('../../.test-build/lib/aiUsage');
+        modules['./aiOperation'] = require('../../.test-build/lib/aiOperation');
+        modules['./rateLimit'] = { rateLimit: async () => {} };
+        const store = load('src/lib/aiUsageStore.ts');
+        const empty = await store.readAiUsage();
+        assert.equal(empty.providers.length, 2);
+        assert.equal(empty.providers.find(p => p.provider === 'groq').today.total, 0);
+        assert.equal(empty.providers.find(p => p.provider === 'groq').startedAt, null);
+        const log = async (action, event, yesterday = false) => pg.query(`INSERT INTO audit_events(action,target_id,created_at) VALUES($1,$2,${yesterday ? "(((now() AT TIME ZONE 'America/Sao_Paulo')::date AT TIME ZONE 'America/Sao_Paulo') - interval '1 microsecond') AT TIME ZONE 'UTC'" : "now() AT TIME ZONE 'UTC'"})`, [action, JSON.stringify(event)]);
+        for (let index = 0; index < 12; index++) await log('gemini.request', { model: 'old-gemini', status: 200, tokens: { input: 10, output: 20, thinking: 1, total: 100 }, message: null, retryAfter: null });
+        await log('groq.request', { provider: 'groq', model: 'groq-test', status: 200, tokens: { input: 30, output: 15, thinking: 5, total: 50 } });
+        await log('groq.request', { provider: 'groq', model: 'groq-test', status: 200, tokens: { input: null, output: null, thinking: null, total: null } });
+        await log('groq.request', { provider: 'groq', model: 'groq-test', status: 429, tokens: { input: null, output: null, thinking: null, total: null } });
+        await log('groq.request', { provider: 'groq', model: 'groq-test', status: 200, tokens: { input: 40, output: 25, thinking: 5, total: 70 } }, true);
+        const result = await store.readAiUsage();
+        const gemini = result.providers.find(p => p.provider === 'gemini'), groq = result.providers.find(p => p.provider === 'groq');
+        assert.equal(gemini.configured, true); assert.equal(groq.configured, false);
+        assert.equal(gemini.today.calls, 12); assert.equal(gemini.today.total, 1200);
+        assert.equal(groq.today.calls, 3); assert.equal(groq.today.failures, 1);
+        assert.equal(groq.today.unreported, 1); assert.equal(groq.today.total, 50);
+        assert.equal(result.today.total, 1250);
+        assert.equal(result.today.calls, gemini.today.calls + groq.today.calls);
+        assert.equal(gemini.recent.length, 10); assert.equal(groq.recent.length, 4);
+        assert.ok(gemini.recent.every(event => event.provider === 'gemini'));
+        assert.ok(groq.recent.every(event => event.provider === 'groq'));
+        assert.ok(groq.startedAt);
+        assert.equal(result.recent.length, 10);
+      } finally {
+        names.forEach((name, index) => { if (saved[index] === undefined) delete process.env[name]; else process.env[name] = saved[index]; });
+      }
+    });
+
     await t.test('admin-only details expose study metrics, not password hashes; activity does not count idle gaps', async () => {
       const detail = load('src/app/api/admin/users/[id]/route.ts');
       current = bob;

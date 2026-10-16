@@ -3,7 +3,8 @@ import { currentAiOperation } from "./aiOperation";
 export type TokenUsage = { input: number | null; output: number | null; thinking: number | null; total: number | null };
 export type AiRequestEvent = { provider?: "gemini" | "groq"; actorId?: string; operationId?: string; model: string; status: number; tokens: TokenUsage; message: string | null; retryAfter: number | null };
 export type AiUsagePeriod = { calls: number; failures: number; unreported: number; input: number | null; output: number | null; thinking: number | null; total: number | null };
-export type AiUsageSummary = { configured: boolean; models: string[]; startedAt: string | null; today: AiUsagePeriod; month: AiUsagePeriod; recent: (AiRequestEvent & { createdAt: string })[] };
+export type AiProviderUsage = { provider: "gemini" | "groq"; configured: boolean; models: string[]; startedAt: string | null; today: AiUsagePeriod; month: AiUsagePeriod; recent: (AiRequestEvent & { createdAt: string })[] };
+export type AiUsageSummary = { configured: boolean; models: string[]; startedAt: string | null; today: AiUsagePeriod; month: AiUsagePeriod; recent: (AiRequestEvent & { createdAt: string })[]; providers: AiProviderUsage[] };
 
 const count = (value: unknown): number | null => typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null;
 export function tokenUsage(raw: unknown): TokenUsage {
