@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { api, formatDate } from "@/lib/api";
 import { whatsappApprovalUrl } from "@/lib/access";
+import { AdminSection } from "./AdminSection";
 import { Badge, Button, Select, TextArea } from "./ui";
 
 type Account = { id: string; name: string; email: string; course: string | null; whatsapp: string | null; accessStatus: "pending" | "approved" | "rejected"; emailVerifiedAt: string | null; isBlocked: boolean; createdAt: string };
@@ -40,8 +41,7 @@ export default function AccessManagement({ onChanged }: { onChanged?: () => void
     finally { setBusy(false); }
   }
   function whatsapp(account: Account) { return whatsappApprovalUrl(account.whatsapp, account.name, window.location.origin); }
-  return <section id="cadastros" className="card p-5 space-y-6 scroll-mt-40">
-    <h2 className="font-semibold text-xl">Aprovação de acesso</h2>
+  return <AdminSection id="cadastros" title="Aprovação de acesso" defaultOpen openEvent="repete:open-registrations">
     <p className="text-sm text-muted">A aprovação libera o conteúdo para o aluno. Contas bloqueadas continuam sem acesso.</p>
     <div className="flex flex-wrap gap-3 items-center"><label htmlFor="access-status">Cadastros</label><Select id="access-status" value={status} onChange={e => { setStatus(e.target.value); setPage(0); setLoading(true); }}><option value="pending">Aguardando aprovação</option><option value="approved">Autorizados</option><option value="rejected">Recusados</option></Select><Button disabled={busy} variant="ghost" onClick={() => setRevision(r => r + 1)}>Atualizar</Button></div>
     {error && <p role="alert" className="text-red">{error}</p>}
@@ -55,13 +55,13 @@ export default function AccessManagement({ onChanged }: { onChanged?: () => void
       </div>
     </div>)}
     <div className="flex gap-3 items-center"><Button disabled={busy || page === 0} variant="ghost" onClick={() => setPage(p => p - 1)}>Anterior</Button><span>Página {page + 1}</span><Button disabled={busy || accounts.length < 50} variant="ghost" onClick={() => setPage(p => p + 1)}>Próxima</Button></div>
-    <div className="border-t border-line pt-5 space-y-3"><h3 className="font-semibold text-lg">E-mails pré-autorizados</h3><p className="text-sm">Cole até 500 e-mails institucionais @aluno.univesp.br, um por linha. Também aceitamos vírgula ou ponto e vírgula. Contas pendentes desses endereços serão aprovadas; contas recusadas ou bloqueadas não serão reativadas.</p>
+    <AdminSection title="E-mails pré-autorizados" nested><p className="text-sm">Cole até 500 e-mails institucionais @aluno.univesp.br, um por linha. Também aceitamos vírgula ou ponto e vírgula. Contas pendentes desses endereços serão aprovadas; contas recusadas ou bloqueadas não serão reativadas.</p>
       <form className="space-y-3" onSubmit={e => { e.preventDefault(); void mutate(async () => { const result = await api<{ added: number; duplicates: number }>("/api/admin/authorized-emails", { method: "POST", body: JSON.stringify({ emails }) }); setEmails(""); setEmailPage(0); setNotice(`${result.added} e-mails adicionados. ${result.duplicates} já estavam na lista.`); }); }}>
         <label className="block text-sm font-semibold" htmlFor="authorized-emails">Lista de e-mails</label><TextArea id="authorized-emails" required rows={5} maxLength={100000} placeholder="aluno@aluno.univesp.br" value={emails} onChange={e => setEmails(e.target.value)} /><Button type="submit" disabled={busy}>Adicionar e-mails</Button>
       </form>
       <p className="text-xs text-muted">Remover um e-mail da lista não revoga uma conta já autorizada. Para isso, use Recusar acesso ou Bloquear nos usuários cadastrados.</p>
       {allowed.map(item => <div key={item.email} className="flex flex-wrap gap-3 items-center border-b border-line py-2"><span className="flex-1 break-all">{item.email}</span><Button disabled={busy} variant="ghost" onClick={() => mutate(async () => { await api(`/api/admin/authorized-emails?email=${encodeURIComponent(item.email)}`, { method: "DELETE" }); setNotice("E-mail removido da lista."); })}>Remover da lista</Button></div>)}
       <div className="flex gap-3 items-center"><Button disabled={busy || emailPage === 0} variant="ghost" onClick={() => setEmailPage(p => p - 1)}>Anterior</Button><span>Página {emailPage + 1}</span><Button disabled={busy || allowed.length < 50} variant="ghost" onClick={() => setEmailPage(p => p + 1)}>Próxima</Button></div>
-    </div>
-  </section>;
+    </AdminSection>
+  </AdminSection>;
 }

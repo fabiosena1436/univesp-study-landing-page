@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { api, formatDate } from "@/lib/api";
 import type { AiProviderUsage, AiUsageSummary } from "@/lib/aiUsage";
+import { AdminSection } from "./AdminSection";
 import { Badge, Button, Spinner } from "@/components/ui";
 
 const number = (value: number | null) => value === null ? "Não informado" : value.toLocaleString("pt-BR");
@@ -17,14 +18,14 @@ export default function AiUsagePanel() {
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
   }, [refresh]);
-  return <section className="card min-w-0 p-4 sm:p-5 space-y-4" aria-labelledby="ai-usage-title">
-    <div className="flex flex-wrap gap-3 items-center justify-between"><h2 id="ai-usage-title" className="font-semibold text-xl">IA: uso e limites</h2><Button variant="ghost" disabled={loading} onClick={() => { setLoading(true); setRefresh(value => value + 1); }}>Atualizar consumo</Button></div>
+  return <AdminSection title="IA: uso e limites">
+    <div className="flex flex-wrap gap-3 items-center justify-between"><Button variant="ghost" disabled={loading} onClick={() => { setLoading(true); setRefresh(value => value + 1); }}>Atualizar consumo</Button></div>
     <p className="text-sm text-muted">Consumo separado por provedor: Gemini gera questões; Groq atende o assistente de estudos. Os valores abaixo são do site, não o saldo disponível da conta em cada provedor.</p>
     {loading && <Spinner />}
     {error && <p role="alert" className="text-red">{error}</p>}
     {usage && <div className="space-y-4">{usage.providers.map(provider => <ProviderUsage key={provider.provider} usage={provider} />)}</div>}
     <p className="text-xs text-muted">Chamadas anteriores ao início do registro e uso em outros aplicativos não entram nestes contadores. Períodos no horário de São Paulo. Os provedores podem limitar solicitações ou tokens por minuto, cota diária ou faturamento.</p>
-  </section>;
+  </AdminSection>;
 }
 
 function ProviderUsage({ usage }: { usage: AiProviderUsage }) {
