@@ -46,7 +46,7 @@ test('student sees messages, subsequent replies, read state and announcements wi
       if (url.pathname === '/api/support') {
         if (route.request().method() === 'PATCH') { unread = 0; latestMessageAt = null; body = { ok: true }; }
         else if (url.searchParams.has('summary')) body = { unread, latestMessageAt };
-        else body = { tickets: messages.length ? [{ id: 'ticket', subject: 'Acompanhamento', status: 'answered' }] : [], messages };
+        else body = { tickets: messages.length ? [{ id: 'ticket', subject: 'Acompanhamento', status: 'answered', updatedAt: latestMessageAt || '2026-10-17T12:01:00Z', userReadAt: unread ? null : '2026-10-17T12:02:00Z' }] : [], messages };
       } else if (url.pathname === '/api/announcements') {
         if (route.request().method() === 'PATCH') { notes = notes.map(n => ({ ...n, readAt: new Date().toISOString() })); body = { ok: true }; }
         else body = notes;
@@ -58,19 +58,30 @@ test('student sees messages, subsequent replies, read state and announcements wi
     await page.clock.install();
     await page.goto('http://notifications.test/app/contato');
     await page.addScriptTag({ content: bundle.outputFiles[0].text });
-    const bell = page.getByRole('link', { name: /^Notificações:/ });
+    const bell = page.getByRole('button', { name: /^Notificações:/ });
     await expect(bell).toHaveAccessibleName(/0 conversa.*0 recado/);
     await expect(page.getByText('Nenhum atendimento nesta página.')).toBeVisible();
+    await bell.click();
+    const dropdown = page.getByRole('region', { name: 'Suas notificações' });
+    await expect(dropdown).toBeVisible();
+    await expect(dropdown.getByText('Nenhuma mensagem recebida.')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(dropdown).toHaveCount(0);
+    await expect(bell).toBeFocused();
 
     unread = 1; latestMessageAt = '2026-10-17T12:00:00Z';
     messages = [{ id: 'first', ticketId: 'ticket', senderId: 'admin', body: 'Mensagem privada do administrador.' }];
     await page.clock.fastForward(30000);
     await expect(bell).toHaveAccessibleName(/1 conversa/);
-    await expect(bell).toHaveAttribute('href', '/app/contato#atendimentos');
     await expect(page.getByText(messages[0].body, { exact: true })).toBeVisible();
     await expect.poll(() => page.evaluate(() => window.toasts.length)).toBe(1);
     await bell.click();
-    await expect(page).toHaveURL(/#atendimentos$/);
+    await expect(bell).toHaveAttribute('aria-expanded', 'true');
+    await expect(dropdown.getByText('Acompanhamento', { exact: false })).toBeVisible();
+    await expect(dropdown.getByText('Administração: Mensagem privada do administrador.')).toBeVisible();
+    await dropdown.getByRole('link', { name: /Abrir conversa/ }).click();
+    await expect(page).toHaveURL(/#conversa-ticket$/);
+    await expect(dropdown).toHaveCount(0);
 
     // Another message in the same unread conversation must still notify.
     latestMessageAt = '2026-10-17T12:01:00Z';
@@ -89,6 +100,9 @@ test('student sees messages, subsequent replies, read state and announcements wi
     await page.clock.fastForward(30000);
     await expect(bell).toHaveAccessibleName(/0 conversa.*1 recado/);
     await bell.click();
+    await expect(dropdown.getByText('Um aviso para o aluno.', { exact: true })).toBeVisible();
+    await dropdown.getByRole('link', { name: /Ler recado/ }).click();
+    await expect(page).toHaveURL(/#recado-notice$/);
     await expect(page.getByRole('heading', { name: /Recado individual/ })).toBeVisible();
     await page.getByRole('button', { name: 'Marcar como lido', exact: true }).click();
     await expect(bell).toHaveAccessibleName(/0 conversa.*0 recado/);
