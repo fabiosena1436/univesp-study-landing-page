@@ -16,11 +16,11 @@ async function handleGET(req: NextRequest) {
     if (admin) await requireAdmin();
     if (req.nextUrl.searchParams.get("summary") === "1") {
       const readAt = admin ? supportTickets.adminReadAt : supportTickets.userReadAt;
-      const [summary] = await db.select({ unread: sql<number>`count(*)::int` }).from(supportTickets).where(and(
+      const [summary] = await db.select({ unread: sql<number>`count(*)::int`, latestMessageAt: sql<string | null>`max(${supportTickets.updatedAt})` }).from(supportTickets).where(and(
         admin ? undefined : eq(supportTickets.userId, user.id),
         sql`(${readAt} IS NULL OR ${readAt} < ${supportTickets.updatedAt})`,
       ));
-      return Response.json({ unread: summary.unread }, { headers: { "Cache-Control": "no-store" } });
+      return Response.json(summary, { headers: { "Cache-Control": "no-store" } });
     }
     const { limit, offset } = pageParams(req.nextUrl.searchParams);
     const tickets = await db

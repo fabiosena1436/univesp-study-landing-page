@@ -2,6 +2,26 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { api, ApiClientError } = require('../../.test-build/lib/api.js');
 
+test('successful message and announcement mutations refresh notifications; reads and failures do not', async t => {
+  const originalWindow = global.window;
+  const events = [];
+  let status = 200;
+  t.mock.method(global, 'fetch', async () => Response.json({}, { status }));
+  global.window = { dispatchEvent: event => events.push(event.type) };
+  try {
+    await api('/api/support', { method: 'PATCH' });
+    await api('/api/announcements', { method: 'POST' });
+    await api('/api/announcements', { method: 'PATCH' });
+    await api('/api/announcements');
+    status = 403;
+    await assert.rejects(api('/api/announcements', { method: 'PATCH' }));
+    assert.deepEqual(events, Array(3).fill('repete:notifications'));
+  } finally {
+    if (originalWindow === undefined) delete global.window;
+    else global.window = originalWindow;
+  }
+});
+
 test('login preserves invalid credentials while protected pages redirect expired sessions', async (t) => {
   const originalWindow = global.window;
   t.mock.method(global, 'fetch', async () => Response.json({ error: 'E-mail ou senha incorretos.' }, { status: 401 }));

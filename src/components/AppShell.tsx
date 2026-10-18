@@ -24,6 +24,7 @@ import {
   UserCircle,
   BrainCircuit,
   Layers3,
+  Bell,
 } from "lucide-react";
 import { api, clearQuizDrafts } from "@/lib/api";
 import type { Subject, User } from "@/lib/types";
@@ -31,7 +32,7 @@ import { Logo } from "./Logo";
 import { StudyAssistant } from "./StudyAssistant";
 import { Spinner } from "./ui";
 import { tutorPageFromPath, type TutorScope } from "@/lib/tutorScope";
-import { CommunityInbox } from "./CommunityInbox";
+import { CommunityInbox, type InboxSummary } from "./CommunityInbox";
 import { ActivityTracker } from "./ActivityTracker";
 import { AdminNotifications } from "./AdminNotifications";
 
@@ -82,6 +83,7 @@ export default function AppShell({ children, initialUser }: { children: ReactNod
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [assistantScope, setAssistantScope] = useState<AssistantScope | null>(null);
   const [assistantSubjectId, setAssistantSubjectId] = useState("");
+  const [inbox, setInbox] = useState<InboxSummary>({ unread: 0, fresh: 0 });
   const router = useRouter();
   const pathname = usePathname();
   const toastShell = useToastsShell();
@@ -162,6 +164,10 @@ export default function AppShell({ children, initialUser }: { children: ReactNod
             <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-3">
               <StudyAssistant key={`${assistantPage}:${currentAssistantScope.subjectId ?? ""}:${currentAssistantScope.materialId ?? ""}:${currentAssistantScope.questionId ?? ""}`} scope={currentAssistantScope} subjectName={currentAssistantSubjectName} subjects={pageScope ? undefined : subjects} selectedSubjectId={assistantSubject?.id ?? ""} onSubjectChange={setAssistantSubjectId} />
               {user.isAdmin && <AdminNotifications key={user.id} userId={user.id} />}
+              {!user.isAdmin && <Link href={inbox.unread ? "/app/contato#atendimentos" : "#recados"} onClick={() => { if (!inbox.unread) window.dispatchEvent(new Event("repete:open-notices")); }} aria-label={`Notificações: ${inbox.unread} conversa(s) não lida(s) e ${inbox.fresh} recado(s) novo(s)`} className="relative rounded-lg p-2 text-white hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-white">
+                <Bell size={21} aria-hidden="true" />
+                {(inbox.unread + inbox.fresh) > 0 && <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-red px-1 text-center text-xs font-bold text-white">{inbox.unread + inbox.fresh > 99 ? "99+" : inbox.unread + inbox.fresh}</span>}
+              </Link>}
               <span className="hidden lg:block text-sm text-white/65 max-w-40 truncate">
                 {user.name}
               </span>
@@ -253,7 +259,7 @@ export default function AppShell({ children, initialUser }: { children: ReactNod
             )}
             </div>
           </aside>
-          <main className="flex-1 min-w-0 w-full pb-24"><CommunityInbox admin={Boolean(user.isAdmin)} />{children}</main>
+          <main className="flex-1 min-w-0 w-full pb-24"><CommunityInbox key={user.id} admin={Boolean(user.isAdmin)} onSummary={setInbox} />{children}</main>
         </div>
       </div>
 
