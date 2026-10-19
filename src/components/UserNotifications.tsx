@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
 import { api, formatDate } from "@/lib/api";
 import type { InboxSummary } from "./CommunityInbox";
@@ -11,6 +12,7 @@ type Message = { ticketId: string; senderId: string; body: string };
 type Notice = { id: string; title: string; body: string; createdAt: string; readAt: string | null };
 
 export function UserNotifications({ summary, userId }: { summary: InboxSummary; userId: string }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -27,8 +29,8 @@ export function UserNotifications({ summary, userId }: { summary: InboxSummary; 
       pending = true; setLoading(true); setError("");
       try {
         const [support, notices] = await Promise.all([
-          api<{ tickets: Ticket[]; messages: Message[] }>("/api/support?limit=10", { signal: controller.signal }),
-          api<Notice[]>("/api/announcements", { signal: controller.signal }),
+          api<{ tickets: Ticket[]; messages: Message[] }>("/api/support?limit=10&unread=1", { signal: controller.signal }),
+          api<Notice[]>("/api/announcements?unread=1", { signal: controller.signal }),
         ]);
         if (alive) setData({ ...support, notices });
       } catch { if (alive) setError("Não foi possível carregar as notificações."); }
@@ -49,6 +51,15 @@ export function UserNotifications({ summary, userId }: { summary: InboxSummary; 
       document.removeEventListener("keydown", escape);
     };
   }, [open, revision]);
+  async function view(kind: "ticket" | "notice", id: string, href: string, updatedAt?: string) {
+    try {
+      await api(kind === "ticket" ? "/api/support" : "/api/announcements", { method: "PATCH", body: JSON.stringify(kind === "ticket" ? { ticketId: id, read: true, viewedAt: updatedAt } : { id, read: true }) });
+      setData(value => value && ({ ...value, tickets: kind === "ticket" ? value.tickets.filter(item => item.id !== id) : value.tickets, notices: kind === "notice" ? value.notices.filter(item => item.id !== id) : value.notices }));
+      if (kind === "notice") window.dispatchEvent(new Event("repete:open-notices"));
+      setOpen(false);
+      router.push(href);
+    } catch { setError("Não foi possível registrar a leitura. Tente abrir a notificação novamente."); }
+  }
   const count = summary.unread + summary.fresh;
   return <div ref={root} className="relative">
     <button ref={button} type="button" aria-label={`Notificações: ${summary.unread} conversa(s) não lida(s) e ${summary.fresh} recado(s) novo(s)`} aria-expanded={open} aria-controls="user-notifications" onClick={() => setOpen(value => !value)} className="relative rounded-lg p-2 text-white hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-white">
@@ -61,11 +72,11 @@ export function UserNotifications({ summary, userId }: { summary: InboxSummary; 
       {error && <p role="alert" className="text-sm text-red">{error} <button type="button" className="underline" onClick={() => setRevision(value => value + 1)}>Tentar novamente</button></p>}
       {!error && data && <>
         <div className="space-y-2"><h3 className="text-sm font-semibold">Mensagens da administração</h3>
-          {!data.tickets.length && <p className="text-sm text-muted">Nenhuma mensagem recebida.</p>}
-          {data.tickets.map(ticket => {
+          {!data.tickets.some(ticket => !ticket.userReadAt || Date.parse(ticket.userReadAt) < Date.parse(ticket.updatedAt)) && <p className="text-sm text-muted">Nenhuma mensagem nova.</p>}
+          {data.tickets.filter(ticket => !ticket.userReadAt || Date.parse(ticket.userReadAt) < Date.parse(ticket.updatedAt)).map(ticket => {
             const last = data.messages.filter(message => message.ticketId === ticket.id).at(-1);
             const unread = !ticket.userReadAt || Date.parse(ticket.userReadAt) < Date.parse(ticket.updatedAt);
-            return <Link key={ticket.id} href={`/app/contato#conversa-${ticket.id}`} onClick={() => setOpen(false)} className="block rounded-lg border border-line p-3 text-sm hover:bg-surface focus-visible:outline-2 focus-visible:outline-pen">
+            return <Link key={ticket.id} href={`/app/contato#conversa-${ticket.id}`} onClick={event => { event.preventDefault(); void view("ticket", ticket.id, `/app/contato#conversa-${ticket.id}`, ticket.updatedAt); }} className="block rounded-lg border border-line p-3 text-sm hover:bg-surface focus-visible:outline-2 focus-visible:outline-pen">
               <span className="block font-semibold break-words">{ticket.subject}{unread && <span className="ml-2 text-xs text-pen">Nova mensagem</span>}</span>
               {last && <span className="mt-1 block break-words text-muted">{last.senderId === userId ? "Você: " : "Administração: "}{last.body.slice(0, 180)}{last.body.length > 180 ? "…" : ""}</span>}
               <span className="mt-2 block text-xs text-muted">{formatDate(ticket.updatedAt)}</span>
@@ -74,8 +85,8 @@ export function UserNotifications({ summary, userId }: { summary: InboxSummary; 
           })}
         </div>
         <div className="space-y-2"><h3 className="text-sm font-semibold">Recados da administração</h3>
-          {!data.notices.length && <p className="text-sm text-muted">Nenhum recado para você.</p>}
-          {data.notices.slice(0, 10).map(notice => <Link key={notice.id} href={`#recado-${notice.id}`} onClick={() => { window.dispatchEvent(new Event("repete:open-notices")); setOpen(false); }} className="block rounded-lg border border-line p-3 text-sm hover:bg-surface focus-visible:outline-2 focus-visible:outline-pen">
+          {!data.notices.some(notice => !notice.readAt) && <p className="text-sm text-muted">Nenhum recado novo.</p>}
+          {data.notices.filter(notice => !notice.readAt).slice(0, 10).map(notice => <Link key={notice.id} href={`#recado-${notice.id}`} onClick={event => { event.preventDefault(); void view("notice", notice.id, `#recado-${notice.id}`); }} className="block rounded-lg border border-line p-3 text-sm hover:bg-surface focus-visible:outline-2 focus-visible:outline-pen">
             <span className="block font-semibold break-words">{notice.title}{!notice.readAt && <span className="ml-2 text-xs text-pen">Novo recado</span>}</span>
             <span className="mt-1 block break-words text-muted">{notice.body.slice(0, 180)}{notice.body.length > 180 ? "…" : ""}</span>
             <span className="mt-2 block text-xs text-muted">{formatDate(notice.createdAt)}</span>

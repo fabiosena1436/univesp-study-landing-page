@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
       recipientId: announcements.recipientId, recipientName: users.name, createdAt: announcements.createdAt, readAt: announcementReads.readAt })
       .from(announcements).leftJoin(users, eq(users.id, announcements.recipientId))
       .leftJoin(announcementReads, and(eq(announcementReads.announcementId, announcements.id), eq(announcementReads.userId, user.id)))
-      .where(manage ? undefined : and(eq(announcements.active, true), or(isNull(announcements.recipientId), eq(announcements.recipientId, user.id))))
+      .where(manage ? undefined : and(eq(announcements.active, true), or(isNull(announcements.recipientId), eq(announcements.recipientId, user.id)), req.nextUrl.searchParams.get("unread") === "1" ? isNull(announcementReads.readAt) : undefined))
       .orderBy(desc(announcements.createdAt), desc(announcements.id)).limit(50);
     return Response.json(rows, { headers: { "Cache-Control": "no-store" } });
   } catch (e) { return handleError(e); }

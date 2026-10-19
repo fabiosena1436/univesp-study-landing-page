@@ -29,7 +29,7 @@ function loadRoute(path, { signedIn = true, materialArchived = false, subjectArc
       requireAdmin: async () => { throw new ApiError(signedIn ? 403 : 401, 'Acesso restrito ao administrador.'); },
     },
     '@/server/services/telemetry': { instrument: (_route, _method, handler) => handler }, '@/lib/mfa': { validateMfa: () => null }, '@/lib/clientRateLimit': { limitClient: async () => {} }, '@/lib/aiOperation': { withAiOperation: (_id, _signal, work) => work() }, '@/lib/pdfValidation': {}, '@/lib/errors': { ApiError, handleError, isUuid },
-    '@/lib/audit': {}, '@/lib/validation': {}, '@/lib/pdf': {}, '@/lib/rateLimit': {}, '@/lib/ai': {}, '@/lib/options': {},
+    '@/lib/contentNotice': {}, '@/lib/audit': {}, '@/lib/validation': {}, '@/lib/pdf': {}, '@/lib/rateLimit': {}, '@/lib/ai': {}, '@/lib/options': {},
   };
   const exports = {};
   const code = ts.transpileModule(fs.readFileSync(path, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;

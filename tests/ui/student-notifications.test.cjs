@@ -26,7 +26,7 @@ test('student sees messages, subsequent replies, read state and announcements wi
           loader: 'tsx', resolveDir: process.cwd(), contents: args.path === 'next/link'
             ? `import React from 'react'; export default function Link(props) { return <a {...props} />; }`
             : args.path === 'next/navigation'
-              ? `export const usePathname = () => '/app/contato'; export const useRouter = () => ({});`
+              ? `export const usePathname = () => '/app/contato'; export const useRouter = () => ({ push: href => { window.location.href = href; } });`
               : args.path === 'motion/react'
                 ? `export const MotionConfig = ({ children }) => children;`
                 : `export const StudyAssistant = () => null; export const ActivityTracker = () => null;`,
@@ -46,10 +46,10 @@ test('student sees messages, subsequent replies, read state and announcements wi
       if (url.pathname === '/api/support') {
         if (route.request().method() === 'PATCH') { unread = 0; latestMessageAt = null; body = { ok: true }; }
         else if (url.searchParams.has('summary')) body = { unread, latestMessageAt };
-        else body = { tickets: messages.length ? [{ id: 'ticket', subject: 'Acompanhamento', status: 'answered', updatedAt: latestMessageAt || '2026-10-17T12:01:00Z', userReadAt: unread ? null : '2026-10-17T12:02:00Z' }] : [], messages };
+        else body = { tickets: messages.length && (!url.searchParams.has('unread') || unread) ? [{ id: 'ticket', subject: 'Acompanhamento', status: 'answered', updatedAt: latestMessageAt || '2026-10-17T12:01:00Z', userReadAt: unread ? null : '2026-10-17T12:02:00Z' }] : [], messages };
       } else if (url.pathname === '/api/announcements') {
-        if (route.request().method() === 'PATCH') { notes = notes.map(n => ({ ...n, readAt: new Date().toISOString() })); body = { ok: true }; }
-        else body = notes;
+        if (route.request().method() === 'PATCH') { const { id } = route.request().postDataJSON(); notes = notes.map(n => n.id === id ? ({ ...n, readAt: new Date().toISOString() }) : n); body = { ok: true }; }
+        else body = url.searchParams.has('unread') ? notes.filter(n => !n.readAt) : notes;
       } else if (!url.pathname.startsWith('/api/')) {
         return route.fulfill({ contentType: 'text/html', body: '<html><body><div id="root"></div></body></html>' });
       }
@@ -64,7 +64,7 @@ test('student sees messages, subsequent replies, read state and announcements wi
     await bell.click();
     const dropdown = page.getByRole('region', { name: 'Suas notificações' });
     await expect(dropdown).toBeVisible();
-    await expect(dropdown.getByText('Nenhuma mensagem recebida.')).toBeVisible();
+    await expect(dropdown.getByText('Nenhuma mensagem nova.')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(dropdown).toHaveCount(0);
     await expect(bell).toBeFocused();
@@ -82,29 +82,40 @@ test('student sees messages, subsequent replies, read state and announcements wi
     await dropdown.getByRole('link', { name: /Abrir conversa/ }).click();
     await expect(page).toHaveURL(/#conversa-ticket$/);
     await expect(dropdown).toHaveCount(0);
+    await expect(bell).toHaveAccessibleName(/0 conversa/);
+    await bell.click();
+    await expect(dropdown.getByText('Nenhuma mensagem nova.')).toBeVisible();
+    await page.keyboard.press('Escape');
 
-    // Another message in the same unread conversation must still notify.
-    latestMessageAt = '2026-10-17T12:01:00Z';
+    // Reading the first reply must not suppress a later reply in the same thread.
+    unread = 1; latestMessageAt = '2026-10-17T12:01:00Z';
     messages.push({ id: 'second', ticketId: 'ticket', senderId: 'admin', body: 'Segunda resposta na mesma conversa.' });
     await page.getByRole('textbox', { name: 'Responder conversa: Acompanhamento' }).fill('Rascunho preservado');
     await page.clock.fastForward(30000);
     await expect(page.getByText(messages[1].body, { exact: true })).toBeVisible();
     await expect.poll(() => page.evaluate(() => window.toasts.length)).toBe(2);
     await expect(page.getByRole('textbox', { name: 'Responder conversa: Acompanhamento' })).toHaveValue('Rascunho preservado');
+    await page.clock.fastForward(1500);
+    await expect(bell).toHaveAccessibleName(/0 conversa/); // A visible conversation is acknowledged automatically.
     await page.clock.fastForward(30000);
     await expect.poll(() => page.evaluate(() => window.toasts.length)).toBe(2);
 
     await page.getByRole('button', { name: 'Marcar conversa como lida' }).click();
     await expect(bell).toHaveAccessibleName(/0 conversa/);
-    notes = [{ id: 'notice', title: 'Recado individual', body: 'Um aviso para o aluno.', createdAt: '2026-10-17T12:02:00Z', readAt: null }];
+    notes = [{ id: 'notice', title: 'Recado individual', body: 'Um aviso para o aluno.', createdAt: '2026-10-17T12:02:00Z', readAt: null }, { id: 'pdf', title: 'Novo PDF disponível', body: 'PDF de matemática.', createdAt: '2026-10-17T12:03:00Z', readAt: null }];
     await page.clock.fastForward(30000);
-    await expect(bell).toHaveAccessibleName(/0 conversa.*1 recado/);
+    await expect(bell).toHaveAccessibleName(/0 conversa.*2 recado/);
     await bell.click();
     await expect(dropdown.getByText('Um aviso para o aluno.', { exact: true })).toBeVisible();
-    await dropdown.getByRole('link', { name: /Ler recado/ }).click();
+    await dropdown.getByRole('link', { name: /Recado individual/ }).click();
     await expect(page).toHaveURL(/#recado-notice$/);
     await expect(page.getByRole('heading', { name: /Recado individual/ })).toBeVisible();
-    await page.getByRole('button', { name: 'Marcar como lido', exact: true }).click();
+    // Opening this individual notice records its read receipt automatically.
+    await expect(bell).toHaveAccessibleName(/0 conversa.*1 recado/);
+    await bell.click();
+    await expect(dropdown.getByRole('link', { name: /Recado individual/ })).toHaveCount(0);
+    await expect(dropdown.getByRole('link', { name: /Novo PDF disponível/ })).toBeVisible();
+    await dropdown.getByRole('link', { name: /Novo PDF disponível/ }).click();
     await expect(bell).toHaveAccessibleName(/0 conversa.*0 recado/);
     // A saved link must expand notices after their asynchronous initial load.
     await page.goto('http://notifications.test/app/contato#recados');

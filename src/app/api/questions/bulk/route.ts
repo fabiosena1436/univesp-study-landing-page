@@ -9,6 +9,7 @@ import { requireContentManager } from "@/lib/auth";
 import { ApiError, handleError, str } from "@/lib/errors";
 import { uuid, validateOptions } from "@/lib/validation";
 import { audit } from "@/lib/audit";
+import { contentNotice } from "@/lib/contentNotice";
 import { rateLimit } from "@/lib/rateLimit";
 import { completeQuestionAnswers } from "@/lib/ai";
 
@@ -61,6 +62,7 @@ async function handlePOST(req: NextRequest) {
         ? await tx.insert(questions).values(clean).onConflictDoNothing({ target: [questions.subjectId, questions.fingerprint] }).returning({ id: questions.id })
         : await tx.insert(questions).values(clean).returning({ id: questions.id });
       await audit(user.id, "question.import", subjectId, tx);
+      if (inserted.length) await contentNotice(tx, user.id, "Novas questões disponíveis", `${inserted.length} nova(s) questão(ões) de ${sub.name}. Acesse Nova prova e escolha essa matéria para praticar.`);
       return { inserted: inserted.length, skipped: clean.length - inserted.length };
     });
     return Response.json(result, { status: 201 });

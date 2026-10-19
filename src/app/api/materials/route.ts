@@ -4,6 +4,7 @@ import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { materialFiles, materials, questions, subjects } from "@/db/schema";
 import { audit } from "@/lib/audit";
+import { contentNotice } from "@/lib/contentNotice";
 import { pageParams, uuid } from "@/lib/validation";
 import { requireContentManager, requireUser } from "@/lib/auth";
 import { PDF_REQUEST_MAX_BYTES } from "@/lib/pdfValidation";
@@ -111,7 +112,7 @@ async function handlePOST(req: NextRequest) {
       throw new ApiError(413, "O material é enorme. Divida em dois materiais menores.");
 
     const sub = await db
-      .select({ id: subjects.id })
+      .select({ id: subjects.id, name: subjects.name })
       .from(subjects)
       .where(and(eq(subjects.id, subjectId), isNull(subjects.archivedAt)))
       .limit(1);
@@ -132,6 +133,7 @@ async function handlePOST(req: NextRequest) {
       .returning();
       if (pdfData) await tx.insert(materialFiles).values({ materialId: result[0].id, filename, data: pdfData });
       await audit(user.id, "material.create", result[0].id, tx);
+      await contentNotice(tx, user.id, pdfData ? "Novo PDF disponível" : "Novo material disponível", `${title || filename} · ${sub[0].name}. Acesse Materiais (PDF) para estudar o conteúdo.`);
       return result;
     });
     const material = rows[0];

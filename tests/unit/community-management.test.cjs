@@ -19,6 +19,7 @@ test('community management enforces ownership against isolated PostgreSQL', asyn
     '@/lib/auth': {
       requireUser: async () => { if (!current) throw new errors.ApiError(401, 'Entre'); return current; },
       requireAdmin: async () => { if (!current?.isAdmin) throw new errors.ApiError(403, 'Restrito'); return current; },
+      requireContentManager: async () => { if (!current?.isAdmin) throw new errors.ApiError(403, 'Restrito'); return current; },
     },
     '@/lib/errors': errors, '@/lib/validation': require('../../.test-build/lib/validation'),
     '@/lib/rateLimit': { rateLimit: async () => {} },
@@ -28,7 +29,7 @@ test('community management enforces ownership against isolated PostgreSQL', asyn
   function load(path) {
     const exports = {};
     const code = ts.transpileModule(fs.readFileSync(path, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
-    vm.runInNewContext(code, { exports, require: name => name in modules ? modules[name] : require(name), Response, Request, Buffer, process, crypto: webcrypto, console });
+    vm.runInNewContext(code, { exports, require: name => name in modules ? modules[name] : require(name), Response, Request, File, Buffer, process, crypto: webcrypto, console });
     return exports;
   }
   const request = (body, query = '') => ({ json: async () => body, nextUrl: new URL('http://localhost/api/test' + query) });
@@ -38,6 +39,50 @@ test('community management enforces ownership against isolated PostgreSQL', asyn
     for (const [name, user] of [['admin', admin], ['alice', alice], ['bob', bob]]) await db.insert(schema.users).values({ id: user.id, name, email: name + '@example.invalid', passwordHash: 'test-only', accessStatus: 'approved' });
     const support = load('src/app/api/support/route.ts');
     const notices = load('src/app/api/announcements/route.ts');
+    modules['@/lib/contentNotice'] = load('src/lib/contentNotice.ts');
+    modules['@/lib/fingerprint'] = load('src/lib/fingerprint.ts');
+    modules['@/lib/aiOperation'] = { withAiOperation: (_id, _signal, work) => work() };
+    modules['@/lib/ai'] = { completeQuestionAnswers: async input => input };
+    modules['@/lib/pdfValidation'] = { PDF_REQUEST_MAX_BYTES: 5 * 1024 * 1024 };
+    modules['@/lib/pdf'] = { cleanExtractedText: text => text, pdfValidationError: () => null, extractPdfText: async () => ({ text: 'Conteúdo PDF. '.repeat(50), pages: 1 }) };
+
+    await t.test('publishing material, PDF and question batches creates atomic unread notices with individual receipts', async () => {
+      current = admin;
+      const [subject] = await db.insert(schema.subjects).values({ userId: admin.id, name: 'Matemática' }).returning();
+      const materialRoute = load('src/app/api/materials/route.ts');
+      const bulkRoute = load('src/app/api/questions/bulk/route.ts');
+      const jsonRequest = body => new Request('http://localhost/api/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const material = await materialRoute.POST(jsonRequest({ subjectId: subject.id, title: 'Aula de frações', text: 'Explicação de frações. '.repeat(50) }));
+      assert.equal(material.status, 201);
+      const form = new FormData();
+      form.set('subjectId', subject.id); form.set('title', 'PDF da aula');
+      form.set('file', new File(['%PDF-test-only'], 'aula.pdf', { type: 'application/pdf' }));
+      assert.equal((await materialRoute.POST(new Request('http://localhost/api/test', { method: 'POST', body: form }))).status, 201);
+      const questions = [{ statement: 'Qual é a soma de dois e dois?', options: [{ key: 'A', text: 'Quatro' }, { key: 'B', text: 'Cinco' }], correctKey: 'A' }];
+      const imported = await bulkRoute.POST(jsonRequest({ subjectId: subject.id, questions, skipDuplicates: true }));
+      assert.equal(imported.status, 201);
+      assert.equal((await imported.json()).inserted, 1);
+      const repeated = await bulkRoute.POST(jsonRequest({ subjectId: subject.id, questions, skipDuplicates: true }));
+      assert.equal((await repeated.json()).inserted, 0);
+      assert.equal((await materialRoute.POST(jsonRequest({ subjectId: subject.id, text: 'Curto' }))).status, 422);
+      let published = await db.select().from(schema.announcements);
+      assert.equal(published.length, 3); // No duplicate-only or failed-upload notices.
+      assert.deepEqual(new Set(published.map(n => n.title)), new Set(['Novo material disponível', 'Novo PDF disponível', 'Novas questões disponíveis']));
+      // The notification must roll back together with a failed content transaction.
+      await assert.rejects(db.transaction(async tx => { await modules['@/lib/contentNotice'].contentNotice(tx, admin.id, 'Rollback', 'Não deve aparecer'); throw Error('rollback'); }));
+      assert.equal((await db.select().from(schema.announcements)).length, 3);
+      current = alice;
+      const inbox = await (await notices.GET(request(null, '?unread=1'))).json();
+      assert.equal(inbox.length, 3);
+      assert.equal((await notices.PATCH(request({ id: inbox[0].id, read: true }))).status, 200);
+      assert.equal((await (await notices.GET(request(null, '?unread=1'))).json()).length, 2);
+      assert.equal((await (await notices.GET(request(null))).json()).length, 3); // History is preserved.
+      current = bob;
+      assert.equal((await (await notices.GET(request(null, '?unread=1'))).json()).length, 3);
+      current = admin;
+      // Keep unrelated announcement tests independent of these fixtures.
+      await db.delete(schema.announcements);
+    });
 
     await t.test('admin starts a private conversation, its owner replies, others cannot read or reply', async () => {
       current = admin;
@@ -69,10 +114,15 @@ test('community management enforces ownership against isolated PostgreSQL', asyn
       assert.ok(Date.parse(afterReply.latestMessageAt) > Date.parse(beforeReply.latestMessageAt));
       assert.equal(inbox.tickets[0].userReadAt, null);
       assert.equal(inbox.messages[0].senderId, admin.id);
+      // Reading an older on-screen version cannot acknowledge a concurrent reply.
+      assert.equal((await support.PATCH(request({ ticketId, read: true, viewedAt: beforeReply.latestMessageAt }))).status, 200);
+      assert.equal((await (await support.GET(request(null, '?unread=1'))).json()).tickets.length, 1);
       assert.equal((await support.PATCH(request({ ticketId, read: true }))).status, 200);
       const readSummary = await (await support.GET(request(null, '?summary=1'))).json();
       assert.equal(readSummary.unread, 0);
       assert.equal(readSummary.latestMessageAt, null);
+      assert.equal((await (await support.GET(request(null, '?unread=1'))).json()).tickets.length, 0);
+      assert.equal((await (await support.GET(request(null))).json()).tickets.length, 1);
       assert.equal((await support.PATCH(request({ ticketId, message: 'Estou revisando matemática.' }))).status, 200);
       current = admin;
       const reply = await (await support.GET(request(null))).json();

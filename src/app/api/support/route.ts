@@ -38,7 +38,7 @@ async function handleGET(req: NextRequest) {
       })
       .from(supportTickets)
       .innerJoin(users, eq(users.id, supportTickets.userId))
-      .where(admin ? undefined : eq(supportTickets.userId, user.id))
+      .where(and(admin ? undefined : eq(supportTickets.userId, user.id), req.nextUrl.searchParams.get("unread") === "1" ? sql`(${admin ? supportTickets.adminReadAt : supportTickets.userReadAt} IS NULL OR ${admin ? supportTickets.adminReadAt : supportTickets.userReadAt} < ${supportTickets.updatedAt})` : undefined))
       .orderBy(desc(supportTickets.updatedAt), desc(supportTickets.id)).limit(limit).offset(offset);
     const ids = tickets.map((t) => t.id);
     const messages = ids.length
@@ -97,7 +97,11 @@ async function handlePATCH(req: NextRequest) {
       if (!ticket) throw new ApiError(404, "Atendimento não encontrado.");
       if (!user.isAdmin && ticket.userId !== user.id) throw new ApiError(404, "Atendimento não encontrado.");
       if (body?.read === true) {
-        await tx.update(supportTickets).set(user.isAdmin ? { adminReadAt: new Date() } : { userReadAt: new Date() }).where(eq(supportTickets.id, ticketId));
+        const viewedAt = body.viewedAt === undefined ? ticket.updatedAt : new Date(str(body.viewedAt, 64));
+        if (!Number.isFinite(viewedAt.getTime())) throw new ApiError(400, "Data de leitura inválida.");
+        // Preserve PostgreSQL microseconds when acknowledging the latest version.
+        const readAt = viewedAt.getTime() >= ticket.updatedAt.getTime() ? supportTickets.updatedAt : viewedAt;
+        await tx.update(supportTickets).set(user.isAdmin ? { adminReadAt: readAt } : { userReadAt: readAt }).where(eq(supportTickets.id, ticketId));
         return;
       }
       await tx.insert(supportMessages).values({ ticketId, senderId: user.id, body: message });
