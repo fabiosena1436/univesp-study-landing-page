@@ -163,8 +163,8 @@ export default function AppShell({ children, initialUser }: { children: ReactNod
             <p className="hidden lg:block text-sm font-medium text-white/60">Seu espaço de estudos</p>
             <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-3">
               <StudyAssistant key={`${assistantPage}:${currentAssistantScope.subjectId ?? ""}:${currentAssistantScope.materialId ?? ""}:${currentAssistantScope.questionId ?? ""}`} scope={currentAssistantScope} subjectName={currentAssistantSubjectName} subjects={pageScope ? undefined : subjects} selectedSubjectId={assistantSubject?.id ?? ""} onSubjectChange={setAssistantSubjectId} />
-              {user.isAdmin && <AdminNotifications key={user.id} userId={user.id} />}
-              {!user.isAdmin && <UserNotifications key={user.id} summary={inbox} userId={user.id} />}
+              {user.isAdmin && <AdminNotifications key={`${user.id}:${pathname}`} userId={user.id} />}
+              {!user.isAdmin && <UserNotifications key={`${user.id}:${pathname}`} summary={inbox} userId={user.id} />}
               <span className="hidden lg:block text-sm text-white/65 max-w-40 truncate">
                 {user.name}
               </span>

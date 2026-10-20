@@ -24,9 +24,12 @@ test('student sees messages, subsequent replies, read state and announcements wi
         builder.onResolve({ filter: /^next\/(link|navigation)$|^motion\/react$|\/StudyAssistant$|\/ActivityTracker$/ }, args => ({ path: args.path, namespace: 'stub' }));
         builder.onLoad({ filter: /.*/, namespace: 'stub' }, args => ({
           loader: 'tsx', resolveDir: process.cwd(), contents: args.path === 'next/link'
-            ? `import React from 'react'; export default function Link(props) { return <a {...props} />; }`
+            ? `import React from 'react'; import { useRouter } from 'next/navigation'; export default function Link({ onClick, ...props }) { const router = useRouter(); return <a {...props} onClick={event => { onClick?.(event); if (!event.defaultPrevented) { event.preventDefault(); router.push(props.href); } }} />; }`
             : args.path === 'next/navigation'
-              ? `export const usePathname = () => '/app/contato'; export const useRouter = () => ({ push: href => { window.location.href = href; } });`
+              ? `import { useSyncExternalStore } from 'react';
+                const subscribe = callback => { window.addEventListener('popstate', callback); return () => window.removeEventListener('popstate', callback); };
+                export const usePathname = () => useSyncExternalStore(subscribe, () => window.location.pathname);
+                export const useRouter = () => ({ push: href => { const oldHash = window.location.hash; window.history.pushState(null, '', href); window.dispatchEvent(new PopStateEvent('popstate')); if (oldHash !== window.location.hash) window.dispatchEvent(new HashChangeEvent('hashchange')); } });`
               : args.path === 'motion/react'
                 ? `export const MotionConfig = ({ children }) => children;`
                 : `export const StudyAssistant = () => null; export const ActivityTracker = () => null;`,
@@ -120,6 +123,20 @@ test('student sees messages, subsequent replies, read state and announcements wi
     // A saved link must expand notices after their asynchronous initial load.
     await page.goto('http://notifications.test/app/contato#recados');
     await page.addScriptTag({ content: bundle.outputFiles[0].text });
+    await expect(page.getByRole('heading', { name: 'Recado individual', exact: true })).toBeVisible();
+
+    // The shared shell must close expanded notices and the bell on navigation.
+    await bell.click();
+    await expect(dropdown).toBeVisible();
+    await page.getByRole('link', { name: 'Painel', exact: true }).first().focus();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL('http://notifications.test/app');
+    await expect(dropdown).toHaveCount(0);
+    await expect(page.locator('#recados details')).not.toHaveAttribute('open', '');
+    await expect(page.getByRole('heading', { name: 'Recado individual', exact: true })).toBeHidden();
+    await page.getByRole('link', { name: 'Falar com admin', exact: true }).first().click();
+    await expect(page.locator('#recados details')).not.toHaveAttribute('open', '');
+    await page.getByText('Recados da administração', { exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Recado individual', exact: true })).toBeVisible();
     expect(errors).toEqual([]);
   } finally { await browser.close(); }
